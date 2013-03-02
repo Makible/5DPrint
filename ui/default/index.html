@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+
+        <link rel="stylesheet" href="/css/normalize.css">
+        <link rel="stylesheet" href="/css/main.css">
+        <link rel="stylesheet" href="/css/fonts.css">
+        <script src="/js/vendor/modernizr-2.6.2.min.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+        <![endif]-->
+
+        <!--p>5DPrint</p-->
+
+        <nav>
+            <div id="nav" class="btn icon-th-list">
+            </div>
+            <div id="menu">
+                <ul>
+                    <li class="btn ">load file</li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="wrapper">
+            <section id="pactions">
+                <div id="start" class="btn icon-play"></div>
+                <div id="pause" class="btn icon-pause"></div>
+                <div id="stop" class="btn icon-stop"></div>
+            </section>
+
+            <section id="misc">
+                <!-- TODO -->
+                <div id="status"></div>
+                <div id="file"></div>
+            </section>
+
+            <section id="movement">
+                <label for="x" class="header">x</label>
+                <label for="y" class="header">y</label>
+                <label for="z" class="header">z</label>
+                <label for="e" class="header">e</label>
+
+                <p></p>
+
+                <div id="x" class="mover">
+                    <div class="btn plus icon-up-open-big"></div>
+                    <input type="number" min="0" max="200" class="steps" value="5" />
+                    <label class="mm">mm</label>
+
+                    <input type="number" min="0" max="3000" class="speed" value="300" />
+                    <div class="btn minus icon-down-open-big"></div>
+                    <label class="mmm">mm/min.</label>
+                </div>
+                <div id="y" class="mover">
+                    <div class="btn plus icon-up-open-big"></div>
+                    <input type="number" min="0" max="200" class="steps" value="5" />
+                    <label class="mm">mm</label>
+
+                    <input type="number" min="0" max="3000" class="speed" value="300" />
+                    <div class="btn minus icon-down-open-big"></div>
+                    <label class="mmm">mm/min.</label>
+                </div>
+                <div id="z" class="mover">
+                    <div class="btn plus icon-up-open-big"></div>
+                    <input type="number" min="0" max="200" class="steps" value="5" />
+                    <label class="mm">mm</label>
+
+                    <input type="number" min="0" max="3000" class="speed" value="300" />
+                    <div class="btn minus icon-down-open-big"></div>
+                    <label class="mmm">mm/min.</label>
+                </div>
+                <div id="e1" class="mover">
+                    <div class="btn plus icon-up-open-big"></div>
+                    <input type="number" min="0" max="200" class="steps" value="5" />
+                    <label class="mm">mm</label>
+
+                    <input type="number" min="0" max="3000" class="speed" value="300" />
+                    <div class="btn minus icon-down-open-big"></div>
+                    <label class="mmm">mm/min.</label>
+                </div>
+
+                <div id="home" class="icon-home">
+                    <div id="ha" class="btn">all</div>
+                    <div id="hx" class="btn">x</div>
+                    <div id="hy" class="btn">y</div>
+                    <div id="hz" class="btn">z</div>
+                </div>
+            </section>
+
+            <section id="temperature">
+                <div class="label">extruder</div>
+                <div id="hotend" class="scale">
+                    <div class="valu">
+                        <div class="actual">
+                            240<span class="deg">&deg;C</span>
+                        </div>
+                        <input type="number" min="0" max="300" class="intemp" value="240" />
+                        <div class="btn set" data-heater="he">set</div>
+                    </div>
+                </div>
+
+                <div class="label">hot bed</div>
+                <div id="hotbed" class="scale" data-temp="100">
+                    <div class="valu">
+                        <div class="actual">
+                            100<span class="deg">&deg;C</span>
+                        </div>
+                        <input type="number" min="0" max="120" class="intemp" value="100" />
+                        <div class="btn set" data-heater="hb">set</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="console">
+            </section>
+
+            <section id="viewer">
+            </section>
+        </div>
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
+        <script src="/js/plugins.js"></script>
+        <script src="/js/main.js"></script>
+    </body>
+</html>
