@@ -8,6 +8,9 @@ import (
     "runtime"
     "encoding/json"
     "strconv"
+    "strings"
+    "io/ioutil"
+    // "time"
 )
 
 const defbaud = 115200
@@ -34,7 +37,19 @@ func Init() (*Device, error) {
     //  the device list
     devName := "/dev/tty.usbmodem001"
     if runtime.GOOS == "windows" {
-        devName = "COM3"
+        //  [HACK]
+        //  temporary hack for Windows
+        //  to let the user create a .txt
+        //  file in the data dir for us to
+        //  know what the COM port enumerates
+        info, err := ioutil.ReadDir("data/")
+        if err != nil {
+            return nil, fmt.Errorf("[ERROR] trouble while attempting to get COM info from 'data/': %#v\n", err)
+        }
+        if strings.HasPrefix(info[0].Name(), "__COM") {
+            devName = strings.Trim(info[0].Name(), "__")
+            devName = strings.Trim(devName, ".txt")
+        }
     }
 
     d := &Device {
@@ -52,7 +67,7 @@ func Init() (*Device, error) {
     //  we're talking to for now
     n, err := dev.Write([]byte(makibox.FIRMWARE_VERSION_MCODE))
     if err != nil {
-        log.Fatal(fmt.Printf("[ERROR] trouble while sending device request: %#v", err))
+        log.Fatal(fmt.Printf("[ERROR] trouble while sending device request: %#v\n", err))
     }
 
     buf := make([]byte, 64)
@@ -86,9 +101,7 @@ func Init() (*Device, error) {
     return d, nil
 }
 
-func (dev *Device) Do(action string, params string) error {
-    log.Printf("[DBG] %s\n", params)
-
+func (dev *Device) Do(action string, params string) (string, error) {
     switch action {
     case "move":
         var (
@@ -97,7 +110,7 @@ func (dev *Device) Do(action string, params string) error {
         )
 
         if err := json.Unmarshal([]byte(params), &mvr); err != nil {
-            return err
+            return "", err
         }
 
         //  TODO:
@@ -108,6 +121,11 @@ func (dev *Device) Do(action string, params string) error {
         //  grok the cmd
         axis := mvr.Axis
         cmd := "G1 " + axis
+
+        //  [HACK]
+        if axis == "E1" {
+            cmd = "G1 E"
+        }
 
         //  since we're using absolute positioning
         //  we will want to track where the device
@@ -146,13 +164,13 @@ func (dev *Device) Do(action string, params string) error {
         cmd += makibox.FIRMWARE_LINE_TERMINATOR
 
         //  lob
-        if err := dev.LobCommand(cmd); err != nil {
-            return err
+        if _, err := dev.LobCommand(cmd); err != nil {
+            return "", err
         }
     case "home":
         var mvr Movement
         if err := json.Unmarshal([]byte(params), &mvr); err != nil {
-            return err
+            return "", err
         }
 
         //  grok the cmd
@@ -163,8 +181,8 @@ func (dev *Device) Do(action string, params string) error {
         cmd += makibox.FIRMWARE_LINE_TERMINATOR
 
         //  lob
-        if err := dev.LobCommand(cmd); err != nil {
-            return err
+        if _, err := dev.LobCommand(cmd); err != nil {
+            return "", err
         }
 
         //  reset position
@@ -175,45 +193,87 @@ func (dev *Device) Do(action string, params string) error {
             E1: 0,
         }
 
-    // // case "print":
-    // //     log.Println("print")
+    case "print":
+        var (
+            gc  GCodeFile
+            cmd string
+        )
+        if err := json.Unmarshal([]byte(params), &gc); err != nil {
+            return "", err
+        }
 
-    // // case "temper":
-    // //     log.Println("temper")
+        lines := strings.Split(gc.Data, "\n")
 
-    // // case "status":
-    // //     log.Println("status")
+        // log.Printf("%d\n", len(lines))
+        for _, ln := range lines {
+            log.Printf("[INFO] cmd: %s\n", ln)
+            if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
+                cmd = ln
+                if !strings.HasSuffix(ln, "\r\n") {
+                    cmd += makibox.FIRMWARE_LINE_TERMINATOR
+                }
+                resp, err := dev.LobCommand(cmd)
+                if err != nil {
+                    log.Printf("[ERROR] %s :: %v\n", resp, err)
+                    return resp, err
+                }
+                log.Printf("[INFO] device response: %s\n", resp)
+            }
+        }
+    case "temper":
+        var (
+            tmp Temper
+            cmd string
+        )
 
+        if err := json.Unmarshal([]byte(params), &tmp); err != nil {
+            return "", err
+        }
+
+        switch tmp.Heater {
+        case "hotbed":
+            cmd = "M140 S" + strconv.Itoa(tmp.Temp) + "\r\n"
+        case "hotend":
+            cmd = "M104 S" + strconv.Itoa(tmp.Temp) + "\r\n"
+        default:
+            log.Println("[WARN] doesn't appear to be a valid heater")
+        }
+
+        resp, err := dev.LobCommand(cmd)
+        if err != nil {
+            return resp, err
+        }
+        log.Printf("%s\n", resp)
+
+    case "status":
+        cmd := "M105" + makibox.FIRMWARE_LINE_TERMINATOR
+        resp, err := dev.LobCommand(cmd)
+        if err != nil {
+            return "", err
+        }
+        return resp, nil
     default:
         log.Printf("[WARN] doesn't appear to be a valid action: %s\n", action)
         // ummm, do nothing ???
     }
 
-    return nil
+    return "", nil
 }
 
-func (dev *Device) LobCommand(cmd string) error {
+func (dev *Device) LobCommand(cmd string) (string, error) {
     //  check if valid code in device codes ::TODO::
     //  if so, then lob to the device
     n, err := dev.IODevice.Write([]byte(cmd))
     if err != nil {
-        return err
+        return "", err
     }
 
     //  read response from device
-    //  and log for now
-    buf := make([]byte, 64)
+    buf := make([]byte, 255)
     n, err = dev.IODevice.Read(buf)
-    if err != nil {
-        return err
-    }
-
     if n < 1 {
         log.Printf("[ERROR] looks like the device didn't respond properly: %d\n", n)
-        return nil
+        return "", nil
     }
-
-    //  make it look pretty
-    makibox.PrettifyResponse(string(buf[:n]))
-    return nil
+    return string(buf[:n]), nil
 }

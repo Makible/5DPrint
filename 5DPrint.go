@@ -63,6 +63,16 @@ func main() {
     // initExtListener()    //  TODO ::
 }
 
+//  this is the device listener that 
+//  will launch a listenter for devices
+//  to be attached
+func initDeviceListener() {
+
+}
+
+//  this is the "core" server that will
+//  manage the traffic from the client
+//  to the attached device(s)
 func initCore() {
 	flag.Parse()
 
@@ -100,6 +110,10 @@ func initCore() {
 		http.Error(w, "not found", 404)
 	})
 
+    //  for now, we're going to launch the
+    //  base A6 printer UI, but in the future
+    //  we'll want to launch the admin and 
+    //  signal the device UI
 	go func() {
 		url := "http://" + httpAddr
 		if wait(url) && *openBrowser && launchBrowser(url) {
@@ -109,6 +123,13 @@ func initCore() {
 		}
 	}()
 	log.Fatal(http.ListenAndServe(httpAddr, nil))
+}
+
+//  this will allow for external apps
+//  to connect and communicate with 
+//  attached devices 
+func initExtListener() {
+    //  TODO
 }
 
 //  wait a bit for the server to start
@@ -198,8 +219,18 @@ func wsHandler(c *websocket.Conn) {
             case "core":
                 //  do some "core" related task
             case "device":
-                if err := ioDev.Do(m.Action, m.Body); err != nil {
+                r, err := ioDev.Do(m.Action, m.Body)
+                if err != nil {
                     log.Printf("[ERROR] device didn't do action: %v\n", err)
+                }
+
+                if len(r) > 0 {
+                    msg := device.Message {
+                        Type:   "response",
+                        Action: "status",
+                        Body:   r,
+                    }
+                    out <- &msg
                 }
             default:
                 log.Printf("[WARN] not a valid message type: %s\n", m.Type)

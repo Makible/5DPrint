@@ -10,6 +10,25 @@ type Device struct {
     Speed       int
     Pos         Position
     Homed       bool
+    Lock        bool
+}
+
+type GCodeFile struct {
+    Name    string
+    Data    string
+}
+
+type Message struct {
+    Id      string
+    Type    string
+    Action  string
+    Body    string
+}
+
+type Movement struct {
+    Axis        string
+    Distance    int `json: ",string"`
+    Speed       int `json: ",string"`
 }
 
 type Position struct {
@@ -19,15 +38,7 @@ type Position struct {
     E1  int
 }
 
-type Movement struct {
-    Axis        string
-    Distance    int `json: ",string"`
-    Speed       int `json: ",string"`
-}
-
-type Message struct {
-    Id      string
-    Type    string
-    Action  string
-    Body    string
+type Temper struct {
+    Heater  string
+    Temp    int `json: ",string"`
 }

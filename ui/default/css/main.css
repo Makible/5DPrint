@@ -137,9 +137,9 @@ nav {
 
 #menu {
     position: relative;
-    margin: 6px 0 0 6px;
+    margin: 1px 0 0 24px;
     width: 240px;
-    height: 380px;
+    height: 280px;
     background-color: #eee;
     color: #333;
     border: 1px solid #333;
@@ -150,8 +150,27 @@ nav {
     display: none;
 }
 
+#menu ul {
+    margin-top: 6px;
+    padding: 0 10px 0 10px;
+}
+
 #menu li {
+    width: 188px;
+    margin-left: 5px;
+    padding: 12px 0 12px 18px;
+    border-bottom: 1px solid #888;
+    font-size: 1.3em;
     cursor: pointer;
+}
+
+#menu li:hover {
+    background-color: #888;
+    cursor: pointer;
+}
+
+#menu li.last {
+    border-bottom: 0;
 }
 
 .wrapper {
@@ -404,8 +423,12 @@ label[for='e'] {
     right: -44px;
 }
 
-
-
+/* MENU ITEMS */
+input.fi {
+    width: 0;
+    height: 0;
+    margin-left: -10px;
+}
 
 
 
