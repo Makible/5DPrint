@@ -19,12 +19,21 @@
         <!--[if lt IE 7]>
             <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
         <![endif]-->
-
-        <!--p>5DPrint</p-->
-
         <nav>
-            <div id="nav" class="btn icon-th-list">
+            <div id="nav" class="btn icon-down-dir-1">menu  </div>
+
+            <div id="pactions">
+                <div id="start" class="btn icon-play"></div>
+                <div id="pause" class="btn icon-pause"></div>
+                <div id="stop" class="btn icon-stop"></div>
             </div>
+
+            <div id="misc">
+                <!-- TODO -->
+                <div id="status"></div>
+                <div id="file"></div>
+            </div>
+
             <div id="menu">
                 <ul>
                     <li id="load" class="btn menu">load file</li>
@@ -37,26 +46,45 @@
         </nav>
 
         <div class="wrapper">
-            <section id="pactions">
-                <div id="start" class="btn icon-play"></div>
-                <div id="pause" class="btn icon-pause"></div>
-                <div id="stop" class="btn icon-stop"></div>
-            </section>
-
-            <section id="misc">
-                <!-- TODO -->
-                <div id="status"></div>
-                <div id="file"></div>
-            </section>
-
             <section id="movement">
-                <label for="x" class="header">x</label>
-                <label for="y" class="header">y</label>
-                <label for="z" class="header">z</label>
-                <label for="e" class="header">e</label>
+                <div id="controller">
+                    <div id="xneg" class="base"></div>
+                    <div id="ypos" class="base"></div>
+                    <div id="xpos" class="base"></div>
+                    <div id="yneg" class="base"></div>
+                </div>
 
-                <p></p>
 
+                <!-- <div id="x" class="header">x</div> -->
+                <!-- <div id="y" class="header">y</div> -->
+                <!-- <div id="z" class="header">z</div> -->
+                <!-- <label for="e" class="header">e</label> -->
+
+                <!--div id="controller">
+                    <div id="xneg" class="mover">
+                        <div id="xneg-txt" class="mover-text">-</div>
+                    </div>
+
+                    <div id="ypos" class="mover">
+                        <div id="ypos-txt" class="mover-text">+</div>
+                    </div>
+
+                    <label class="mm">mm</label>
+                    <input type="number" min="0" max="200" class="steps" value="20" />
+
+                    <label class="mmm">mm/min.</label>
+                    <input type="number" min="0" max="3000" class="speed" value="300" />
+
+                    <div id="xpos" class="mover">
+                        <div id="xpos-txt" class="mover-text">+</div>
+                    </div>
+
+                    <div id="yneg" class="mover">
+                        <div id="yneg-txt" class="mover-text">-</div>
+                    </div>
+                </div-->
+
+                <!--
                 <div id="x" class="mover">
                     <div class="btn plus icon-up-open-big"></div>
                     <input type="number" min="0" max="200" class="steps" value="5" />
@@ -93,9 +121,10 @@
                     <div class="btn minus icon-down-open-big"></div>
                     <label class="mmm">mm/min.</label>
                 </div>
-
-                <div id="home" class="icon-home">
+                -->
+                <div id="homer">
                     <div id="ha" class="btn">all</div>
+                    <div class="icon-home"></div>
                     <div id="hx" class="btn">x</div>
                     <div id="hy" class="btn">y</div>
                     <div id="hz" class="btn">z</div>
@@ -131,8 +160,17 @@
 
             <section id="viewer">
             </section>
-        </div>
 
+            <section id="status">
+            </section>
+        </div>
+        
+        <div id="init" class="overlay">
+            <div id="over-msg">
+                <img src="/img/loader.gif" class="loader" />
+                <div class="init-msg">initializing device(s)...</div>
+            </div>
+        </div>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
         <script src="/js/plugins.js"></script>

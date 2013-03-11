@@ -6,27 +6,78 @@
 //  this info in the near future
 var socket,
     statTimer,
-    socketAddr  = 'ws://localhost:8080/socket';
+    connTimer,
+    deviceName,
+    socketAddr  = 'ws://localhost:8080/abs';
+
+
+
+//  WARNING!!!! THE BELOW CODE IS BAD!!!!
+var dn = '/dev/tty.usbmodem001';
+// var dn = 'COM3';
 
 $(document).ready(function() {
+    //  display "initializing" message
+    //  attempt to create a socket and 
+    //  see if a device is connected
+    //  if no device present, display
+    //  "connect or power on device" 
+    //  message
+
+    //  display init message
+    $('#init').show();
     attachBtnEvents();
 
-    //  start socket
-    socket              = new WebSocket(socketAddr);
-    socket.onmessage    = onMsg;
-    socket.onclose      = onClose;
+    // start websocket
+    // socket              = new WebSocket(socketAddr);
+    // socket.onmessage    = onMsg;
+    // socket.onclose      = onClose;
 
-    //  start status timer
-    //  statTimer = setInterval(getStats, 500);
-     statTimer = setInterval(getStats, 1000);
+    //  ping core to see if a
+    //  device has been attached
+    // connTimer = setInterval(checkConn, 1000);
+
+
+    //  ===[ DEBUG ]
+    $('#init').hide();
 });
+
+var initUIWithDev = function(msg) {
+    if(msg.Device == '') {
+        //  ===[ TODO ]
+        //  display no device attached msg
+        //  and attach checkConn timer
+        $('#over-msg').html('[WARNING] <br />No device detected. Please attach or power on a valid device.');
+        connTimer = setInterval(checkConn, 1500);
+        return;
+    } else {
+        $('#over-msg').html('<img src="/img/loader.gif" class="loader" /><div class="init-msg">initializing device(s)...</div>');
+        deviceName  = msg.Device;
+        var greet   = msg.Body;
+
+        //  ===[ TODO ]
+        //  display the greeting / firmware
+        //  version info in the "status"
+        //  display area ...
+        console.log(deviceName);
+        console.log(greet);
+
+        //  init UI button events and 
+        //  hide init message
+        attachBtnEvents();
+        $('#init').fadeOut(500);
+
+        //  start status timer
+        // statTimer = setInterval(getStats, 500); 
+        statTimer = setInterval(getStats, 1000); 
+    }
+};
 
 //  TODO:
 //  pause the getStats timer while a long function
 //  (like homing) is being done, to reduce the risk
 //  of overflowing the MCU
 //  ... will this apply for prints(?)
-
 var attachBtnEvents = function() {
     $('.btn').each(function() {
         var btn = this;
@@ -57,6 +108,8 @@ var attachBtnEvents = function() {
 var nav = function() {
     $('#menu').toggle();
     if($('#menu').is(':visible')) {
+        $('#nav').addClass('nav-hover');
+
         $('#menu')
             .find('.btn')
             .each(function() {
@@ -64,8 +117,11 @@ var nav = function() {
                 $(btn).off('click')
                       .on('click', function(evt) {
                         menus(btn);
+                        $('#nav').click();
                     });
                 });
+    }else {
+        $('#nav').removeClass('nav-hover');
     }
 };
 
@@ -134,7 +190,7 @@ var temper = function(btn) {
 var menus = function(btn) {
     switch ($(btn).attr('id')) {
     case 'load':
-        clearInterval(statTimer);
+        window.clearInterval(statTimer);
         //  open file dialog
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
@@ -171,16 +227,19 @@ var menus = function(btn) {
     default:
         break;
     }
-}
+};
 
 
 //  ===[ SOCKET HANDLERS ]
 var onMsg = function(e) {
     msg = JSON.parse(e.data);
-    if(msg.Type === "response") {
+    if(msg.Type === 'response') {
         switch(msg.Action) {
-        case "status":
+        case 'status':
             updateUIStatus(msg.Body);
+            break;
+        case 'dev-check':
+            initUIWithDev(msg);
             break;
         default:
             console.log("[WARN] doesn't appear to be a valid action");
@@ -200,6 +259,11 @@ var getStats = function() {
     sendDevMsg('status', '');
 };
 
+var checkConn = function() {
+    sendCoreMsg('dev-check', '');
+    window.clearInterval(connTimer);
+}
+
 var updateUIStatus = function(content) {
     //  TODO:
     //  right now, we're only updating the
@@ -210,12 +274,12 @@ var updateUIStatus = function(content) {
 };
 
 var sendCoreMsg = function(action, body) {
-    msg = JSON.stringify({ Type: 'core', Action: action, Body: JSON.stringify(body) });
+    msg = JSON.stringify({ Type: 'core', Device: '', Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
 var sendDevMsg = function(action, body) {
-    msg = JSON.stringify({ Type: 'device', Action: action, Body: JSON.stringify(body) });
+    msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
@@ -228,3 +292,9 @@ var shipFile = function(evt) {
     $('#floader').remove();
     $('#nav').click();
 };
+
+var sleep = function(ms) {
+    var dt = new Date();
+    dt.setTime(dt.getTime() + ms);
+    while (new Date().getTime() < dt.getTime());
+}

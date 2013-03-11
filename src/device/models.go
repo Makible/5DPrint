@@ -2,43 +2,45 @@ package device
 
 import "io"
 
+type Message struct {
+	Type   string //  core or device message
+	Device string //  device.Name
+	Action string //  action to be performed (e.g. print, move, temper, etc...)
+	Body   string //  message content
+}
+
 type Device struct {
-    Name        string
-    Baud        int
-    IODevice    io.ReadWriteCloser
-    ActionMap   string // change to JSON
-    Speed       int
-    Pos         Position
-    Homed       bool
-    Lock        bool
+	Name      string
+	Baud      int
+	IODevice  io.ReadWriteCloser
+	MoveSpeed int
+	Pos       Position
+	Homed     bool
+	Greeting  string
+	In 		  chan *Message
+	Out 	  chan *Message
+	// DeviceActionMap   should be a list of json "Actions"
 }
 
 type GCodeFile struct {
-    Name    string
-    Data    string
-}
-
-type Message struct {
-    Id      string
-    Type    string
-    Action  string
-    Body    string
-}
-
-type Movement struct {
-    Axis        string
-    Distance    int `json: ",string"`
-    Speed       int `json: ",string"`
+	Name string
+	Data string
 }
 
 type Position struct {
-    X   int
-    Y   int
-    Z   int
-    E1  int
+	X  int
+	Y  int
+	Z  int
+	E1 int
+}
+
+type Movement struct {
+	Axis     string
+	Distance int `json: ",string"`
+	Speed    int `json: ",string"`
 }
 
 type Temper struct {
-    Heater  string
-    Temp    int `json: ",string"`
+	Heater string
+	Temp   int `json: ",string"`
 }
