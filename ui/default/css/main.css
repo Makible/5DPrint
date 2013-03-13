@@ -224,6 +224,13 @@ nav {
     /*border: 1px solid red;*/
 }
 
+.label {
+    position: relative;
+    margin-top: 8px;
+    text-transform: uppercase;
+    float: right;
+}
+
 /* PRINT ACTIONS */
 #pactions div {
     display: inline-block;
@@ -484,6 +491,7 @@ nav {
     border-top: 2px solid rgba(43, 180, 255, 0.8);
     border-left: 3px solid rgba(43, 180, 255, 0.8);
     border-bottom: 2px solid rgba(43, 180, 255, 0.8);
+    box-shadow: inset 1px 0px 8px 0px rgba(0, 0, 0, 0.4);
 }
 
 #zlabel:after,
@@ -510,19 +518,16 @@ nav {
     position: absolute;
     width: 280px;
     height: 114px;
-    background-repeat: no-repeat;
 }
 
 #zneg:before {
     top: 0px;
     left: 0px;
-    background-image: url();
 }
 
 #zpos:before {
     top: 0px;
     left: 0px;
-    background-image: url();
 }
 
 #e1neg,
@@ -541,6 +546,7 @@ nav {
     border-top: 2px solid rgba(43, 180, 255, 0.8);
     border-right: 3px solid rgba(43, 180, 255, 0.8);
     border-bottom: 2px solid rgba(43, 180, 255, 0.8);
+    box-shadow: inset -1px 0px 8px 0px rgba(0, 0, 0, 0.4);
 }
 
 #elabel:after {
@@ -555,31 +561,69 @@ nav {
 
 /* TEMP SECTION */
 #temperature {
-    position: relative;
-    display: inline-block;
-    float: right;
-    margin-right: 240px;
+    position: absolute;
+    top: 70px;
+    left: 940px;
     width: 240px;
     height: 480px;
-
-    /*border: 1px solid #888;*/
 }
 
-.label {
-    position: relative;
-    margin-top: 8px;
-    text-transform: uppercase;
-    float: right;
+#temperature .label {
+    position: absolute;
+    color: #666;
+}
+
+#hotend-ico,
+#hotbed-ico {
+   position: absolute;
+   width: 34px;
+   height: 34px;
+   border: 1px solid #888;
+   border-radius: 34px;
+   font-size: 0.8em;
+   opacity: 0.7;
+   box-shadow: inset 0px 0px 8px 0px rgba(0, 0, 0, 0.4);
+   background-color: #ddd;
+}
+
+#hotend-ico,
+#hotbed-ico {
+   top: -18px;
+   left: 180px;
+}
+
+#platform {
+    position: absolute;
+    top: 3px;
+    left: 9px;
+    -webkit-transform: rotate(180deg);
+    -moz-transform:    rotate(180deg);
+    -ms-transform:     rotate(180deg);
+    -o-transform:      rotate(180deg);
+    transform:         rotate(180deg);
+}
+
+#extrusion {
+    position: absolute;
+    top: 15px;
+    left: 9px;
+}
+
+.icon-fire {
+    position: absolute;
+    top: 7px;
+    left: 11px;
 }
 
 #hotend {
-    margin-top: 14px;
-    margin-left: -78px;
+    top: 14px;
+    right: 78px;
 }
 
 #hotbed {
-    margin-top: -40px;
-    margin-left: 78px;
+    position: absolute;
+    top: 180px;
+    left: 120px;
 }
 
 .scale {
@@ -589,12 +633,13 @@ nav {
     height: 200px;
     border: 1px solid #1c8cc8;
     border-top: 2px solid #1c8cc8;
-    border-bottom: 1px solid transparent;
+    border-bottom: 2px solid transparent;
     border-radius: 100px;
+    box-shadow: inset 0px 4px 5px rgba(100, 100, 100, 0.4);
 }
 
 .valu {
-    margin: 72px 42px;
+    margin: 54px 45px;
     width: 100%;
 }
 
@@ -640,19 +685,19 @@ nav {
 /* HOME ACTIONS */
 #homer {
     position: absolute;
-    top: 420px;
-    left: 64px;
-    width: 240px;
-    height: 240px;
+    top: 430px;
+    left: 140px;
+    width: 160px;
+    height: 160px;
     font-size: 1.8em;
-    background-image: url(../img/homer.png);
-    background-repeat: no-repeat;
+    border: 2px solid #888;
+    border-radius: 240px;
 }
 
 .icon-home {
     position: absolute;
-    top: 98px;
-    left: 96px;
+    top: 58px;
+    left: 58px;
     width: 43px;
     height: 43px;
     padding-right: 1px;
@@ -666,38 +711,70 @@ nav {
 #homer div.btn {
     position: absolute;
     width: 42px;
-    height: 50px;
-    color: #666;
+    height: 42px;
+    background-color: #888;
+    font-size: 0.7em;
+    line-height: 2.1em;
+    color: #fff;
     text-transform: uppercase;
     text-align: center;
-    font-size: 0.6em;
-    line-height: 3.2em;
+    border-top: 2px solid rgba(43, 180, 255, 0.8);
+    border-right: 3px solid rgba(43, 180, 255, 0.8);
+    border-bottom: 2px solid rgba(43, 180, 255, 0.8);
+    border-radius: 48px;
     cursor: pointer;
 }
 
-#homer div.btn:hover {
-    color: #1c8cc8;
-}
-
 #homer #ha {
-    top: 96px;
-    left: 8px;
-    font-size: 0.5em;
+    top: 59px;
+    left: -18px;
+    font-size: 0.6em;
+    line-height: 2.3em;
+    border-top: 2px solid rgba(43, 180, 255, 0.8);
+    border-left: 3px solid rgba(43, 180, 255, 0.8);
+    border-bottom: 2px solid rgba(43, 180, 255, 0.8);
+    border-right: 0;
 }
 
-#hx {
-    top: 30px;
-    right: 30px;
+#ha:after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 33px;
+    border-top: 19px solid transparent;
+    border-right: 0px solid transparent;
+    border-bottom: 19px solid transparent;
+    border-left: 19px solid #888;
+    border-radius: 42px;
+    z-index: -1;
 }
 
-#hy {
-    top: 90px;
-    right: 6px;
+#homer #hz {
+    top: -24px;
+    right: 54px;
+    border: 2px solid rgba(43, 180, 255, 0.8);
 }
 
-#hz {
-    top: 152px;
-    right: 26px;
+#homer #hx {
+    top: 60px;
+    right: -18px;
+    border: 2px solid rgba(43, 180, 255, 0.8);
+}
+
+#homer #hy {
+    top: 118px;
+    right: 8px;
+    border: 2px solid rgba(43, 180, 255, 0.8);
+}
+
+#hz:hover,
+#hx:hover,
+#hy:hover {
+    box-shadow: inset 0px 0px 8px 0px rgba(0, 0, 0, 0.4);
+}
+
+#ha:hover {
+    box-shadow: inset 3px 0px 8px 0px rgba(0, 0, 0, 0.4);
 }
 
 /* MENU ITEMS */
@@ -706,7 +783,6 @@ input.fi {
     height: 0;
     margin-left: -10px;
 }
-
 
 
 

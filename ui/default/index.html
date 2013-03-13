@@ -52,8 +52,6 @@
                     <div id="zpos" class="btn icon-down-open-big"></div>
                     <div id="z" class="island">
                         <div id="zlabel" class="label">z</div>
-                        <!-- <label for="zsteps" class="mm">mm</label> -->
-                        <!-- <label for="zspeed" class="mmm">mm/min.</label> -->
                         <input id="zsteps" type="number" min="0" max="200" class="steps" value="5" />
                         <input id="zspeed" type="number" min="0" max="3000" class="speed" value="3000" />
                     </div>
@@ -73,8 +71,6 @@
                     <div id="e1neg" class="btn icon-down-open-big"></div>
                     <div id="e" class="island">
                         <div id="elabel" class="label">e</div>
-                        <!-- <label for="esteps" class="mm">mm</label> -->
-                        <!-- <label for="espeed" class="mmm">mm/min.</label> -->
                         <input id="esteps" type="number" min="0" max="200" class="steps" value="5" />
                         <input id="espeed" type="number" min="0" max="3000" class="speed" value="3000" />
                     </div>
@@ -84,15 +80,18 @@
                 <div id="homer">
                     <div id="ha" class="btn">all</div>
                     <div class="icon-home"></div>
+                    <div id="hz" class="btn">z</div>
                     <div id="hx" class="btn">x</div>
                     <div id="hy" class="btn">y</div>
-                    <div id="hz" class="btn">z</div>
                 </div>
             </section>
 
             <section id="temperature">
-                <div class="label">extruder</div>
                 <div id="hotend" class="scale">
+                    <div id="hotend-ico" class="label">
+                        <div id="platform" class="icon-campsite"></div>
+                        <div id="extrusion" class="icon-split"></div>
+                    </div>
                     <div class="valu">
                         <div class="actual">
                             240<span class="deg">&deg;C</span>
@@ -102,8 +101,10 @@
                     </div>
                 </div>
 
-                <div class="label">bed</div>
                 <div id="hotbed" class="scale" data-temp="100">
+                    <div id="hotbed-ico" class="label">
+                        <div class="icon-fire"></div>
+                    </div>
                     <div class="valu">
                         <div class="actual">
                             100<span class="deg">&deg;C</span>
