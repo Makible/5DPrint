@@ -103,6 +103,9 @@ var attachBtnEvents = function() {
             }
         });
     });
+
+    //  we'll attach some UI flurishes here
+    
 };
 
 var nav = function() {
