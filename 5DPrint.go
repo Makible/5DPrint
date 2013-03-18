@@ -26,7 +26,6 @@ var (
     devices     = make(map[string]*device.Device)
 
     sockOut     chan *device.Message
-    errc        chan error
 	localAddr   string
 )
 
@@ -39,7 +38,6 @@ func main() {
     //  init "core"
     flag.Parse()
     sockOut = make(chan *device.Message)
-    errc    = make(chan error, 1)
 
     // devices = make(map[string]*device.Device)
     host, port, err := net.SplitHostPort(*httpListen)
@@ -126,15 +124,10 @@ func initDeviceListener() {
 
                 go func() {
                     for {
-                        //  read in from the device's action 
-                        //  queue and send to socket channel
+                        //  read in from print queue
+                        //  and send to socket channel
                         m := <- d.AQOut
-
-                        if m.Type == "error" {
-                            errc <- fmt.Errorf("[ERROR] issue in device queue: %s", m.Body)
-                        } else {
-                            sockOut <-m
-                        }
+                        sockOut <- m
                     }
                 }()
             }
@@ -202,6 +195,7 @@ func renderUI(w io.Writer) error {
 //  traffic to and from the UI and Core
 func coreWsHandler(c *websocket.Conn) {
 	in := make(chan *device.Message)
+	errc := make(chan error, 1)
 
 	//  decode incoming client messages
 	//  and push to in channel
@@ -238,27 +232,21 @@ func coreWsHandler(c *websocket.Conn) {
             if m.Type == "core" {
                 //  do some "core" related task
                 if m.Action == "dc" {
-                    n, b := "", ""
+                    n, g := "", ""
                     if len(devices) > 0 {
                         var names []string
                         for n, _ := range devices {
                             names = append(names, n)
                         }
 
-                        d := devices[names[0]]
-                        n = d.Name
-                        b = d.Greeting
-
-                        if d.Printing {
-                            b = "{status: \"printing\", "
-                            b += "fname: \"" + d.GCode.Name + "\"}"
-                        }
+                        n = names[0]
+                        g = (devices[names[0]]).Greeting
 
                         sockOut <- &device.Message {
                             Type:   "response",
                             Action: "dc",
                             Device: n,
-                            Body:   b,
+                            Body:   g,
                         }
                     }
                 }
@@ -268,7 +256,21 @@ func coreWsHandler(c *websocket.Conn) {
                 if len(devices) > 0 && devices != nil {
                     dev := devices[m.Device]
                     if dev != nil {
-                        dev.AQIn <- m
+                        if !dev.Printing {
+                            //  perform the action immediately
+                            r, err := dev.Do(m.Action, m.Body)
+                            if err != nil {
+                                log.Printf("[ERROR] device didn't do action: %v\n", err)
+                            }
+                            if r != nil {
+                                sockOut <- r
+                            }
+                        } else {
+                            //  toss into the print queue channel
+                            //  and process based on action
+                            log.Println(m)
+                            dev.AQIn <- m
+                        }
                     }
                 }
             }

@@ -87,10 +87,6 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
                 Printing:  false,
             }
 
-            //  start our queue listener
-            go dev.StartAQListener()
-            log.Println("[DEBUG] action queue listener started")
-
             (*existing)[devName] = dev
             return devName, nil
         }
@@ -100,26 +96,6 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
     // need to remove any devices that 
     // aren't connected
     return "", nil
-}
-
-func (dev *Device) StartAQListener() {
-    for {
-        msg := <-dev.AQIn
-        if !dev.Printing {
-            resp, err := dev.Do(msg.Action, msg.Body)
-            if err != nil {
-                //  === [ TODO ]
-                // dev.AQOut <- dev.ErrorMsg(msg.Action, err.Message)
-                log.Println(err)
-            }
-            dev.AQOut <- resp
-        } else {
-            if msg.Action == "print" {
-                //  should be a stop or pause
-            }
-        } 
-
-    }
 }
 
 func (dev *Device) Do(action string, params string) (*Message, error) {
@@ -193,6 +169,34 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		cmd += makibox.FIRMWARE_LINE_TERMINATOR
 
 		//  lob
+		resp, err := dev.LobCommand(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return dev.ResponseMsg(action, resp), nil
+
+	case "temper":
+		var (
+			tmp Temper
+			cmd string
+		)
+		if err := json.Unmarshal([]byte(params), &tmp); err != nil {
+			return nil, err
+		}
+
+		//  ===[ TODO ]
+		//  get this from the device
+		//  instead of hardcoding it
+		switch tmp.Heater {
+		case "hotbed":
+			cmd = "M140 S"
+		case "hotend":
+			cmd = "M104 S"
+		default:
+			log.Println("[WARN] doesn't appear to be a valid heater supplied")
+		}
+		cmd +=  strconv.Itoa(tmp.Temp) + makibox.FIRMWARE_LINE_TERMINATOR
+
 		resp, err := dev.LobCommand(cmd)
 		if err != nil {
 			return nil, err
@@ -281,34 +285,6 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
         dev.GCode = gc
         return dev.ResponseMsg(action, "[INFO] temp file written"), nil
 
-    case "temper":
-        var (
-            tmp Temper
-            cmd string
-        )
-        if err := json.Unmarshal([]byte(params), &tmp); err != nil {
-            return nil, err
-        }
-
-        //  ===[ TODO ]
-        //  get this from the device
-        //  instead of hardcoding it
-        switch tmp.Heater {
-        case "hotbed":
-            cmd = "M140 S"
-        case "hotend":
-            cmd = "M104 S"
-        default:
-            log.Println("[WARN] doesn't appear to be a valid heater supplied")
-        }
-        cmd +=  strconv.Itoa(tmp.Temp) + makibox.FIRMWARE_LINE_TERMINATOR
-
-        resp, err := dev.LobCommand(cmd)
-        if err != nil {
-            return nil, err
-        }
-        return dev.ResponseMsg(action, resp), nil
-
 	case "print":
 		//  ===[ TODO ]
 		//  toss a print into a go func that
@@ -321,113 +297,113 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//      stop
 		//      pause
 		//      restart
-        // paction := strings.Trim(params, "\"")
-        // dev.Printing = true
+        paction := strings.Trim(params, "\"")
+        if !dev.Printing {
+            if paction == "start" {
+                if len(dev.GCode.Name) > 0 {
+                    pause, stop := false, false
 
-        // if !dev.Printing {
-        //     if paction == "start" {
-        //         if len(dev.GCode.Name) > 0 {
-        //             pause, stop := false, false
+                    //  start go routine to listen in on
+                    //  the incoming print queue channel
+                    //  and only process "print" actions
+                    go func() {
+                        //  we should be able to stop listening
+                        //  here when the print is completed
+                        for dev.Printing {
+                            msg := <- dev.AQIn
+                            log.Println(msg)
+                            if msg.Action == "print" {
+                                if msg.Body == "pause" {
+                                    log.Println("[DEBUG] attempting to pause")
+                                    pause = true
+                                }
 
-        //             //  start go routine to listen in on
-        //             //  the incoming print queue channel
-        //             //  and only process "print" actions
-        //             go func() {
-        //                 //  we should be able to stop listening
-        //                 //  here when the print is completed
-        //                 for dev.Printing {
-        //                     msg := <- dev.PQIn
-        //                     log.Println(msg)
-        //                     if msg.Action == "print" {
-        //                         if msg.Body == "pause" {
-        //                             log.Println("[DEBUG] attempting to pause")
-        //                             pause = true
-        //                         }
+                                if msg.Body == "stop" {
+                                    log.Println("[DEBUG] attempting to stop")
+                                    stop = true
+                                }
+                            }
+                        }
+                    }()
 
-        //                         if msg.Body == "stop" {
-        //                             log.Println("[DEBUG] attempting to stop")
-        //                             stop = true
-        //                         }
-        //                     }
-        //                 }
-        //             }()
+                    gc := dev.GCode
+                    go func() {
+                        lines   := strings.Split(gc.Data, "\n")
+                        idx     := 0
 
-        //             gc := dev.GCode
-        //             go func() {
-        //                 lines   := strings.Split(gc.Data, "\n")
-        //                 idx     := 0
+                        for {
 
-        //                 for {
+                            // log.Println("[DEBUG] pause: ", pause)
+                            // log.Println("[DEBUG] stop: ", stop)
 
-        //                     // log.Println("[DEBUG] pause: ", pause)
-        //                     // log.Println("[DEBUG] stop: ", stop)
+                            if !pause && !stop {
+                                ln := lines[idx]
+                                //  exclude comments and empty lines
+                                if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
+                                    cmd := ln
+                                    if !strings.HasSuffix(ln, "\r\n") {
+                                        cmd += makibox.FIRMWARE_LINE_TERMINATOR
+                                    }
 
-        //                     if !pause && !stop {
-        //                         ln := lines[idx]
-        //                         //  exclude comments and empty lines
-        //                         if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
-        //                             cmd := ln
-        //                             if !strings.HasSuffix(ln, "\r\n") {
-        //                                 cmd += makibox.FIRMWARE_LINE_TERMINATOR
-        //                             }
+                                    resp, err := dev.LobCommand(cmd)
+                                    if err != nil {
+                                        //  ===[ TODO ]
+                                        log.Println(err)
+                                    }
 
-        //                             resp, err := dev.LobCommand(cmd)
-        //                             if err != nil {
-        //                                 //  ===[ TODO ]
-        //                                 log.Println(err)
-        //                             }
+                                    if idx % 5 == 0 {
+                                        cmd = "M105" + makibox.FIRMWARE_LINE_TERMINATOR
+                                        stat, err := dev.LobCommand(cmd)
+                                        if err != nil {
+                                            //  ===[ TODO ]
+                                            log.Println(err)
+                                        }
+                                        resp += stat
+                                    }
+                                    dev.AQOut <- dev.ResponseMsg("print", resp)
+                                }
 
-        //                             if idx % 5 == 0 {
-        //                                 cmd = "M105" + makibox.FIRMWARE_LINE_TERMINATOR
-        //                                 stat, err := dev.LobCommand(cmd)
-        //                                 if err != nil {
-        //                                     //  ===[ TODO ]
-        //                                     log.Println(err)
-        //                                 }
-        //                                 resp += stat
-        //                             }
-        //                             dev.PQOut <- dev.ResponseMsg("print", resp)
-        //                         }
+                                idx++
 
-        //                         idx++
+                                if idx == len(lines) {
+                                    //  flag when the print is done
+                                    dev.Printing = false
+                                    return
+                                }
+                            }
+                        }
+                    }()
+                } else {
+                    return dev.ResponseMsg(action, "[WARN] no gcode file specified"), nil
+                }
 
-        //                         if idx == len(lines) {
-        //                             //  flag when the print is done
-        //                             dev.Printing = false
-        //                             return
-        //                         }
-        //                     }
-        //                 }
-        //             }()
-        //         } else {
-        //             return dev.ResponseMsg(action, "[WARN] no gcode file specified"), nil
-        //         }
+                return dev.ResponseMsg(action, "[INFO] starting print"), nil
+            }
 
-        //         return dev.ResponseMsg(action, "[INFO] starting print"), nil
-        //     }
+            if paction == "stop" {
+                if !dev.Printing {
+                    return dev.ResponseMsg(action, "[WARN] no print to stop"), nil
+                }
 
-        //     if paction == "stop" {
-        //         if !dev.Printing {
-        //             return dev.ResponseMsg(action, "[WARN] no print to stop"), nil
-        //         }
+                //
+                //  ===[ TODO ]
+                //  attempt to stop the print
+            }
 
-        //         //
-        //         //  ===[ TODO ]
-        //         //  attempt to stop the print
-        //     }
+            if paction == "pause" {
+                if !dev.Printing {
+                    return dev.ResponseMsg(action, "[WARN] no print to pause"), nil
+                }
 
-        //     if paction == "pause" {
-        //         if !dev.Printing {
-        //             return dev.ResponseMsg(action, "[WARN] no print to pause"), nil
-        //         }
+                //  ===[ TODO ]
+                //  attempt to pause the print
+            }
 
-        //         //  ===[ TODO ]
-        //         //  attempt to pause the print
-        //     }
+            //  default 
+            return nil, fmt.Errorf("[ERROR] invalid print action")
+        }
 
-        //     //  default 
-        //     return nil, fmt.Errorf("[ERROR] invalid print action")
-        // }
+	// case "reboot":   //  do we need this :: is it useful (?)
 
     //  manual gcode entered by user 
     //  via interactive console
@@ -447,21 +423,12 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 }
 
 func (dev *Device) ResponseMsg(action string, body string) *Message {
-	return &Message {
+	return &Message{
 		Type:   "response",
 		Device: dev.Name,
 		Action: action,
 		Body:   body,
 	}
-}
-
-func (dev *Device) ErrorMsg(action string, body string) *Message {
-    return &Message {
-        Type:   "error",
-        Device: dev.Name,
-        Action: action,
-        Body:   body,
-    }
 }
 
 func (dev *Device) LobCommand(cmd string) (string, error) {
