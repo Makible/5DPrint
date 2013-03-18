@@ -25,7 +25,9 @@ var (
 
     devices     = make(map[string]*device.Device)
 
-	localAddr string
+    sockOut     chan *device.Message
+    errc        chan error
+	localAddr   string
 )
 
 //  5DPrint launcher that will start
@@ -36,6 +38,8 @@ var (
 func main() {
     //  init "core"
     flag.Parse()
+    sockOut = make(chan *device.Message)
+    errc    = make(chan error, 1)
 
     // devices = make(map[string]*device.Device)
     host, port, err := net.SplitHostPort(*httpListen)
@@ -109,15 +113,30 @@ func initDeviceListener() {
     //  the devices map if it's not connected
 	go func() {
 		for {
-            n, err := device.GetAttachedDevices(&devices)
-            if err != nil || n == 0 {
+            dn, err := device.GetAttachedDevices(&devices)
+            if err != nil || len(dn) == 0 {
                 if len(devices) < 1 {
                     log.Printf("[WARN] no device detected. Please attach or power on a valid device")
                 }
             }
 
-            if n > 0 {
+            if len(dn) > 0 {
                 log.Printf("[INFO] device attached and being tracked")
+                d := devices[dn]
+
+                go func() {
+                    for {
+                        //  read in from the device's action 
+                        //  queue and send to socket channel
+                        m := <- d.AQOut
+
+                        if m.Type == "error" {
+                            errc <- fmt.Errorf("[ERROR] issue in device queue: %s", m.Body)
+                        } else {
+                            sockOut <-m
+                        }
+                    }
+                }()
             }
 			time.Sleep(1000 * time.Millisecond)
 		}
@@ -182,8 +201,7 @@ func renderUI(w io.Writer) error {
 //  websocket handler that will manage the
 //  traffic to and from the UI and Core
 func coreWsHandler(c *websocket.Conn) {
-	in, out := make(chan *device.Message), make(chan *device.Message)
-	errc := make(chan error, 1)
+	in := make(chan *device.Message)
 
 	//  decode incoming client messages
 	//  and push to in channel
@@ -203,7 +221,7 @@ func coreWsHandler(c *websocket.Conn) {
 	//  to client
 	go func() {
 		enc := json.NewEncoder(c)
-		for msg := range out {
+		for msg := range sockOut {
 			if err := enc.Encode(msg); err != nil {
 				errc <- err
 				return
@@ -219,49 +237,39 @@ func coreWsHandler(c *websocket.Conn) {
 		case m := <-in:
             if m.Type == "core" {
                 //  do some "core" related task
-                //  ===[ HACK ]
-                if m.Action == "dev-check" {
-                    n, g := "", ""
+                if m.Action == "dc" {
+                    n, b := "", ""
                     if len(devices) > 0 {
                         var names []string
                         for n, _ := range devices {
                             names = append(names, n)
                         }
 
-                        n = names[0]
-                        g = (devices[names[0]]).Greeting
-                    }
+                        d := devices[names[0]]
+                        n = d.Name
+                        b = d.Greeting
 
-                    out <- &device.Message{
-                        Type:   "response",
-                        Action: "dev-check",
-                        Device: n,
-                        Body:   g,
+                        if d.Printing {
+                            b = "{status: \"printing\", "
+                            b += "fname: \"" + d.GCode.Name + "\"}"
+                        }
+
+                        sockOut <- &device.Message {
+                            Type:   "response",
+                            Action: "dc",
+                            Device: n,
+                            Body:   b,
+                        }
                     }
                 }
             }
 
             if m.Type == "device" {
-
-                //  TODO:
-                //  make sure devices != nil
-                dev := devices[m.Device]
-
-                //  TODO:
-                //  toss the message into the
-                //  devices in channel
-
-                //  TODO:
-                //  come up with a way for the
-                //  device to put data into the
-                //  'core' channel(s)
-
-                r, err := dev.Do(m.Action, m.Body)
-                if err != nil {
-                    log.Printf("[ERROR] device didn't do action: %v\n", err)
-                }
-                if r != nil {
-                    out <- r
+                if len(devices) > 0 && devices != nil {
+                    dev := devices[m.Device]
+                    if dev != nil {
+                        dev.AQIn <- m
+                    }
                 }
             }
 		case err := <-errc:

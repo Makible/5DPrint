@@ -30,14 +30,17 @@
 
             <div id="misc">
                 <!-- TODO -->
-                <div id="status"></div>
+                <label for="device">DEVICE:</label>
+                <label for="file">FILE:</label>
+                <div id="device"></div>
                 <div id="file"></div>
             </div>
+
+            <div id="status"></div>
 
             <div id="menu">
                 <ul>
                     <li id="load" class="btn menu">load file</li>
-                    <li id="olds" class="btn menu">previous files</li>
                     <li id="prefs" class="btn menu">preferences</li>
                     <li id="admin" class="btn menu">admin</li>
                     <li id="exit" class="btn menu last">exit</li>
@@ -48,27 +51,32 @@
         <div class="wrapper">
             <section id="movement">
                 <div id="controller">
-                    <div id="zneg" class="btn icon-up-open-big"></div>
-                    <div id="zpos" class="btn icon-down-open-big"></div>
+                    <div id="zneg" class="btn icon-up-open-big neg"></div>
+                    <div id="zpos" class="btn icon-down-open-big pos"></div>
                     <div id="z" class="island">
                         <div id="zlabel" class="label">z</div>
                         <input id="zsteps" type="number" min="0" max="200" class="steps" value="5" />
                         <input id="zspeed" type="number" min="0" max="3000" class="speed" value="3000" />
                     </div>
 
-                    <div id="xneg" class="btn">-</div>
-                    <div id="ypos" class="btn">+</div>
-                    <div id="xpos" class="btn">+</div>
-                    <div id="yneg" class="btn">-</div>
+                    <label for="xneg" class="directional">x</label>
+                    <label for="ypos" class="directional">y</label>
+                    <label for="xpos" class="directional">x</label>
+                    <label for="yneg" class="directional">y</label>
+
+                    <div id="xneg" class="btn neg">-</div>
+                    <div id="ypos" class="btn pos">+</div>
+                    <div id="xpos" class="btn pos">+</div>
+                    <div id="yneg" class="btn neg">-</div>
                     <div id="xy" class="island">
                         <label for="xysteps" class="mm">mm</label>
                         <label for="xyspeed" class="mmm">mm/min.</label>
-                        <input id="xysteps" type="number" min="0" max="200" class="steps" value="20" />
-                        <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="300" />
+                        <input id="xysteps" type="number" min="0" max="200" class="steps" value="10" />
+                        <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="3000" />
                     </div>
 
-                    <div id="e1pos" class="btn icon-up-open-big"></div>
-                    <div id="e1neg" class="btn icon-down-open-big"></div>
+                    <div id="e1pos" class="btn icon-up-open-big pos"></div>
+                    <div id="e1neg" class="btn icon-down-open-big neg"></div>
                     <div id="e" class="island">
                         <div id="elabel" class="label">e</div>
                         <input id="esteps" type="number" min="0" max="200" class="steps" value="5" />
@@ -94,7 +102,7 @@
                     </div>
                     <div class="valu">
                         <div class="actual">
-                            240<span class="deg">&deg;C</span>
+                            0<span class="deg">&deg;C</span>
                         </div>
                         <input type="number" min="0" max="300" class="intemp" value="240" />
                         <div class="btn set" data-heater="he">set</div>
@@ -107,7 +115,7 @@
                     </div>
                     <div class="valu">
                         <div class="actual">
-                            100<span class="deg">&deg;C</span>
+                            0<span class="deg">&deg;C</span>
                         </div>
                         <input type="number" min="0" max="120" class="intemp" value="100" />
                         <div class="btn set" data-heater="hb">set</div>
@@ -127,8 +135,8 @@
         
         <div id="init" class="overlay">
             <div id="over-msg">
-                <img src="/img/loader.gif" class="loader" />
-                <div class="init-msg">initializing device(s)...</div>
+                <div class="loader icon-location-1"></div>
+                <div class="init-msg">waiting for device(s)...</div>
             </div>
         </div>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>

@@ -17,8 +17,10 @@ type Device struct {
 	Pos       Position
 	Homed     bool
 	Greeting  string
-	In 		  chan *Message
-	Out 	  chan *Message
+	AQIn      chan *Message
+	AQOut 	  chan *Message
+	GCode     GCodeFile
+	Printing  bool
 	// DeviceActionMap   should be a list of json "Actions"
 }
 

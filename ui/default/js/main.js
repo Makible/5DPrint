@@ -4,7 +4,8 @@
 //  hardcoding  the addr for now, 
 //  but should have server provide
 //  this info in the near future
-var socket,
+var dbg = 0,
+    socket,
     statTimer,
     connTimer,
     deviceName,
@@ -13,8 +14,7 @@ var socket,
 
 
 //  WARNING!!!! THE BELOW CODE IS BAD!!!!
-var dn = '/dev/tty.usbmodem001';
-// var dn = 'COM3';
+// var dn = (isWin()) ? 'COM3' : '/dev/tty.usbmodem001';
 
 $(document).ready(function() {
     //  display "initializing" message
@@ -26,20 +26,25 @@ $(document).ready(function() {
 
     //  display init message
     $('#init').show();
-    attachBtnEvents();
 
     // start websocket
-    // socket              = new WebSocket(socketAddr);
-    // socket.onmessage    = onMsg;
-    // socket.onclose      = onClose;
+    socket              = new WebSocket(socketAddr);
+    socket.onmessage    = onMsg;
+    socket.onclose      = onClose;
+
+    //  attach the btn events to
+    //  (hopefully) give the socket time
+    //  to initialize -- tho this may be
+    //  moot since the call is not exactly
+    //  sequencial being Javascript
+    attachBtnEvents();
 
     //  ping core to see if a
     //  device has been attached
-    // connTimer = setInterval(checkConn, 1000);
-
+    connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    $('#init').hide();
+    // $('#init').hide();
 });
 
 var initUIWithDev = function(msg) {
@@ -47,11 +52,11 @@ var initUIWithDev = function(msg) {
         //  ===[ TODO ]
         //  display no device attached msg
         //  and attach checkConn timer
-        $('#over-msg').html('[WARNING] <br />No device detected. Please attach or power on a valid device.');
+        // $('#over-msg').html('[WARNING] <br />No device detected. Please attach or power on a valid device.');
         connTimer = setInterval(checkConn, 1500);
         return;
     } else {
-        $('#over-msg').html('<img src="/img/loader.gif" class="loader" /><div class="init-msg">initializing device(s)...</div>');
+        $('#over-msg').html('<div class="loader icon-location-1"></div><div class="init-msg">initializing device(s)...</div>');
         deviceName  = msg.Device;
         var greet   = msg.Body;
 
@@ -59,17 +64,19 @@ var initUIWithDev = function(msg) {
         //  display the greeting / firmware
         //  version info in the "status"
         //  display area ...
-        console.log(deviceName);
-        console.log(greet);
+        // console.log(deviceName);
+        // console.log(greet);
 
         //  init UI button events and 
         //  hide init message
-        attachBtnEvents();
+        //  attachBtnEvents();
         $('#init').fadeOut(500);
+        $('#device').html(deviceName);
+        $('#status').html('connected');
 
         //  start status timer
         // statTimer = setInterval(getStats, 500); 
-        statTimer = setInterval(getStats, 1000); 
+        statTimer = setInterval(getStats, 1500); 
     }
 };
 
@@ -82,22 +89,20 @@ var attachBtnEvents = function() {
     $('.btn').each(function() {
         var btn = this;
         $(btn).on('click', function(evt) {
+            //  should be a x/y/z button if it
+            //  has an id attr 
             if($(btn).attr('id') != undefined) {
                 var _h = window[$(btn).attr('id')];
                 if(typeof _h === 'function') 
                     _h();
                 else {
-                    //  possibly a 'home' button
-                    if($(btn).parent().attr('id') === 'home')
+                    if($(btn).parent().attr('id') === 'homer')
                         homer(btn);
-                }
-            } else {
-                //  this probably a button like the plus/
-                //  minus buttons or the temp set... 
-                //  should handle appropriately
-                if($(btn).hasClass('plus') || $(btn).hasClass('minus'))
-                    mover(btn);
 
+                    if($(btn).parent().attr('id') === 'controller')
+                        mover(btn);
+                }             
+            }else {
                 if($(btn).hasClass('set'))
                     temper(btn);
             }
@@ -105,7 +110,7 @@ var attachBtnEvents = function() {
     });
 
     //  we'll attach some UI flurishes here
-    
+
 };
 
 var nav = function() {
@@ -129,44 +134,50 @@ var nav = function() {
 };
 
 var start = function() {
-    console.log('start');
-    sendDevMsg('start', '... some stl file ...');
+    window.clearInterval(statTimer);    //  stop the UI stat request
+    sendDevMsg('print', 'start');
 };
 
 var pause = function() {
-    console.log('pause');
-
+    sendDevMsg('print', 'pause');
 };
 
 var stop = function() {
-    console.log('stop');
-
+    sendDevMsg('print', 'stop');
 };
 
 var mover = function(btn) {
-    var mvr = $(btn).parent(),
-        stp = $(mvr).find('.steps'),
-        spd = $(mvr).find('.speed');
+    var axis    = $(btn).attr('id').substring(0, 1),
+        dir     = ($(btn).hasClass('pos')) ? 'pos' : 'neg',
+        island  = (axis == 'x' || axis == 'y') ? 'xy' : axis,
+        stp     = $('#' + island + 'steps'),
+        spd     = $('#' + island + 'speed');
 
-    //  do not do anything here
+    //  DO NOT DO anything here
     //  should not use neg. value
+    //  in the input field
     if(parseInt($(stp).val()) < parseInt($(stp).attr('min')) || 
         parseInt($(spd).val()) < parseInt($(spd).attr('min')))
         return;
+
+    //  ===[ TODO ]
+    //  display neg number warning
 
     distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
     speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
 
     //  so this sorta negates the previous
     //  "do not do...", but it makes sense
-    //  because the user should type the neg
-    //  value, the button press will determine
-    //  except for the z axis
-    if(($(mvr).attr('id') != 'z' && $(btn).hasClass('minus')) ||
-        ($(mvr).attr('id') == 'z' && $(btn).hasClass('plus')))
-            distance *= -1;
+    //  because the user should not type the 
+    //  neg value, the button press will 
+    //  determine this, except for 'z'
+    if(dir == 'neg')
+        distance *= -1;
 
-    sendDevMsg('move', { Axis: $(mvr).attr('id').toUpperCase(), Distance: parseInt(distance), Speed: parseInt(speed) });
+    if(axis == 'e')
+        axis += '1';
+
+    sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: parseInt(distance), Speed: parseInt(speed) });
 };
 
 var homer = function(btn) {
@@ -187,13 +198,13 @@ var temper = function(btn) {
     } else {
         //  something bad happened...
         //  apparently there isn't an input
+        console.log('[WARN] temper was not dispatched properly');
     }
 };
 
 var menus = function(btn) {
     switch ($(btn).attr('id')) {
     case 'load':
-        window.clearInterval(statTimer);
         //  open file dialog
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
@@ -205,18 +216,21 @@ var menus = function(btn) {
 
             r.readAsText(f, 'UTF-8');
             r.onload = shipFile;
-            //r.onloadstart = ...
-            //r.onprogress = ... <-- Allows you to update a progress bar.
+            r.onloadstart = function(evt) {
+                $('#status').html('loading');
+            };
+            // r.onprogress = ... <-- allows you to update a progress bar.
             //r.onabort = ...
             //r.onerror = ...
-            //r.onloadend = ...
+            r.onloadend = function(evt) {
+                $('#status').html('loaded');
+            };
+
+            $('#file').html(f.name);
         });
         $(inp).click();
         break;
 
-    case 'olds':
-        break;
-    
     case 'prefs':
         break;
     
@@ -238,14 +252,17 @@ var onMsg = function(e) {
     msg = JSON.parse(e.data);
     if(msg.Type === 'response') {
         switch(msg.Action) {
+        case 'print':
         case 'status':
             updateUIStatus(msg.Body);
             break;
-        case 'dev-check':
+        case 'dc':
             initUIWithDev(msg);
             break;
         default:
-            console.log("[WARN] doesn't appear to be a valid action");
+            // console.log("[WARN] doesn't appear to be a valid action");
+            if(dbg)
+                console.log(msg);
             break;
         }
     }
@@ -253,6 +270,8 @@ var onMsg = function(e) {
 
 var onClose = function(e) {
     window.clearInterval(statTimer);
+
+    $('#status').html('disconnected');
     console.log('[INFO] socket connection closed and stat timer killed');
 };
 
@@ -263,7 +282,7 @@ var getStats = function() {
 };
 
 var checkConn = function() {
-    sendCoreMsg('dev-check', '');
+    sendCoreMsg('dc', '');
     window.clearInterval(connTimer);
 }
 
@@ -273,11 +292,38 @@ var updateUIStatus = function(content) {
     //  temper settings. We'll want to include
     //  other data in the status feedback
 
-    console.log(content);
+    var val,
+        rows    = content.split('\n');
+
+    for(var i = 0; i < rows.length; i++) {
+        if(rows[i].indexOf('T:') > -1) {
+            var stats   = rows[i],
+                idx     = 0;
+            if(stats.indexOf('ok') != -1) 
+                idx = 1;
+
+            var he      = stats.split(' ')[idx],
+                hb      = stats.split(' ')[idx + 2],
+                span    = '<span class="deg">&deg;C</span>';
+
+            if(he == undefined || hb == undefined) return;
+
+            val = he.substring(2, he.length);
+            $('#hotend').find('.actual').html(val + span);
+
+            val = hb.substring(2, hb.length);
+            $('#hotbed').find('.actual').html(val + span);
+
+            if(dbg) 
+                console.log('[DBG] RAW: ' + stats);
+        }
+    }
 };
 
 var sendCoreMsg = function(action, body) {
-    msg = JSON.stringify({ Type: 'core', Device: '', Action: action, Body: JSON.stringify(body) });
+    var b = (body.length > 0) ? JSON.stringify(body) : body;
+
+    var msg = JSON.stringify({ Type: 'core', Device: '', Action: action, Body: b });
     socket.send(msg);
 };
 
@@ -286,14 +332,17 @@ var sendDevMsg = function(action, body) {
     socket.send(msg);
 };
 
+var sendConsoleMsg = function(msg) {
+    sendDevMsg('console', msg);
+}
+
 var shipFile = function(evt) {
-    var action  = 'print',
+    var action  = 'load',
         fname   = document.getElementById('floader').files[0].name,
         content = evt.target.result;
 
     sendDevMsg(action, { Name: fname, Data: content });
     $('#floader').remove();
-    $('#nav').click();
 };
 
 var sleep = function(ms) {
@@ -301,3 +350,16 @@ var sleep = function(ms) {
     dt.setTime(dt.getTime() + ms);
     while (new Date().getTime() < dt.getTime());
 }
+
+// var isWin = function() {
+//     return (navigator.appVersion.indexOf("Win") != -1);
+// }
+
+var showDbg = function() {
+    dbg = !0;
+}
+
+var hideDbg = function() {
+    dbg = 0;
+}
+

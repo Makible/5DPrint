@@ -92,6 +92,27 @@ textarea {
 /* ==========================================================================
    Author's custom styles
    ========================================================================== */
+
+@-webkit-keyframes loading {
+    from { -webkit-transform: rotate(0deg); }
+    to { -webkit-transform: rotate(-360deg); }
+}
+
+@-moz-keyframes loading {
+    from { -moz-transform: rotate(0deg); }
+    to { -moz-transform: rotate(-360deg); }
+}
+
+@-ms-keyframes loading {
+    from { -ms-transform: rotate(0deg); }
+    to { -ms-transform: rotate(-360deg); }
+}
+
+@-o-keyframes loading {
+    from { -o-transform: rotate(0deg); }
+    to { -o-transform: rotate(-360deg); }
+}
+
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
     display: none;
@@ -107,6 +128,15 @@ body {
 input {
     color: #1c8cc8;
     font-family: 'OpenSansLight','Trebuchet MS','Lucida Grande','Lucida Sans Unicode','Lucida Sans',Tahoma,sans-serif;
+}
+
+section,
+#pactions,
+#menu {
+    -webkit-user-select: none;  
+    -moz-user-select: none;    
+    -ms-user-select: none;      
+    user-select: none;
 }
 
 /* INIT OVERLAY */
@@ -133,12 +163,21 @@ input {
 }
 
 .loader {
+    position: relative;
+    display: inline-block;
     margin-left: 30px;
+    color: #1c8cc8;
+    font-size: 1.3em;
+    -webkit-animation:  loading 0.8s infinite linear;
+    -moz-animation:     loading 0.8s infinite linear;
+    -ms-animation:      loading 0.8s infinite linear;
+    -o-animation:       loading 0.8s infinite linear;
+    animation:          loading 0.8s infinite linear;
 }
 
 .init-msg {
     display: inline-block;
-    margin-left: 30px;
+    margin-left: 14px;
     line-height: 4.3em;
 }
 
@@ -180,11 +219,49 @@ nav {
     color: #1c8cc8;
 }
 
+#misc {
+    position: absolute;
+    right: 14px;
+    padding: 4px;
+    width: 300px;
+    height: 38px;
+}
+
+#misc label {
+    position: absolute;
+}
+
+label[for="device"],
+label[for="file"] {
+    left: 0;
+}
+
+label[for="file"] {
+    top: 24px;
+}
+
+#status {
+    position: absolute;
+    top: 0;
+    left: 580px;
+    padding: 4px;
+    width: 180px;
+    height: 40px;
+    overflow: hidden;
+    border: 1px solid rgba(100, 100, 100, 0.8);
+    border-top: 0;
+    border-bottom: 0;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 1em;
+    line-height: 2.8em;
+    color: #eee;
+}
+
 #menu {
     position: fixed;
     top: 48px;
     width: 148px;
-    height: 254px;
     background-color: #333;
     color: #eee;
     font-size: 1.3em;
@@ -259,6 +336,10 @@ nav {
     margin-right: 14px;
 }
 
+#movement .btn {
+    cursor: pointer;
+}
+
 #x {
     top: 10px;
     right: 48px;
@@ -285,6 +366,44 @@ nav {
     font-size: 2.8em;
     text-align: center;
     /*border: 2px solid #1c8cc8;*/
+}
+
+#controller label.directional {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #888;
+    border-radius: 34px;
+    font-size: 0.4em;
+    line-height: 1.4em;
+    color: #888;
+    box-shadow: inset 0px 0px 8px 0px rgba(0, 0, 0, 0.4);
+    background-color: #ddd;
+    z-index: 900;
+}
+
+#controller label[for=xneg] {
+    top: 152px;
+    left: 180px;
+    opacity: 0.3;
+}
+
+#controller label[for=ypos] {
+    top: 76px;
+    left: 262px;
+    opacity: 0.3;
+}
+
+#controller label[for=xpos] {
+    top: 152px;
+    left: 342px;
+    opacity: 0.3;
+}
+
+#controller label[for=yneg] {
+    top: 230px;
+    left: 262px;
+    opacity: 0.3;
 }
 
 #xneg,
@@ -415,7 +534,7 @@ nav {
 
 #xy.island {
     top: 96px;
-    left: 206px;
+    left: 210px;
 }
 
 #controller input {
@@ -476,40 +595,21 @@ nav {
 #zlabel,
 #elabel {
     position: absolute;
-    top: 42px;
-    width: 42px;
-    height: 42px;
-    background-color: #888;
+    top: 46px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #888;
+    border-radius: 34px;
     font-size: 0.5em;
-    line-height: 1.8em;
-    color: #fff;
-    border-radius: 48px;
+    line-height: 1.5em;
+    color: #888;
+    opacity: 0.8;
+    box-shadow: inset 0px 0px 8px 0px rgba(0, 0, 0, 0.4);
+    background-color: #ddd;
 }
 
 #zlabel {
-    left: -58px;
-    border-top: 2px solid rgba(43, 180, 255, 0.8);
-    border-left: 3px solid rgba(43, 180, 255, 0.8);
-    border-bottom: 2px solid rgba(43, 180, 255, 0.8);
-    box-shadow: inset 1px 0px 8px 0px rgba(0, 0, 0, 0.4);
-}
-
-#zlabel:after,
-#elabel:after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    width: 0;
-    height: 0;
-}
-
-#zlabel:after {
-    left: 32px;
-    border-top: 19px solid transparent;
-    border-right: 0px solid transparent;
-    border-bottom: 19px solid transparent;
-    border-left: 19px solid #888;
-    border-radius: 42px;
+    left: -44px;
 }
 
 #zneg:before,
@@ -542,22 +642,8 @@ nav {
 }
 
 #elabel {
-    left: 104px;
-    border-top: 2px solid rgba(43, 180, 255, 0.8);
-    border-right: 3px solid rgba(43, 180, 255, 0.8);
-    border-bottom: 2px solid rgba(43, 180, 255, 0.8);
-    box-shadow: inset -1px 0px 8px 0px rgba(0, 0, 0, 0.4);
+    left: 98px;
 }
-
-#elabel:after {
-    left: -10px;
-    border-top: 19px solid transparent;
-    border-right: 19px solid #888;
-    border-bottom: 19px solid transparent;
-    border-left: 0px solid transparent;
-    border-radius: 42px;
-}
- 
 
 /* TEMP SECTION */
 #temperature {
@@ -648,6 +734,7 @@ nav {
     padding: 0;
     font-size: 2.6em;
     color: #1c8cc8;
+    text-align: center;
 }
 
 .deg {
