@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+    "os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -20,8 +21,8 @@ import (
 var (
 	httpListen  = flag.String("http", "localhost:8080", "host:port to listen on")
 	htmlOutput  = flag.Bool("html", false, "render output as HTML")
-	// openBrowser = flag.Bool("openbrowser", true, "open browser automagically")
-	openBrowser = flag.Bool("openbrowser", false, "open browser automagically")
+	openBrowser = flag.Bool("openbrowser", true, "open browser automagically")
+	// openBrowser = flag.Bool("openbrowser", false, "open browser automagically")
 
     devices     = make(map[string]*device.Device)
 
@@ -35,6 +36,14 @@ var (
 //  UI and / or other external apps
 //  and feed that into the device
 func main() {
+    //  set the GOPATH here so we can function properly
+    if len(os.Getenv("GOPATH")) < 1 {
+        os.Setenv("GOPATH", "./")
+        os.Setenv("GOROOT", "./")
+    }
+
+    log.Println(os.Getenv("GOPATH"))
+
     //  init "core"
     flag.Parse()
     sockOut = make(chan *device.Message)
