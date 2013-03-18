@@ -19,16 +19,28 @@
         <!--[if lt IE 7]>
             <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
         <![endif]-->
-
-        <!--p>5DPrint</p-->
-
         <nav>
-            <div id="nav" class="btn icon-th-list">
+            <div id="nav" class="btn icon-down-dir-1">menu  </div>
+
+            <div id="pactions">
+                <div id="start" class="btn icon-play"></div>
+                <div id="pause" class="btn icon-pause"></div>
+                <div id="stop" class="btn icon-stop"></div>
             </div>
+
+            <div id="misc">
+                <!-- TODO -->
+                <label for="device">DEVICE:</label>
+                <label for="file">FILE:</label>
+                <div id="device"></div>
+                <div id="file"></div>
+            </div>
+
+            <div id="status"></div>
+
             <div id="menu">
                 <ul>
                     <li id="load" class="btn menu">load file</li>
-                    <li id="olds" class="btn menu">previous files</li>
                     <li id="prefs" class="btn menu">preferences</li>
                     <li id="admin" class="btn menu">admin</li>
                     <li id="exit" class="btn menu last">exit</li>
@@ -37,88 +49,73 @@
         </nav>
 
         <div class="wrapper">
-            <section id="pactions">
-                <div id="start" class="btn icon-play"></div>
-                <div id="pause" class="btn icon-pause"></div>
-                <div id="stop" class="btn icon-stop"></div>
-            </section>
-
-            <section id="misc">
-                <!-- TODO -->
-                <div id="status"></div>
-                <div id="file"></div>
-            </section>
-
             <section id="movement">
-                <label for="x" class="header">x</label>
-                <label for="y" class="header">y</label>
-                <label for="z" class="header">z</label>
-                <label for="e" class="header">e</label>
+                <div id="controller">
+                    <div id="zneg" class="btn icon-up-open-big neg"></div>
+                    <div id="zpos" class="btn icon-down-open-big pos"></div>
+                    <div id="z" class="island">
+                        <div id="zlabel" class="label">z</div>
+                        <input id="zsteps" type="number" min="0" max="200" class="steps" value="5" />
+                        <input id="zspeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
 
-                <p></p>
+                    <label for="xneg" class="directional">x</label>
+                    <label for="ypos" class="directional">y</label>
+                    <label for="xpos" class="directional">x</label>
+                    <label for="yneg" class="directional">y</label>
 
-                <div id="x" class="mover">
-                    <div class="btn plus icon-up-open-big"></div>
-                    <input type="number" min="0" max="200" class="steps" value="5" />
-                    <label class="mm">mm</label>
+                    <div id="xneg" class="btn neg">-</div>
+                    <div id="ypos" class="btn pos">+</div>
+                    <div id="xpos" class="btn pos">+</div>
+                    <div id="yneg" class="btn neg">-</div>
+                    <div id="xy" class="island">
+                        <label for="xysteps" class="mm">mm</label>
+                        <label for="xyspeed" class="mmm">mm/min.</label>
+                        <input id="xysteps" type="number" min="0" max="200" class="steps" value="10" />
+                        <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
 
-                    <input type="number" min="0" max="3000" class="speed" value="3000" />
-                    <div class="btn minus icon-down-open-big"></div>
-                    <label class="mmm">mm/min.</label>
-                </div>
-                <div id="y" class="mover">
-                    <div class="btn plus icon-up-open-big"></div>
-                    <input type="number" min="0" max="200" class="steps" value="5" />
-                    <label class="mm">mm</label>
-
-                    <input type="number" min="0" max="3000" class="speed" value="3000" />
-                    <div class="btn minus icon-down-open-big"></div>
-                    <label class="mmm">mm/min.</label>
-                </div>
-                <div id="z" class="mover">
-                    <div class="btn plus icon-up-open-big"></div>
-                    <input type="number" min="0" max="200" class="steps" value="5" />
-                    <label class="mm">mm</label>
-
-                    <input type="number" min="0" max="3000" class="speed" value="3000" />
-                    <div class="btn minus icon-down-open-big"></div>
-                    <label class="mmm">mm/min.</label>
-                </div>
-                <div id="e1" class="mover">
-                    <div class="btn plus icon-up-open-big"></div>
-                    <input type="number" min="0" max="200" class="steps" value="5" />
-                    <label class="mm">mm</label>
-
-                    <input type="number" min="0" max="3000" class="speed" value="300" />
-                    <div class="btn minus icon-down-open-big"></div>
-                    <label class="mmm">mm/min.</label>
+                    <div id="e1pos" class="btn icon-up-open-big pos"></div>
+                    <div id="e1neg" class="btn icon-down-open-big neg"></div>
+                    <div id="e" class="island">
+                        <div id="elabel" class="label">e</div>
+                        <input id="esteps" type="number" min="0" max="200" class="steps" value="5" />
+                        <input id="espeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
                 </div>
 
-                <div id="home" class="icon-home">
+
+                <div id="homer">
                     <div id="ha" class="btn">all</div>
+                    <div class="icon-home"></div>
+                    <div id="hz" class="btn">z</div>
                     <div id="hx" class="btn">x</div>
                     <div id="hy" class="btn">y</div>
-                    <div id="hz" class="btn">z</div>
                 </div>
             </section>
 
             <section id="temperature">
-                <div class="label">extruder</div>
                 <div id="hotend" class="scale">
+                    <div id="hotend-ico" class="label">
+                        <div id="platform" class="icon-campsite"></div>
+                        <div id="extrusion" class="icon-split"></div>
+                    </div>
                     <div class="valu">
                         <div class="actual">
-                            240<span class="deg">&deg;C</span>
+                            0<span class="deg">&deg;C</span>
                         </div>
                         <input type="number" min="0" max="300" class="intemp" value="240" />
                         <div class="btn set" data-heater="he">set</div>
                     </div>
                 </div>
 
-                <div class="label">hot bed</div>
                 <div id="hotbed" class="scale" data-temp="100">
+                    <div id="hotbed-ico" class="label">
+                        <div class="icon-fire"></div>
+                    </div>
                     <div class="valu">
                         <div class="actual">
-                            100<span class="deg">&deg;C</span>
+                            0<span class="deg">&deg;C</span>
                         </div>
                         <input type="number" min="0" max="120" class="intemp" value="100" />
                         <div class="btn set" data-heater="hb">set</div>
@@ -131,8 +128,17 @@
 
             <section id="viewer">
             </section>
-        </div>
 
+            <section id="status">
+            </section>
+        </div>
+        
+        <div id="init" class="overlay">
+            <div id="over-msg">
+                <div class="loader icon-location-1"></div>
+                <div class="init-msg">waiting for device(s)...</div>
+            </div>
+        </div>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
         <script src="/js/plugins.js"></script>
