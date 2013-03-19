@@ -259,6 +259,9 @@ var onMsg = function(e) {
         case 'dc':
             initUIWithDev(msg);
             break;
+        case 'console':
+            console.log(msg);
+            break;
         default:
             // console.log("[WARN] doesn't appear to be a valid action");
             if(dbg)

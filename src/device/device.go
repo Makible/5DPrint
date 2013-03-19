@@ -345,6 +345,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
                                         cmd += makibox.FIRMWARE_LINE_TERMINATOR
                                     }
 
+                                    log.Println(cmd)
                                     resp, err := dev.LobCommand(cmd)
                                     if err != nil {
                                         //  ===[ TODO ]
@@ -360,6 +361,8 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
                                         }
                                         resp += stat
                                     }
+
+                                    log.Println(resp)
                                     dev.AQOut <- dev.ResponseMsg("print", resp)
                                 }
 

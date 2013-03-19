@@ -36,14 +36,6 @@ var (
 //  UI and / or other external apps
 //  and feed that into the device
 func main() {
-    //  set the GOPATH here so we can function properly
-    if len(os.Getenv("GOPATH")) < 1 {
-        os.Setenv("GOPATH", "./")
-        os.Setenv("GOROOT", "./")
-    }
-
-    log.Println(os.Getenv("GOPATH"))
-
     //  init "core"
     flag.Parse()
     sockOut = make(chan *device.Message)
@@ -64,9 +56,20 @@ func main() {
     }
     localAddr = host + ":" + port
 
+    wd, err := os.Getwd()
+    if err != nil {
+        panic(err)
+        // log.Println(err)
+        // os.Exit(-1)
+    }
+
+    // if !strings.Contains(wd, "go5d") {
+    //     wd += "/go5d"
+    // }
+    
     //  init default server and push out the
     //  it's UI plus dependencies
-    fs := http.FileServer(http.Dir("ui/default/"))
+    fs := http.FileServer(http.Dir(wd + "/ui/default/"))
     http.Handle("/favicon.ico", fs)
     http.Handle("/css/", fs)
     http.Handle("/js/", fs)
@@ -195,7 +198,24 @@ func launchBrowser(url string) bool {
 //  updated to an "admin panel" for managing
 //  external devices like Android or iOS device
 func renderUI(w io.Writer) error {
-	t, _ := template.ParseFiles("ui/default/index.html")
+    wd, err := os.Getwd()
+    if err != nil {
+        panic(err)
+        // log.Println(err)
+        // os.Exit(-1)
+    }
+
+    // if !strings.Contains(wd, "go5d") {
+    //     wd += "/go5d"
+    // }
+
+	t, err := template.ParseFiles(wd + "/ui/default/index.html")
+    if err != nil {
+        panic(err)
+        // log.Println(err)
+        // os.Exit(-1)
+    }
+
 	t.Execute(w, "")
 	return nil
 }

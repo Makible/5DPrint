@@ -1,3 +1,4 @@
 .DS_Store
 pkg/
 src/code.google.com/p/go.net/.hg/cache/branchheads-served
+data/*
