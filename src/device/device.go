@@ -131,21 +131,21 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//  axis from the provided dev
 		switch mvr.Axis {
 		case "X":
-			if dev.Pos.X == 0 && mvr.Distance < 1 {
+			if dev.Pos.X == 0 && mvr.Distance < 1 && dev.Homed {
 				log.Println("[ERROR] device axis appears to be at home")
 				return nil, nil
 			}
 			dev.Pos.X += mvr.Distance
 			dist = dev.Pos.X
 		case "Y":
-			if dev.Pos.Y == 0 && mvr.Distance < 1 {
+			if dev.Pos.Y == 0 && mvr.Distance < 1 && dev.Homed {
 				log.Println("[ERROR] device axis appears to be at home")
 				return nil, nil
 			}
 			dev.Pos.Y += mvr.Distance
 			dist = dev.Pos.Y
 		case "Z":
-			if dev.Pos.Z == 0 && mvr.Distance < 1 {
+			if dev.Pos.Z == 0 && mvr.Distance < 1 && dev.Homed {
 				log.Println("[ERROR] device axis appears to be at home")
 				return nil, nil
 			}
@@ -242,6 +242,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
                 Z:  0,
                 E1: 0,
             }
+            dev.Homed = true
         } else {
             axis := mvr.Axis
             if axis == "E" {
