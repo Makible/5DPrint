@@ -17,11 +17,8 @@ type Device struct {
 	Pos       Position
 	Homed     bool
 	Greeting  string
-	AQIn      chan *Message
-	AQOut 	  chan *Message
 	GCode     GCodeFile
 	Printing  bool
-	// DeviceActionMap   should be a list of json "Actions"
 }
 
 type GCodeFile struct {
@@ -45,4 +42,11 @@ type Movement struct {
 type Temper struct {
 	Heater string
 	Temp   int `json: ",string"`
+}
+
+type DeviceConfig struct {
+	IdInfo 			string
+	LineTerminator	string
+	VersionMCode	string
+	ECount 			string
 }
