@@ -135,15 +135,15 @@ var nav = function() {
 
 var start = function() {
     window.clearInterval(statTimer);    //  stop the UI stat request
-    sendDevMsg('print', 'start');
+    sendDevMsg('job', 'start');
 };
 
 var pause = function() {
-    sendDevMsg('print', 'pause');
+    sendDevMsg('job', 'pause');
 };
 
 var stop = function() {
-    sendDevMsg('print', 'stop');
+    sendDevMsg('job', 'stop');
 };
 
 var mover = function(btn) {
@@ -252,7 +252,7 @@ var onMsg = function(e) {
     msg = JSON.parse(e.data);
     if(msg.Type === 'response') {
         switch(msg.Action) {
-        case 'print':
+        case 'job':
         case 'status':
             updateUIStatus(msg.Body);
             break;

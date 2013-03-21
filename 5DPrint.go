@@ -14,6 +14,7 @@ import (
     "os"
     "os/exec"
     "runtime"
+    "strings"
     "time"
 )
 
@@ -30,6 +31,8 @@ var (
 
     dIn, dOut chan *device.Message  //  device in / out channels
     cIn, cOut chan *device.Message  //  client (UI) in / out channels
+
+    jIn chan *device.Message  //  job queue in / out channels
 
     errc chan error
 
@@ -52,6 +55,7 @@ func main() {
     //  init core communication channels
     dIn, dOut   = make(chan *device.Message), make(chan *device.Message)
     cIn, cOut   = make(chan *device.Message), make(chan *device.Message)
+    jIn         = make(chan *device.Message)
     errc        = make(chan error, 1)
 
     //  init the device list
@@ -152,12 +156,10 @@ func initDeviceController() {
     }()
 
     go func() {
-        //  process dOut messages here
-        // for {
         for msg := range dOut {
             if devices != nil && len(devices) > 0 && devices[msg.Device] != nil {
                 dev := devices[msg.Device]
-                if !dev.Printing && msg.Action != "print" {
+                if !dev.JobRunning && msg.Action != "job" {
                     r, err := dev.Do(msg.Action, msg.Body)
                     if err != nil {
                         log.Println("[ERROR] unable to complete action: ", err)
@@ -167,21 +169,19 @@ func initDeviceController() {
                         dIn <- r
                     }
                 } else {
-                    if !dev.Printing {
-
+                    if dev.JobRunning {
+                        //  send msg to the job queue channel
+                        jIn <- msg
                     } else {
-                        if msg.Action == "print" {
-                            //  do print
+                        if msg.Action == "job" {
+                            go runExtendedJob(msg)
                         }
-
-                        
                     }
                 }
             } else {
                 log.Println("[ERROR] invalid device provided")
             }
         }
-        // }
     }()
 }
 
@@ -348,4 +348,103 @@ func clientWsHandler(c *websocket.Conn) {
             return
         }
     }
+}
+
+func runExtendedJob(msg *device.Message) {
+    dev := devices[msg.Device]
+    pause, stop := false, false
+
+    go func() {
+        lines   := strings.Split(dev.GCode.Data, "\n")
+        idx     := 0
+
+        dev.JobRunning = true   //  flag that job is running
+        for {
+            if !pause && !stop {
+                ln := lines[idx]
+
+                //  we can exclude commented and empty lines
+                if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
+                    cmd := ln
+                    if !strings.HasSuffix(ln, "\r\n") {
+                        cmd += device.FWLINETERMINATOR
+                    }
+
+                    jIn <- &device.Message {
+                        Type:   "device",
+                        Device: dev.Name,
+                        Action: "job",
+                        Body:   cmd,
+                    }
+
+                    if idx % 5 == 0 {
+                        cmd = "M105" + device.FWLINETERMINATOR
+
+                        jIn <- &device.Message {
+                            Type:   "device",
+                            Device: dev.Name,
+                            Action: "cmd",
+                            Body:   cmd,
+                        }
+                    }
+                }
+
+                if idx == len(lines) {
+                    dev.JobRunning = false
+                    dIn <- dev.ResponseMsg("job", "completed")
+
+                    jIn <- &device.Message {
+                        Type:   "device",
+                        Device: dev.Name,
+                        Action: "completion",
+                        Body:   "",
+                    }
+                    return
+                }
+                idx++
+            }
+        }
+    }()
+
+    go func() {
+        var cache []*device.Message
+        for m := range jIn {
+            if m.Type == "device" {
+                if !pause && !stop {
+                    switch m.Action {
+                    case "cmd":
+                        cmd := m.Body
+                        resp, err := dev.LobCommand(cmd)
+                        if err != nil {
+                            //  ===[ TODO ]
+                            log.Println(err)
+                        }
+
+                        // log.Println(resp)
+                        dIn <- dev.ResponseMsg("job", resp)
+
+                    case "pause":
+                        pause = true
+                        cache = make([]*device.Message, 255)
+
+                    case "stop":
+                        stop = true
+                        cache = make([]*device.Message, 255)
+
+                    case "start":
+                        pause, stop = false, false
+                        for _, cm := range cache {
+                            jIn <- cm
+                        }
+                        cache = make([]*device.Message, 255)    //  reset cache
+
+                    case "completion":
+                        return
+                    }
+                } else {
+                    cache = append(cache, m)
+                }
+            }
+        }
+    }()
 }

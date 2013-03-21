@@ -10,15 +10,15 @@ type Message struct {
 }
 
 type Device struct {
-	Name      string
-	Baud      int
-	IODevice  io.ReadWriteCloser
-	MoveSpeed int
-	Pos       Position
-	Homed     bool
-	Greeting  string
-	GCode     GCodeFile
-	Printing  bool
+	Name       string
+	Baud       int
+	IODevice   io.ReadWriteCloser
+	MoveSpeed  int
+	Pos        Position
+	Homed      bool
+	Greeting   string
+	GCode      GCodeFile
+	JobRunning bool
 }
 
 type GCodeFile struct {
@@ -45,8 +45,8 @@ type Temper struct {
 }
 
 type DeviceConfig struct {
-	IdInfo 			string
-	LineTerminator	string
-	VersionMCode	string
-	ECount 			string
+	IdInfo         string
+	LineTerminator string
+	VersionMCode   string
+	ECount         string
 }
