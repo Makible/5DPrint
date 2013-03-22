@@ -109,8 +109,13 @@ var attachBtnEvents = function() {
         });
     });
 
-    //  we'll attach some UI flurishes here
+    $('#init').on('click', function(evt) {
+        if($(this).is(':visible')) {
+            checkConn();
+        }
+    });
 
+    //  we'll attach some UI flurishes here
 };
 
 var nav = function() {

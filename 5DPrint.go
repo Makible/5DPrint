@@ -15,6 +15,7 @@ import (
     "os/exec"
     "runtime"
     "strings"
+    "strconv"
     "time"
 )
 
@@ -352,7 +353,7 @@ func clientWsHandler(c *websocket.Conn) {
 
 func runExtendedJob(msg *device.Message) {
     dev := devices[msg.Device]
-    pause, stop := false, false
+    pause := false
 
     go func() {
         lines   := strings.Split(dev.GCode.Data, "\n")
@@ -360,26 +361,109 @@ func runExtendedJob(msg *device.Message) {
 
         dev.JobRunning = true   //  flag that job is running
         for {
-            if !pause && !stop {
-                ln := lines[idx]
+            if idx == len(lines) {
+                dev.JobRunning = false
+                dIn <- dev.ResponseMsg("job", "completed")
 
-                //  we can exclude commented and empty lines
-                if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
-                    cmd := ln
-                    if !strings.HasSuffix(ln, "\r\n") {
-                        cmd += device.FWLINETERMINATOR
+                jIn <- &device.Message {
+                    Type:   "device",
+                    Device: dev.Name,
+                    Action: "completion",
+                    Body:   "",
+                }
+                return
+            }
+
+            ln := lines[idx]
+
+            //  we can exclude commented and empty lines
+            if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
+                cmd := ln
+                if !strings.HasSuffix(ln, "\r\n") {
+                    cmd += device.FWLINETERMINATOR
+                }
+
+                //  === 
+                //  === [ HACK ]
+                //  this is assuming we're on a 3D
+                //  printer and doesn't generalize
+                //  for all devices
+                if strings.HasPrefix(ln, "M109") || strings.HasPrefix(ln, "M190") {
+                    dev.LobCommand(cmd) //  lob the cmd we want to run first
+
+                    pause = true
+                    pre  := "B:"    //  assume hotbed first
+                    if strings.HasPrefix(ln, "M109") {
+                        pre = "T:"   //  set to hotend if M109
+                    }
+
+                    switch pre {
+                    case "B:":
+                        log.Println("[INFO] waiting for bed to reach temp")
+                    case "T:":
+                        log.Println("[INFO] waiting for hotend to reach temp")
+                    }
+
+                    //  parse out the temp a bit
+                    sub := ln[strings.Index(ln, "S")+1:]
+                    if strings.Contains(sub, " ") {
+                        sub = sub[:strings.Index(sub, " ")]
+                    }
+
+                    temp, e := strconv.Atoi(sub)
+                    if e != nil {
+                        log.Println(e)
+                    }
+
+                    //  we'll force a pause in the job
+                    //  to allow for the device to get 
+                    //  up to temp before sending more
+                    //  lines over
+
+                    for pause {
+                        time.Sleep(1500 * time.Millisecond)
+
+                        stat := "M105" + device.FWLINETERMINATOR
+                        resp, err := dev.LobCommand(stat)
+                        if err != nil {
+                            //  ===[ TODO ]
+                            log.Println(err)
+                        }
+
+                        dIn <- dev.ResponseMsg("job", resp) //  inform the UI / user
+                        for _, data := range strings.Split(resp, "\n") {
+                            if strings.Contains(data, "T:") {
+                                for _, val := range strings.Split(data, " ") {
+                                    if strings.Contains(val, pre) {
+                                        i := strings.Index(val, pre)
+                                        t, e := strconv.Atoi(val[i+2:])
+                                        if e != nil {
+                                            log.Println(e)
+                                        }
+
+                                        if t >= temp {
+                                            pause = false
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {  //  === [ HACK ]
+                    for pause {
+                        log.Println("[INFO] Job appears to be paused...")
+                        time.Sleep(8000 * time.Millisecond)
                     }
 
                     jIn <- &device.Message {
                         Type:   "device",
                         Device: dev.Name,
-                        Action: "job",
+                        Action: "cmd",
                         Body:   cmd,
                     }
 
                     if idx % 5 == 0 {
                         cmd = "M105" + device.FWLINETERMINATOR
-
                         jIn <- &device.Message {
                             Type:   "device",
                             Device: dev.Name,
@@ -388,61 +472,39 @@ func runExtendedJob(msg *device.Message) {
                         }
                     }
                 }
-
-                if idx == len(lines) {
-                    dev.JobRunning = false
-                    dIn <- dev.ResponseMsg("job", "completed")
-
-                    jIn <- &device.Message {
-                        Type:   "device",
-                        Device: dev.Name,
-                        Action: "completion",
-                        Body:   "",
-                    }
-                    return
-                }
-                idx++
             }
+            idx++
         }
     }()
 
     go func() {
-        var cache []*device.Message
         for m := range jIn {
+            log.Println("[DEBUG] current cmd: ", m.Body)
+
             if m.Type == "device" {
-                if !pause && !stop {
-                    switch m.Action {
-                    case "cmd":
-                        cmd := m.Body
-                        resp, err := dev.LobCommand(cmd)
-                        if err != nil {
-                            //  ===[ TODO ]
-                            log.Println(err)
-                        }
-
-                        // log.Println(resp)
-                        dIn <- dev.ResponseMsg("job", resp)
-
-                    case "pause":
-                        pause = true
-                        cache = make([]*device.Message, 255)
-
-                    case "stop":
-                        stop = true
-                        cache = make([]*device.Message, 255)
-
-                    case "start":
-                        pause, stop = false, false
-                        for _, cm := range cache {
-                            jIn <- cm
-                        }
-                        cache = make([]*device.Message, 255)    //  reset cache
-
-                    case "completion":
-                        return
+                switch m.Action {
+                case "cmd":
+                    cmd := m.Body
+                    resp, err := dev.LobCommand(cmd)
+                    if err != nil {
+                        //  ===[ TODO ]
+                        log.Println(err)
                     }
-                } else {
-                    cache = append(cache, m)
+
+                    // log.Println(resp)
+                    dIn <- dev.ResponseMsg("job", resp)
+
+                case "pause":
+                    pause = true
+
+                case "stop":
+                    pause = true
+
+                // case "continue":
+                //     pause = false
+
+                case "completion":
+                    return
                 }
             }
         }

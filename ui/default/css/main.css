@@ -140,6 +140,10 @@ section,
 }
 
 /* INIT OVERLAY */
+#init {
+    cursor: pointer;
+}
+
 .overlay {
     position: absolute;
     top: 0px;
@@ -379,7 +383,7 @@ label[for="file"] {
     color: #888;
     box-shadow: inset 0px 0px 8px 0px rgba(0, 0, 0, 0.4);
     background-color: #ddd;
-    z-index: 900;
+    z-index: 30;
 }
 
 #controller label[for=xneg] {
