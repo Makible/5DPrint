@@ -27,7 +27,7 @@ const (
 func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 
 	//  ===
-	//  === [HACK]
+	//  === [ HACK ]
 	//  === [ TODO ]
 	//  ===
 	//  need to dynamically list out
@@ -39,13 +39,15 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 		//  to let the user create a .txt
 		//  file in the data dir for us to
 		//  know what the COM port enumerates
-		info, err := ioutil.ReadDir("data/")
+		info, err := ioutil.ReadDir(".config/")
 		if err != nil {
 			return "", fmt.Errorf("[ERROR] trouble while attempting to get COM info from 'data/': %v\n", err)
 		}
-		if strings.HasPrefix(info[0].Name(), "__COM") {
-			devName = strings.Trim(info[0].Name(), "__")
-			devName = strings.Trim(devName, ".txt")
+		for _, f := range info {
+			if strings.HasPrefix(f.Name(), "__COM") {
+				devName = strings.Trim(f.Name(), "__")
+				devName = strings.Trim(devName, ".txt")
+			}
 		}
 	}
 	//  ===

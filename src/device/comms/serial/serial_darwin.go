@@ -1,4 +1,4 @@
-// +build linux, darwin, !windows
+// +build darwin,linux,arm,amd64,!windows
 package serial
 
 // #include <termios.h>
@@ -12,14 +12,10 @@ import (
 	"syscall"
 )
 
-//  TODO
-//  switch from fmt to log for output
-
 func init() {
 
 }
 
-//  TODO
 // func ListDevices() string {
 
 // }
@@ -95,10 +91,3 @@ func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 
 	return f, nil
 }
-
-// TODO
-// read func and flush func
-// read needs to get everything from the
-// buffer and look for a signal that nothing more
-// is coming ... or will that depend on what was sent
-// and should be left up to the read caller?

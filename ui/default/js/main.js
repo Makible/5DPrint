@@ -70,7 +70,9 @@ var initUIWithDev = function(msg) {
         //  init UI button events and 
         //  hide init message
         //  attachBtnEvents();
-        $('#init').fadeOut(500);
+        $('#over-msg').fadeOut(100);
+        $('#init').css('z-index', '799');
+        $('#init').slideUp(1000);
         $('#device').html(deviceName);
         $('#status').html('connected');
 
@@ -80,11 +82,6 @@ var initUIWithDev = function(msg) {
     }
 };
 
-//  TODO:
-//  pause the getStats timer while a long function
-//  (like homing) is being done, to reduce the risk
-//  of overflowing the MCU
-//  ... will this apply for prints(?)
 var attachBtnEvents = function() {
     $('.btn').each(function() {
         var btn = this;
@@ -141,6 +138,13 @@ var nav = function() {
 var start = function() {
     window.clearInterval(statTimer);    //  stop the UI stat request
     sendDevMsg('job', 'start');
+    $('#status').html('printing');
+
+    $('#init')
+        .css('z-index', '799')
+        .css('cursor', 'auto')
+        .slideDown(1000)
+        .off('click');
 };
 
 var pause = function() {
@@ -225,8 +229,8 @@ var menus = function(btn) {
                 $('#status').html('loading');
             };
             // r.onprogress = ... <-- allows you to update a progress bar.
-            //r.onabort = ...
-            //r.onerror = ...
+            // r.onabort = ...
+            // r.onerror = ...
             r.onloadend = function(evt) {
                 $('#status').html('loaded');
             };
