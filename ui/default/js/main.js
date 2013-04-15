@@ -9,8 +9,7 @@ var dbg = 0,
     statTimer,
     connTimer,
     deviceName,
-    socketAddr  = 'ws://192.168.1.113:8080/abs';
-    //socketAddr  = 'ws://localhost:8080/abs';
+    socketAddr  = 'ws://';
 
 
 
@@ -27,6 +26,7 @@ $(document).ready(function() {
 
     //  display init message
     $('#init').show();
+    socketAddr += document.URL.substring(6) + "abs";
 
     // start websocket
     socket              = new WebSocket(socketAddr);
@@ -71,12 +71,17 @@ var initUIWithDev = function(msg) {
         //  init UI button events and 
         //  hide init message
         //  attachBtnEvents();
-        $('#init').fadeOut(500);
+        $('#over-msg').fadeOut(100);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+            });
+
         $('#device').html(deviceName);
         $('#status').html('connected');
 
         //  start status timer
-        // statTimer = setInterval(getStats, 500); 
         statTimer = setInterval(getStats, 1500); 
     }
 };
@@ -140,8 +145,23 @@ var nav = function() {
 };
 
 var start = function() {
-    window.clearInterval(statTimer);    //  stop the UI stat request
-    sendDevMsg('job', 'start');
+    if($('#file').html() != '' && $('#status').html() == 'loaded') {
+        window.clearInterval(statTimer);    //  stop the UI stat request
+        sendDevMsg('job', 'start');
+
+        $('#status').html('printing');
+        $('#init')
+            .css('z-index', '799')
+            .css('cursor', 'auto')
+            .slideDown(1000, function() {
+                $('#over-msg').fadeIn(200);
+                $('#over-msg > .init-msg').html('printing in progress');
+            })
+            .off('click');
+    }else {
+        //  notify 'nothing to print'
+        $('#status').html('no file');
+    }
 };
 
 var pause = function() {
