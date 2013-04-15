@@ -1,4 +1,4 @@
-'user strict';
+'use strict';
 
 //  TODO: 
 //  hardcoding  the addr for now, 
@@ -9,7 +9,7 @@ var dbg = 0,
     statTimer,
     connTimer,
     deviceName,
-    socketAddr  = 'ws://localhost:8080/abs';
+    socketAddr  = 'ws://';
 
 
 
@@ -26,6 +26,7 @@ $(document).ready(function() {
 
     //  display init message
     $('#init').show();
+    socketAddr += document.URL.substring(6) + "abs";
 
     // start websocket
     socket              = new WebSocket(socketAddr);
@@ -71,13 +72,16 @@ var initUIWithDev = function(msg) {
         //  hide init message
         //  attachBtnEvents();
         $('#over-msg').fadeOut(100);
-        $('#init').css('z-index', '799');
-        $('#init').slideUp(1000);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+            });
+
         $('#device').html(deviceName);
         $('#status').html('connected');
 
         //  start status timer
-        // statTimer = setInterval(getStats, 500); 
         statTimer = setInterval(getStats, 1500); 
     }
 };
@@ -136,15 +140,23 @@ var nav = function() {
 };
 
 var start = function() {
-    window.clearInterval(statTimer);    //  stop the UI stat request
-    sendDevMsg('job', 'start');
-    $('#status').html('printing');
+    if($('#file').html() != '' && $('#status').html() == 'loaded') {
+        window.clearInterval(statTimer);    //  stop the UI stat request
+        sendDevMsg('job', 'start');
 
-    $('#init')
-        .css('z-index', '799')
-        .css('cursor', 'auto')
-        .slideDown(1000)
-        .off('click');
+        $('#status').html('printing');
+        $('#init')
+            .css('z-index', '799')
+            .css('cursor', 'auto')
+            .slideDown(1000, function() {
+                $('#over-msg').fadeIn(200);
+                $('#over-msg > .init-msg').html('printing in progress');
+            })
+            .off('click');
+    }else {
+        //  notify 'nothing to print'
+        $('#status').html('no file');
+    }
 };
 
 var pause = function() {
@@ -172,8 +184,8 @@ var mover = function(btn) {
     //  ===[ TODO ]
     //  display neg number warning
 
-    distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
-    speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
+    var distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
+    var speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
 
     //  so this sorta negates the previous
     //  "do not do...", but it makes sense
@@ -200,7 +212,7 @@ var temper = function(btn) {
 
     if(inp != undefined && inp != null) {
         if($(inp).val().length > 0) {
-            tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+            var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
             sendDevMsg('temper', { Heater: $(heater).attr('id'), Temp: parseInt(tmp) });
         }else
             console.log('INSERT A VALID TEMPERATURE');
@@ -258,7 +270,9 @@ var menus = function(btn) {
 
 //  ===[ SOCKET HANDLERS ]
 var onMsg = function(e) {
-    msg = JSON.parse(e.data);
+    if(dbg) console.log(e);
+
+    var msg = JSON.parse(e.data);
     if(msg.Type === 'response') {
         switch(msg.Action) {
         case 'job':
@@ -286,7 +300,6 @@ var onClose = function(e) {
     $('#status').html('disconnected');
     console.log('[INFO] socket connection closed and stat timer killed');
 };
-
 
 //  ===[ HELPERS ]
 var getStats = function() {
@@ -340,7 +353,7 @@ var sendCoreMsg = function(action, body) {
 };
 
 var sendDevMsg = function(action, body) {
-    msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
+    var msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
