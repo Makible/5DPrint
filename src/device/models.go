@@ -50,3 +50,4 @@ type DeviceConfig struct {
 	VersionMCode   string
 	ECount         string
 }
+

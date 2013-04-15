@@ -86,11 +86,6 @@ var initUIWithDev = function(msg) {
     }
 };
 
-//  TODO:
-//  pause the getStats timer while a long function
-//  (like homing) is being done, to reduce the risk
-//  of overflowing the MCU
-//  ... will this apply for prints(?)
 var attachBtnEvents = function() {
     $('.btn').each(function() {
         var btn = this;
@@ -246,8 +241,8 @@ var menus = function(btn) {
                 $('#status').html('loading');
             };
             // r.onprogress = ... <-- allows you to update a progress bar.
-            //r.onabort = ...
-            //r.onerror = ...
+            // r.onabort = ...
+            // r.onerror = ...
             r.onloadend = function(evt) {
                 $('#status').html('loaded');
             };

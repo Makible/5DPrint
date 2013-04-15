@@ -7,7 +7,7 @@ import (
     "flag"
     "fmt"
     "html/template"
-    "io"   
+    "io"
     "log"
     "net"
     "net/http"
@@ -122,11 +122,13 @@ func initDeviceController() {
                 //  but we should prolly look into
                 //  doing something with this, depending
                 //  on the error type
-                log.Println(err)
+                // log.Println(err)
             }
 
             if len(dn) == 0 && len(devices) < 1 {
-                log.Printf("[WARN] no device(s) detected. Please attach or power on a valid device")
+                // if !*openBrowser {
+                //     log.Printf("[WARN] no device(s) detected. Please attach or power on a valid device")
+                // }
             }
 
             if len(dn) > 1 {
@@ -135,7 +137,7 @@ func initDeviceController() {
                     Type:   "core",
                     Device: dn,
                     Action: "inform",
-                    Body:   "",
+                    Body:   "attached",
                 }
             }
 
