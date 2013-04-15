@@ -1,4 +1,4 @@
-// +build linux, darwin, !windows
+// +build darwin, !linux, !windows
 package serial
 
 // #include <termios.h>

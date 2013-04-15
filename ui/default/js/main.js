@@ -1,4 +1,4 @@
-'user strict';
+'use strict';
 
 //  TODO: 
 //  hardcoding  the addr for now, 
@@ -9,7 +9,8 @@ var dbg = 0,
     statTimer,
     connTimer,
     deviceName,
-    socketAddr  = 'ws://localhost:8080/abs';
+    socketAddr  = 'ws://192.168.1.113:8080/abs';
+    //socketAddr  = 'ws://localhost:8080/abs';
 
 
 
@@ -168,8 +169,8 @@ var mover = function(btn) {
     //  ===[ TODO ]
     //  display neg number warning
 
-    distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
-    speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
+    var distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
+    var speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
 
     //  so this sorta negates the previous
     //  "do not do...", but it makes sense
@@ -196,7 +197,7 @@ var temper = function(btn) {
 
     if(inp != undefined && inp != null) {
         if($(inp).val().length > 0) {
-            tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+            var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
             sendDevMsg('temper', { Heater: $(heater).attr('id'), Temp: parseInt(tmp) });
         }else
             console.log('INSERT A VALID TEMPERATURE');
@@ -254,7 +255,9 @@ var menus = function(btn) {
 
 //  ===[ SOCKET HANDLERS ]
 var onMsg = function(e) {
-    msg = JSON.parse(e.data);
+    if(dbg) console.log(e);
+
+    var msg = JSON.parse(e.data);
     if(msg.Type === 'response') {
         switch(msg.Action) {
         case 'job':
@@ -282,7 +285,6 @@ var onClose = function(e) {
     $('#status').html('disconnected');
     console.log('[INFO] socket connection closed and stat timer killed');
 };
-
 
 //  ===[ HELPERS ]
 var getStats = function() {
@@ -336,7 +338,7 @@ var sendCoreMsg = function(action, body) {
 };
 
 var sendDevMsg = function(action, body) {
-    msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
+    var msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
