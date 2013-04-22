@@ -149,6 +149,7 @@ section,
     top: 0px;
     bottom: -14px;
     left: 0;
+    right: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(200, 200, 200, 0.35);
@@ -192,6 +193,7 @@ nav {
     top: 0;
     left: 0;
     width: 100%;
+    min-width: 1400px;
     height: 48px;
 
     color: #eee;
@@ -204,17 +206,23 @@ nav {
 }
 
 #nav,
-#pactions {
+#pactions,
+#status,
+#misc {
     position: relative;
     display: inline-block;
     float: left;
-    width: 148px;
     height: 48px;
-    color: #eee;
-    border-right: 1px solid rgba(100, 100, 100, 0.8);
     text-transform: uppercase;
     text-align: center;
     line-height: 3.4em;
+}
+
+#nav,
+#pactions {    
+    width: 148px;
+    color: #eee;
+    border-right: 1px solid rgba(100, 100, 100, 0.8);
     cursor: pointer;
 }
 
@@ -222,45 +230,6 @@ nav {
 .nav-hover {
     box-shadow: inset -9px 9px 8px -6px rgba(20, 20, 20, 0.4);
     color: #1c8cc8;
-}
-
-#misc {
-    position: absolute;
-    right: 14px;
-    padding: 4px;
-    width: 300px;
-    height: 38px;
-}
-
-#misc label {
-    position: absolute;
-}
-
-label[for="device"],
-label[for="file"] {
-    left: 0;
-}
-
-label[for="file"] {
-    top: 24px;
-}
-
-#status {
-    position: absolute;
-    top: 0;
-    left: 580px;
-    padding: 4px;
-    width: 180px;
-    height: 40px;
-    overflow: hidden;
-    border: 1px solid rgba(100, 100, 100, 0.8);
-    border-top: 0;
-    border-bottom: 0;
-    text-align: center;
-    text-transform: uppercase;
-    font-size: 1em;
-    line-height: 2.8em;
-    color: #eee;
 }
 
 #menu {
@@ -276,7 +245,6 @@ label[for="file"] {
 }
 
 #menu ul {
-    position: ;
     width: 148px;
     margin: 0 auto;
     margin-left: -40px;
@@ -296,6 +264,61 @@ label[for="file"] {
 
 #menu li.last {
     border-bottom: 0;
+}
+
+#status {
+    position: relative;
+    display: inline-block;
+    margin-left: 280px;
+    padding: 4px;
+    width: 180px;
+    height: 40px;
+    overflow: hidden;
+    border: 1px solid rgba(100, 100, 100, 0.8);
+    border-top: 0;
+    border-bottom: 0;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 1em;
+    line-height: 2.8em;
+    color: #eee;
+}
+
+#misc {
+    position: relative;
+    display: inline-block;
+    width: 260px;
+    height: 38px;
+    margin-left: 300px;
+    text-align: right;
+    line-height: 1.5em;
+    padding-top: 2px;
+}
+
+#misc div {
+    float: right;
+    height: 22px;
+    width: 100%;
+    padding-right: 4px;
+    text-transform: none;
+}
+
+#misc #device:before,
+#misc #file:before {
+    position: absolute;
+    width: 70px;
+    height: 22px;
+    left: -78px;
+    text-align: left;
+    line-height: 1.5em;
+}
+
+#misc #device:before {
+    content: 'DEVICE:';
+}
+
+#misc #file:before {
+    content: 'FILE:';
 }
 
 .wrapper {

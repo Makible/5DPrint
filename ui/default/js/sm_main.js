@@ -39,10 +39,10 @@ $(document).ready(function() {
 
     //  ping core to see if a
     //  device has been attached
-    connTimer = setInterval(checkConn, 1000);
+    // connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    // fakeDevice();
+    fakeDevice();
 });
 
 var initUIWithDev = function(msg) {
@@ -153,7 +153,6 @@ var start = function() {
     }else {
         //  notify 'nothing to print'
         // $('#status').html('no file');
-
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
         $(inp).on('change', function(evt) {
@@ -176,7 +175,6 @@ var start = function() {
             $('#file').html(f.name);
         });
         $(inp).click();
-
     }
 };
 
@@ -251,6 +249,8 @@ var menus = function(btn) {
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
         $(inp).on('change', function(evt) {
+            //  TODO:
+            //  read in file and send to server
             var f = this.files[0],
                 r = new FileReader();
 
