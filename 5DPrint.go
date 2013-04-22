@@ -24,8 +24,8 @@ var (
     uiDir           = flag.String("uidir", "/ui/", "working directory for the ui code")
     // dataDir         = flag.String("datadir", "/data/", "working directory for misc data")
     // confDir         = flag.String("confdir", "/.config/", "working directory for app configuration")
-    openBrowser     = flag.Bool("openbrowser", false, "open browser automagically")
-    // openBrowser     = flag.Bool("openbrowser", true, "open browser automagically")
+    // openBrowser     = flag.Bool("openbrowser", false, "open browser automagically")
+    openBrowser     = flag.Bool("openbrowser", true, "open browser automagically")
 
     dIn, dOut   chan *device.Message  //  device in / out channels
     cIn, cOut   chan *device.Message  //  client (UI) in / out channels
@@ -237,7 +237,7 @@ func initClientController() {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path == "/" {
             uiType := 0
-            if strings.Contains(r.UserAgent(), "Android") {  //  TODO: handle iOS (just no device right now)
+            if strings.Contains(r.UserAgent(), "Android") {  //  TODO: handle iOS
                 uiType = 1;
             }
 

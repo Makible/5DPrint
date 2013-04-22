@@ -204,7 +204,8 @@ input {
 #nav,
 #pactions,
 #status,
-#misc {
+#device,
+#file {
     position: relative;
     display: inline-block;
     width: 148px;
@@ -219,9 +220,62 @@ input {
 }
 
 #pactions,
-#misc {
+#device,
+#file {
     float: right;
     text-transform: none;
+}
+
+#pactions {
+    width: 240px;
+}
+
+#pactions div {
+    display: inline-block;
+    width: 30%;
+}
+
+#pactions div:active {
+    color: #1c8cc8;
+}
+
+#menu {
+    position: fixed;
+    bottom: 54px;
+    width: 148px;
+    background-color: #333;
+    color: #eee;
+    font-size: 1.4em;
+    box-shadow: -1px -2px 3px 0px rgba(0, 0, 0, 0.3);
+    z-index: 801;
+    display: none;
+}
+
+#menu ul {
+    width: 148px;
+    margin: 0 auto;
+    padding: 0;
+    text-align: left;
+}
+
+#menu li {
+    padding: 12px 0 12px 8px;
+    border-bottom: 1px solid rgba(100, 100, 100, 0.8);
+}
+
+#menu li:active {
+    color: #1c8cc8;
+}
+
+#menu li.last {
+    border-bottom: 0;
+}
+
+#device,
+#file {
+    text-align: right;
+    padding-right: 8px;
+
 }
 
 
