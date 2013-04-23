@@ -24,8 +24,8 @@ var (
     uiDir           = flag.String("uidir", "/ui/", "working directory for the ui code")
     // dataDir         = flag.String("datadir", "/data/", "working directory for misc data")
     // confDir         = flag.String("confdir", "/.config/", "working directory for app configuration")
-    // openBrowser     = flag.Bool("openbrowser", false, "open browser automagically")
-    openBrowser     = flag.Bool("openbrowser", true, "open browser automagically")
+    openBrowser     = flag.Bool("openbrowser", false, "open browser automagically")
+    // openBrowser     = flag.Bool("openbrowser", true, "open browser automagically")
 
     dIn, dOut   chan *device.Message  //  device in / out channels
     cIn, cOut   chan *device.Message  //  client (UI) in / out channels
@@ -68,7 +68,8 @@ func initSwitchBoard() {
             if msg.Type == "core" {
                 //  handle in the core
                 if msg.Action == "dc" {
-                    n, g := "", ""
+                    // n, g := "", ""
+                    n := ""
                     if len(devices) > 0 {
                         var names []string
                         for n, _ := range devices {
@@ -78,20 +79,40 @@ func initSwitchBoard() {
                         //  for the short term, we're assuming
                         //  that only 1 device is attached, most
                         //  -likely the MakiBox A6
+                        //
                         n = names[0]
-                        g = (devices[names[0]]).Greeting
+                        // g = (devices[names[0]]).Greeting 
+                        //  not really doing anything with the "greeting" in the UI
 
                         cOut <- &device.Message {
                             Type:   "response",
                             Action: "dc",
                             Device: n,
-                            Body:   g,
+                            Body:   "attached",
+                        }
+                    }else {
+                        //  send no device attached msg
+                        //  
+                        cOut <- &device.Message {
+                            Type:   "response",
+                            Action: "dc",
+                            Device: "nil",
+                            Body:   "nil",
                         }
                     }
                 }
             } else {
                 //  ship to device out channel
-                dOut <- msg
+                if devices[msg.Device] != nil {
+                    dOut <- msg
+                } else {
+                    cOut <- &device.Message {
+                        Type:   "response",
+                        Device: msg.Device,
+                        Action: "error",
+                        Body:   "[ERROR] invalid device name - " + msg.Device,
+                    }
+                }
             }
         }
     }()
@@ -99,10 +120,8 @@ func initSwitchBoard() {
     go func() {
         for msg := range dIn {
             if msg.Type == "core" {
-                //  handle in the core
-                if msg.Action == "inform" {
-                    cOut <- msg
-                }
+                //  TODO: handle core messages
+                log.Println("[TODO] handle this: ", msg)
             } else {
                 //  ship to client out channel
                 cOut <- msg
@@ -124,21 +143,29 @@ func initDeviceController() {
                 //  but we should prolly look into
                 //  doing something with this, depending
                 //  on the error type
-                // log.Println(err)
-            }
-
-            if len(dn) == 0 && len(devices) < 1 {
-                // if !*openBrowser {
-                //     log.Printf("[WARN] no device(s) detected. Please attach or power on a valid device")
-                // }
+                if !strings.HasSuffix(err.Error(), "no such file or directory") {
+                    if strings.HasSuffix(err.Error(), "device removed") {
+                        log.Println("[DEBUG] informing of device removal...")
+                        //  inform the core the device is detached
+                        dIn <- &device.Message {
+                            Type:   "response",
+                            Device: (strings.Split(err.Error(), " "))[0],
+                            Action: "dc",
+                            Body:   "detached",
+                        }
+                    } else {
+                        log.Println(err)
+                    }
+                }
             }
 
             if len(dn) > 1 {
                 //  inform the core that a device is attached
+                //  
                 dIn <- &device.Message {
-                    Type:   "core",
+                    Type:   "response",
                     Device: dn,
-                    Action: "inform",
+                    Action: "dc",
                     Body:   "attached",
                 }
             }
@@ -156,7 +183,11 @@ func initDeviceController() {
                 if !dev.JobRunning && msg.Action != "job" {
                     r, err := dev.Do(msg.Action, msg.Body)
                     if err != nil {
-                        log.Println("[ERROR] unable to complete action: ", err)
+                        if err.Error() == "no such file or directory" || err.Error() == "device no configured" {
+                            delete(devices, msg.Device)
+                        } else {
+                            log.Println("[ERROR] unable to complete action: ", err)
+                        }
                     }
 
                     if r != nil {

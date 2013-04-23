@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no">
+
+        <link rel="stylesheet" href="/css/normalize.css">
+        <link rel="stylesheet" href="/css/fonts.css">
+        <link rel="stylesheet" href="/css/sm_main.css">
+        <script src="/js/vendor/modernizr-2.6.2.min.js"></script>
+    </head>
+    <body>
+        <nav>
+            <div id="nav-top">
+                <div id="status"></div>
+                <div id="device"></div>
+                <div id="file"></div>
+            </div>
+
+            <div id="nav-bottom">
+                <div id="nav" class="btn icon-up-dir">menu  </div>
+                <div id="pactions">
+                    <div id="start" class="btn icon-play"></div>
+                    <div id="pause" class="btn icon-pause"></div>
+                    <div id="stop" class="btn icon-stop"></div>
+                </div>
+            </div>
+
+            <div id="menu">
+                <ul>
+                    <li id="exit" class="btn menu">exit</li>
+                    <li id="admin" class="btn menu">admin</li>
+                    <li id="prefs" class="btn menu">preferences</li>
+                    <li id="load" class="btn menu last">load file</li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="wrapper">
+            <!-- <section id="movement">
+                <div id="controller">
+                    <div id="zneg" class="btn icon-up-open-big neg"></div>
+                    <div id="zpos" class="btn icon-down-open-big pos"></div>
+                    <div id="z" class="island">
+                        <div id="zlabel" class="label">z</div>
+                        <input id="zsteps" type="number" min="0" max="200" class="steps" value="5" />
+                        <input id="zspeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
+
+                    <label for="xneg" class="directional">x</label>
+                    <label for="ypos" class="directional">y</label>
+                    <label for="xpos" class="directional">x</label>
+                    <label for="yneg" class="directional">y</label>
+
+                    <div id="xneg" class="btn neg">-</div>
+                    <div id="ypos" class="btn pos">+</div>
+                    <div id="xpos" class="btn pos">+</div>
+                    <div id="yneg" class="btn neg">-</div>
+                    <div id="xy" class="island">
+                        <label for="xysteps" class="mm">mm</label>
+                        <label for="xyspeed" class="mmm">mm/min.</label>
+                        <input id="xysteps" type="number" min="0" max="200" class="steps" value="10" />
+                        <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
+
+                    <div id="e1pos" class="btn icon-up-open-big pos"></div>
+                    <div id="e1neg" class="btn icon-down-open-big neg"></div>
+                    <div id="e" class="island">
+                        <div id="elabel" class="label">e</div>
+                        <input id="esteps" type="number" min="0" max="200" class="steps" value="5" />
+                        <input id="espeed" type="number" min="0" max="3000" class="speed" value="3000" />
+                    </div>
+                </div>
+
+
+                <div id="homer">
+                    <div id="ha" class="btn">all</div>
+                    <div class="icon-home"></div>
+                    <div id="hz" class="btn">z</div>
+                    <div id="hx" class="btn">x</div>
+                    <div id="hy" class="btn">y</div>
+                </div>
+            </section> -->
+
+            <section id="temperature">
+                <div id="hotend" class="scale">
+                    <div id="hotend-ico" class="label">
+                        <div id="platform" class="icon-campsite"></div>
+                        <div id="extrusion" class="icon-split"></div>
+                    </div>
+                    <div class="valu">
+                        <div class="actual">
+                            0<span class="deg">&deg;C</span>
+                        </div>
+                        <input type="number" min="0" max="300" class="intemp" value="240" />
+                        <div class="btn set" data-heater="he">set</div>
+                    </div>
+                </div>
+
+                <div id="hotbed" class="scale" data-temp="100">
+                    <div id="hotbed-ico" class="label">
+                        <div class="icon-fire"></div>
+                    </div>
+                    <div class="valu">
+                        <div class="actual">
+                            0<span class="deg">&deg;C</span>
+                        </div>
+                        <input type="number" min="0" max="120" class="intemp" value="100" />
+                        <div class="btn set" data-heater="hb">set</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="console">
+            </section>
+
+            <section id="viewer">
+            </section>
+        </div>
+        
+        <div id="init" class="overlay">
+            <div id="over-msg">
+                <div class="loader icon-location-1"></div>
+                <div class="init-msg">waiting for device(s)...</div>
+            </div>
+        </div>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
+        <script src="/js/plugins.js"></script>
+        <script src="/js/sm_main.js"></script>
+    </body>
+</html>

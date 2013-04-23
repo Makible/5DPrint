@@ -50,59 +50,60 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 			}
 		}
 	}
+
 	//  ===
-
-	found := false
-	for n, _ := range *existing {
-		if n == devName {
-			found = true
+	if (*existing)[devName] != nil {
+		//	this means we should be tracking the device
+		//	but if the err says that we can't find the device
+		//	then we need to let it go
+		_, err := serial.OpenPort(devName, DEFBAUD)
+		if err != nil && strings.HasSuffix(err.Error(), "no such file or directory") {
+			delete(*existing, devName)
+			return "", fmt.Errorf(devName + " device removed")
 		}
+
+		return "", nil
 	}
 
-	if !found {
-		d, err := serial.OpenPort(devName, DEFBAUD)
-		if err != nil {
-			return "", fmt.Errorf("unable to open device: %v\n", err)
-		}
-
-		n, err := d.Write([]byte(makibox.FIRMWARE_VERSION_MCODE))
-		if err != nil {
-			return "", fmt.Errorf("unable to write to device: %v\n", err)
-		}
-
-		buf := make([]byte, 255)
-		n, err = d.Read(buf)
-		if err != nil {
-			return "", fmt.Errorf("unable to read from device: %v\n", err)
-		}
-
-		if n > 1 {
-			pos := Position{
-				X:  0,
-				Y:  0,
-				Z:  0,
-				E1: 0,
-			}
-
-			dev := &Device{
-				Name:       devName,
-				Baud:       DEFBAUD,
-				IODevice:   d,
-				MoveSpeed:  0,
-				Pos:        pos,
-				Homed:      false,
-				Greeting:   string(buf[:n]),
-				JobRunning: false,
-			}
-
-			(*existing)[devName] = dev
-			return devName, nil
-		}
+	d, err := serial.OpenPort(devName, DEFBAUD)
+	if err != nil {
+		return "", err
 	}
 
-	// ===[ TODO ]
-	// need to remove any devices that
-	// aren't connected
+	n, err := d.Write([]byte(makibox.FIRMWARE_VERSION_MCODE))
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]byte, 255)
+	n, err = d.Read(buf)
+	if err != nil {
+		return "", err
+	}
+
+	if n > 1 {
+		pos := Position{
+			X:  0,
+			Y:  0,
+			Z:  0,
+			E1: 0,
+		}
+
+		dev := &Device{
+			Name:       devName,
+			Baud:       DEFBAUD,
+			IODevice:   d,
+			MoveSpeed:  0,
+			Pos:        pos,
+			Homed:      false,
+			Greeting:   string(buf[:n]),
+			JobRunning: false,
+		}
+
+		(*existing)[devName] = dev
+		return devName, nil
+	}
+
 	return "", nil
 }
 
@@ -423,6 +424,17 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//            //  default
 		//            return nil, fmt.Errorf("[ERROR] invalid print action")
 		//        }
+
+	case "motley":
+		if strings.Contains(params, "motorsoff") {
+			cmd := "M84" + FWLINETERMINATOR
+			resp, err := dev.LobCommand(cmd)
+
+			if err != nil {
+				return nil, err
+			}
+			return dev.ResponseMsg(action, resp), nil
+		}
 
 	//  manual gcode entered by user
 	//  via interactive console
