@@ -5,3 +5,4 @@ data/*
 *.un~
 *.hg/
 .config/__*
+.gcode
