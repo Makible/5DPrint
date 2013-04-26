@@ -4,7 +4,7 @@ import (
     "code.google.com/p/go.net/websocket"
     "device"
     "encoding/json"
-    "flag"
+    // "flag"
     "fmt"
     "html/template"
     "io"
@@ -20,12 +20,10 @@ import (
 )
 
 var (
-    appServPort     = flag.String("port", "8080", "port to listen on for the UI")
-    uiDir           = flag.String("uidir", "/ui/", "working directory for the ui code")
-    // dataDir         = flag.String("datadir", "/data/", "working directory for misc data")
-    // confDir         = flag.String("confdir", "/.config/", "working directory for app configuration")
-    openBrowser     = flag.Bool("openbrowser", false, "open browser automagically")
-    // openBrowser     = flag.Bool("openbrowser", true, "open browser automagically")
+    appServPort = "8080"
+    uiDir       = "/ui/"
+    // openBrowser = true
+    openBrowser = false
 
     dIn, dOut   chan *device.Message  //  device in / out channels
     cIn, cOut   chan *device.Message  //  client (UI) in / out channels
@@ -43,8 +41,6 @@ func main() {
 
     //  THE CORE
     log.Println("[INFO] 5DPrint core starting...")
-
-    flag.Parse()
 
     //  init core communication channels
     dIn, dOut   = make(chan *device.Message), make(chan *device.Message)
@@ -235,22 +231,35 @@ func initClientController() {
         log.Println("[WARN] you will not be able to connect any external devices with a valid address")
         ip = "localhost"
     }else {
-        ip = ipList[0].String()
+        //  handle IPv6 addresses 
+        //  (seems they aren't supported at the moment)
+        if len(ipList) > 1 {
+            for _, i := range ipList {
+                if !strings.Contains(i.String(), ":") {
+                    ip = i.String()
+                }
+            }
+        } else {
+            ip = ipList[0].String()
+        }
     }
+    addr := ip + ":" + appServPort
 
-    addr := ip + ":" + *appServPort
-
-    wd, err := os.Getwd()
-    if err != nil {
-        log.Println("[ERROR] unable to get a valid working directory: ", err)
-        os.Exit(1)
+    //  UGH!!! This is where OS X kinda sucks...
+    wd, err := "/Applications/5DPrint.app/Contents/MacOS", nil
+    if runtime.GOOS != "darwin" {
+        wd, err = os.Getwd()
+        if err != nil {
+            log.Println("[ERROR] unable to get a valid working directory: ", err)
+            os.Exit(1)
+        }
     }
 
     //  ===[ TODO ]
     //  we'll use the default UI dir
     //  for now, but should check a 
     //  config file to specify
-    dir := wd + *uiDir + "/default"
+    dir := wd + uiDir + "/default"
 
     //  init default server and push out the
     //  it's UI plus dependencies
@@ -282,7 +291,7 @@ func initClientController() {
 
     go func() {
         url := "http://" + addr
-        if wait(url) && *openBrowser && launchBrowser(url) {
+        if wait(url) && openBrowser && launchBrowser(url) {
             log.Printf("[INFO] a browser window should open. If not, please visit %s\n", url)
         } else {
             log.Printf("[INFO] unable to open your browser. Please open and visit %s\n", url)

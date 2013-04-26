@@ -1,4 +1,4 @@
-// +build windows
+// +build !linux, !darwin, windows
 package serial
 
 import (
@@ -98,7 +98,6 @@ func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 		syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED,
 		0)
 	if err != nil {
-		fmt.Printf("[ERROR] open %s: %v\n", name, err)
 		return nil, err
 	}
 
@@ -203,8 +202,8 @@ func syscallEvent(handle syscall.Handle, event string) error {
 		params.DCBlength = uint32(unsafe.Sizeof(params))
 		params.flags[0] = 0x01  // fBinary
 		params.flags[0] |= 0x10 // Assert DSR
-		params.BaudRate = uint32(250000)
-		// params.BaudRate = uint32(115200)
+		// params.BaudRate = uint32(250000)
+		params.BaudRate = uint32(115200)
 		params.ByteSize = 8
 
 		if r, _, err := syscall.Syscall(nSetCommState, 2, uintptr(handle), uintptr(unsafe.Pointer(&params)), 0); r == 0 {

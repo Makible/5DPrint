@@ -43,11 +43,18 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("[ERROR] trouble while attempting to get COM info from 'data/': %v\n", err)
 		}
+
+		found := false
 		for _, f := range info {
 			if strings.HasPrefix(f.Name(), "__COM") {
 				devName = strings.Trim(f.Name(), "__")
 				devName = strings.Trim(devName, ".txt")
+				found = true
 			}
+		}
+
+		if !found {
+			return "", fmt.Errorf("[ERROR] __COM device not specified in .config/ directory")
 		}
 	}
 
