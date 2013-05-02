@@ -15,10 +15,12 @@ import (
 )
 
 const (
-    DEFBAUD          = 115200
-    FWLINETERMINATOR = "\r\n"   //  temporary [ HACK ]
+	DEFBAUD          = 115200
+	FWLINETERMINATOR = "\r\n" //  temporary [ HACK ]
+    NSF 			 = "no such file or directory"
+    DNC 			 = "device not configured"
+    RM  			 = "device removed"
 )
-
 
 //  ===[ TODO ]
 //  update so that "Do" actions are
@@ -105,6 +107,7 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 			Homed:      false,
 			Greeting:   string(buf[:n]),
 			JobRunning: false,
+			JobPaused: 	false,
 		}
 
 		(*existing)[devName] = dev
@@ -310,127 +313,6 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 
 		dev.GCode = gc
 		return dev.ResponseMsg(action, "[INFO] temp file written"), nil
-
-		// case "print":
-		// 	//  ===[ TODO ]
-		// 	//  toss a print into a go func that
-		// 	//  will have a listener chan for
-		// 	//  pause / stop / etc...
-		// 	//  see what the print action is
-		// 	//  and act accordingly
-		// 	//  PRINT ACTIONS:
-		// 	//      start
-		// 	//      stop
-		// 	//      pause
-		// 	//      restart
-		//        paction := strings.Trim(params, "\"")
-		//        if !dev.JobRunning {
-		//            if paction == "start" {
-		//                if len(dev.GCode.Name) > 0 {
-		//                    pause, stop := false, false
-
-		//                    //  start go routine to listen in on
-		//                    //  the incoming print queue channel
-		//                    //  and only process "print" actions
-		//                    go func() {
-		//                        //  we should be able to stop listening
-		//                        //  here when the print is completed
-		//                        for dev.JobRunning {
-		//                            msg := <- dev.In
-		//                            log.Println(msg)
-		//                            if msg.Action == "print" {
-		//                                if msg.Body == "pause" {
-		//                                    log.Println("[DEBUG] attempting to pause")
-		//                                    pause = true
-		//                                }
-
-		//                                if msg.Body == "stop" {
-		//                                    log.Println("[DEBUG] attempting to stop")
-		//                                    stop = true
-		//                                }
-		//                            }
-		//                        }
-		//                    }()
-
-		//                    gc := dev.GCode
-		//                    go func() {
-		//                        lines   := strings.Split(gc.Data, "\n")
-		//                        idx     := 0
-
-		//                        for {
-
-		//                            // log.Println("[DEBUG] pause: ", pause)
-		//                            // log.Println("[DEBUG] stop: ", stop)
-
-		//                            if !pause && !stop {
-		//                                ln := lines[idx]
-		//                                //  exclude comments and empty lines
-		//                                if !strings.HasPrefix(ln, ";") && len(ln) > 1 {
-		//                                    cmd := ln
-		//                                    if !strings.HasSuffix(ln, "\r\n") {
-		//                                        cmd += FWLINETERMINATOR
-		//                                    }
-
-		//                                    log.Println(cmd)
-		//                                    resp, err := dev.LobCommand(cmd)
-		//                                    if err != nil {
-		//                                        //  ===[ TODO ]
-		//                                        log.Println(err)
-		//                                    }
-
-		//                                    if idx % 5 == 0 {
-		//                                        cmd = "M105" + FWLINETERMINATOR
-		//                                        stat, err := dev.LobCommand(cmd)
-		//                                        if err != nil {
-		//                                            //  ===[ TODO ]
-		//                                            log.Println(err)
-		//                                        }
-		//                                        resp += stat
-		//                                    }
-
-		//                                    log.Println(resp)
-		//                                    dev.Out <- dev.ResponseMsg("print", resp)
-		//                                }
-
-		//                                idx++
-
-		//                                if idx == len(lines) {
-		//                                    //  flag when the print is done
-		//                                    dev.JobRunning = false
-		//                                    return
-		//                                }
-		//                            }
-		//                        }
-		//                    }()
-		//                } else {
-		//                    return dev.ResponseMsg(action, "[WARN] no gcode file specified"), nil
-		//                }
-
-		//                return dev.ResponseMsg(action, "[INFO] starting print"), nil
-		//            }
-
-		//            if paction == "stop" {
-		//                if !dev.JobRunning {
-		//                    return dev.ResponseMsg(action, "[WARN] no print to stop"), nil
-		//                }
-
-		//                //
-		//                //  ===[ TODO ]
-		//                //  attempt to stop the print
-		//            }
-
-		//            if paction == "pause" {
-		//                if !dev.JobRunning {
-		//                    return dev.ResponseMsg(action, "[WARN] no print to pause"), nil
-		//                }
-
-		//                //  ===[ TODO ]
-		//                //  attempt to pause the print
-		//            }
-
-		//            //  default
-		//            return nil, fmt.Errorf("[ERROR] invalid print action")
-		//        }
 
 	case "motley":
 		if strings.Contains(params, "motorsoff") {

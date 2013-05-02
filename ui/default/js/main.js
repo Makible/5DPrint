@@ -204,11 +204,11 @@ var start = function() {
 };
 
 var pause = function() {
-    sendDevMsg('job', 'pause');
+    sendDevMsg('interrupt', 'pause');
 };
 
 var stop = function() {
-    sendDevMsg('job', 'stop');
+    sendDevMsg('interrupt', 'stop');
 };
 
 var mover = function(btn) {
@@ -218,9 +218,8 @@ var mover = function(btn) {
         stp     = $('#' + island + 'steps'),
         spd     = $('#' + island + 'speed');
 
-    //  DO NOT DO anything here
-    //  should not use neg. value
-    //  in the input field
+    //  do NOT do anything here
+    //  should not use neg. value in the input field
     if(parseInt($(stp).val()) < parseInt($(stp).attr('min')) || 
         parseInt($(spd).val()) < parseInt($(spd).attr('min')))
         return;
@@ -329,7 +328,7 @@ var onMsg = function(e) {
             updateUIStatus(msg);
             break;
 
-        case 'dc':
+        case 'connection':
             manageDevConnection(msg);
             break;
 
@@ -364,7 +363,7 @@ var getStats = function() {
 };
 
 var checkConn = function() {
-    sendCoreMsg('dc', '');
+    sendCoreMsg('connection', '');
     window.clearInterval(connTimer);
 }
 

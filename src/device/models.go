@@ -3,10 +3,10 @@ package device
 import "io"
 
 type Message struct {
-	Type   string //  core or device message
-	Device string //  device.Name
-	Action string //  action to be performed (e.g. print, move, temper, etc...)
-	Body   string //  message content
+	Type   string
+	Device string
+	Action string
+	Body   string
 }
 
 type Device struct {
@@ -19,6 +19,12 @@ type Device struct {
 	Greeting   string
 	GCode      GCodeFile
 	JobRunning bool
+	JobPaused  bool
+}
+
+type Command struct {
+	Devicename	string
+	Command		string
 }
 
 type GCodeFile struct {
@@ -50,4 +56,3 @@ type DeviceConfig struct {
 	VersionMCode   string
 	ECount         string
 }
-
