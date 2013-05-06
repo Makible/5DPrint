@@ -44,6 +44,7 @@ $(document).ready(function() {
 
     //  ===[ DEBUG ]
     // fakeDevice();
+    showDbg();
 });
 
 var manageDevConnection = function(msg) {
@@ -132,6 +133,7 @@ var attachBtnEvents = function() {
 
     $('#init').on('click', function(evt) {
         if($(this).is(':visible')) {
+            console.log('Clicking to force connection check');
             checkConn();
         }
     });
@@ -353,8 +355,9 @@ var onMsg = function(e) {
 var onClose = function(e) {
     window.clearInterval(statTimer);
 
-    $('#status').html('disconnected');
-    console.log('[INFO] socket connection closed and stat timer killed');
+    $('#status').html('ws closed');
+    console.log('[WARN] socket connection closed and stat timer killed');
+    console.log(e);
 };
 
 //  ===[ HELPERS ]
@@ -365,7 +368,7 @@ var getStats = function() {
 var checkConn = function() {
     sendCoreMsg('connection', '');
     window.clearInterval(connTimer);
-}
+};
 
 var updateUIStatus = function(msg) {
     //  TODO:
@@ -415,7 +418,7 @@ var sendDevMsg = function(action, body) {
 
 var sendConsoleMsg = function(msg) {
     sendDevMsg('console', msg);
-}
+};
 
 var shipFile = function(evt) {
     var action  = 'load',
@@ -426,27 +429,16 @@ var shipFile = function(evt) {
     $('#floader').remove();
 };
 
-var sleep = function(ms) {
-    var dt = new Date();
-    dt.setTime(dt.getTime() + ms);
-    while (new Date().getTime() < dt.getTime());
-}
-
-// var isWin = function() {
-//     return (navigator.appVersion.indexOf("Win") != -1);
-// }
-
 var showDbg = function() {
     dbg = !0;
-}
+};
 
 var hideDbg = function() {
     dbg = 0;
-}
-
+};
 
 var fakeDevice = function() {
     window.clearInterval(connTimer);
     initUIWithDev({ Device: 'foo', Body: 'bar' });
     window.clearInterval(statTimer);
-}
+};

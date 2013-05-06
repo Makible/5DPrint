@@ -14,22 +14,22 @@ import (
     "os/exec"
     "runtime"
     "strings"
-    // "strconv"
     "time"
 )
 
 var (
     defServPort = "8080"
     uiDir       = "/ui/"
-    openBrowser = true
+    // openBrowser = true
+    // dbg = false
 
     //  [ TODO ]
     //  break out into .conf flag
-    // openBrowser = false
     // defServPort = "8081"
+    openBrowser = false
+    dbg = true
 
     devc, clientc, jobc     chan *device.Message
-    errc                    chan error
     devices                 map[string] *device.Device
     workingDir              string
     launchBrowserArgs       []string
@@ -37,15 +37,15 @@ var (
 
 func main() {
     log.Println("[INFO] 5DPrint starting...")
+    runtime.GOMAXPROCS(2)   //  increasing the count for background processes
 
     devices              = make(map[string] *device.Device)
     devc, clientc, jobc  = make(chan *device.Message), make(chan *device.Message), make(chan *device.Message)
-    errc                 = make(chan error, 1)
 
     //  init OS specific variables
     initOSVars()
 
-    initDeviceController()
+    initDeviceListener()
     initJobQueueController()
     initHttpServer()
 }
@@ -74,66 +74,94 @@ func initOSVars() {
 //
 //  start the loop that will check for valid devices
 //  attached and update the list accordingly
-func initDeviceController() {
+func initDeviceListener() {
     go func() {
         for {
+            dn, err := device.GetAttachedDevices(&devices)
+            if err != nil {
+                if !strings.HasSuffix(err.Error(), device.NSF) && !strings.HasSuffix(err.Error(), device.DNC) {
+                    if strings.HasSuffix(err.Error(), device.RM) {
+                        //  notify device detached
+                        clientc <- &device.Message {
+                            Type:   "response",
+                            Device: (strings.Split(err.Error(), " "))[0],
+                            Action: "connection",
+                            Body:   "detached",
+                        }
+                    }else {
+                        //
+                        //  [ TODO ] 
+                        //  handle this better but for now
+                        //  just display the error
+                        log.Println("[ERROR] device check: ", err)
+
+                    }
+                }
+            }
+
+            //  this means a new device was attached
+            //  and someone should be notified
+            if len(dn) > 1 {
+                clientc <- &device.Message {
+                    Type:   "response",
+                    Device: dn,
+                    Action: "connection",
+                    Body:   "attached",
+                }
+            }
+
+            //  do a quick sleep so that we don't we don't ping
+            //  the existing devices _too_ much
+            time.Sleep(500 * time.Millisecond) 
+        }
+    }()
+}
+
+func initJobQueueController() {
+    go func() {
+        queue, hold := make([]device.Command, 100), make([]device.Command, 100)
+        for {
             select {
-            case msg := <-devc:
-                if devices != nil && len(devices) > 0 && devices[msg.Device] != nil {
-                    dev := devices[msg.Device]
-                    if dev.JobRunning && msg.Action == "job" {
+            case dm := <- devc:
+                if devices != nil && len(devices) > 0 && devices[dm.Device] != nil {
+                    dev := devices[dm.Device]
+                    if dev.JobRunning && dm.Action == "job" {
                         clientc <- &device.Message {
                             Type:   "response",
                             Device: dev.Name,
                             Action: "error",
                             Body:   `{
                                         error:  'unable to run multiple jobs on single device',
-                                        action: '` + msg.Action + `',
-                                        body:   '` + msg.Body + `',
+                                        action: '` + dm.Action + `',
+                                        body:   '` + dm.Body + `',
                                     }`,
                         }
-                        checkDevices()
                     } else {
-                        jobc <- msg
-                        checkDevices()
+                        jobc <- dm
                     }
-                } 
-
-            default:
-                //  default will be to check for device attach / detach
-                //  and do a quick sleep so that we don't we don't ping
-                //  the existing devices _too_ much
-                checkDevices()
-                time.Sleep(500 * time.Millisecond) 
-            }
-        }
-    }()
-}
-
-func initJobQueueController() {
-     go func() {
-        queue, hold := make([]device.Command, 100), make([]device.Command, 100)
-
-        for {
-            select {
-            case msg := <-jobc:
-                if devices[msg.Device] == nil {
+                }
+            case jm := <- jobc:
+                if devices[jm.Device] == nil {
                     clientc <- &device.Message {
                         Type:   "response",
-                        Device: msg.Device,
+                        Device: jm.Device,
                         Action: "error",
                         Body:   `{
                                     error:  'invalid device provided',
-                                    action: '` + msg.Action + `',
-                                    body:   '` + msg.Body + `'
+                                    action: '` + jm.Action + `',
+                                    body:   '` + jm.Body + `'
                                 }`,
 
                     }
+
                     hit(&queue, &hold)
+                    continue
                 }
 
-                dev := devices[msg.Device]
-                if msg.Action == "job" {
+                dev := devices[jm.Device]
+
+                //  load up the queue and let the job run
+                if jm.Action == "job" && !dev.JobRunning {
                     for _, line := range strings.Split(dev.GCode.Data, "\n") {
                         cmd := &device.Command {
                             Devicename: dev.Name,
@@ -144,13 +172,14 @@ func initJobQueueController() {
 
                     dev.JobRunning = true
                     hit(&queue, &hold)
+                    continue
                 }
 
                 if !dev.JobRunning {
-                    r, err := dev.Do(msg.Action, msg.Body)
+                    r, err := dev.Do(jm.Action, jm.Body)
                     if err != nil {
                         if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
-                            delete(devices, msg.Device)
+                            delete(devices, jm.Device)
                         } else {
                             log.Println("[ERROR] unable to complete action: ", err)
                         }
@@ -160,40 +189,53 @@ func initJobQueueController() {
                     hit(&queue, &hold)
 
                 } else {
-                    if msg.Action == "status" {
-                        r, err := dev.Do(msg.Action, msg.Body)
+                    if jm.Action == "status" {
+                        r, err := dev.Do(jm.Action, jm.Body)
                         if err != nil {
                             if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
-                                delete(devices, msg.Device)
+                                delete(devices, jm.Device)
                             } else {
                                 log.Println("[ERROR] unable to complete action: ", err)
                             }
                         }
 
                         if r != nil { clientc <- r }
-                        hit(&queue, &hold)
-                    }
 
-                    if msg.Action == "resume" && dev.JobPaused {
-                        //  [ TODO ]
-                        //  mull through the hold list and copy
+                    } else if jm.Action == "resume" && dev.JobPaused {
+
+                        //  go through the hold list and copy
                         //  the commands to the queue list, removing
                         //  from the hold
+                        tmp := make([]device.Command, len(hold))
+                        copy(tmp, hold)
 
+                        hold = make([]device.Command, 100)
+                        for _, c := range tmp {
+                            if c.Devicename == dev.Name {
+                                queue = append(queue, c)
+                            } else {
+                                hold = append(hold, c)
+                            }
+                        }
+                    } else if jm.Action == "interrupt" {
 
-                        
-                        hit(&queue, &hold)
-                    }
-
-                    if msg.Action == "interrupt" {
-                        //  [ TODO ]
-                        //  mull through the queue list and copy
+                        //  go through the queue list and copy
                         //  the commands to the hold list, removing
                         //  from the queue
+                        tmp := make([]device.Command, len(queue))
+                        copy(tmp, queue)
 
-                        hit(&queue, &hold)
+                        queue = make([]device.Command, 100)
+                        for _, c := range tmp {
+                            if c.Devicename == dev.Name {
+                                hold = append(hold, c)
+                            } else {
+                                queue = append(queue, c)
+                            }
+                        }
                     }
                 }
+                hit(&queue, &hold)
 
             default:
                 hit(&queue, &hold)
@@ -204,7 +246,6 @@ func initJobQueueController() {
 
 func initHttpServer() {
     var ip string
-
     //  we need to get the hostname in order to get the IP
     host, err := os.Hostname()
     if err != nil {
@@ -225,6 +266,9 @@ func initHttpServer() {
     if len(ipList) < 1 || (len(ipList) == 1 && strings.Contains(ipList[0].String(), ":")) {
         //  [ TODO ]
         //  double check and see if this is still valid when no network connection is available
+        if len(ipList) == 1 && strings.Contains(ipList[0].String(), ":") {
+            log.Println("[WARN] currently not supporting IPv6, defaulting to 'localhost'")
+        }
         log.Println("[WARN] you will not be able to connect any external devices with a valid address")
         ip = "localhost"
     } else {
@@ -317,67 +361,23 @@ func clientWsHandler(c *websocket.Conn) {
     //  will this hold open memory after the application
     //  hask "shutdown"?
 
-    go func() {
-        dec := json.NewDecoder(c)
-        for {
-            var msg device.Message
-            if err := dec.Decode(&msg); err != nil {
-                errc <- err
-                return
-            }
-            devc <- &msg
-        }
-    }()
-
-    go func() {
-        enc := json.NewEncoder(c)
-        for msg := range clientc {
-            if err := enc.Encode(msg); err != nil {
-                errc <- err
-                return
-            }
-        }
-    }()
-
+    dec, enc := json.NewDecoder(c), json.NewEncoder(c)
     for {
-        err := <-errc
-        if err != io.EOF {
-            log.Println("[ERROR] ", err)
-            return
-        }
-    }
-}
-
-func checkDevices() {
-    dn, err := device.GetAttachedDevices(&devices)
-    if err != nil {
-        if !strings.HasSuffix(err.Error(), device.NSF) && !strings.HasSuffix(err.Error(), device.DNC) {
-            if strings.HasSuffix(err.Error(), device.RM) {
-                //  notify device detached
-                clientc <- &device.Message {
-                    Type:   "response",
-                    Device: (strings.Split(err.Error(), " "))[0],
-                    Action: "connection",
-                    Body:   "detached",
-                }
-            }else {
-                //  display error
-                log.Println(err)
-
-                //  [ TODO ] 
-                //  handle this better
+        select {
+        case m := <- clientc:
+            if err := enc.Encode(m); err != nil {
+                log.Println("[ERROR] clientc channel read: ", err)
+                return
             }
-        }
-    }
 
-    //  this means a new device was attached
-    //  and someone should be notified
-    if len(dn) > 1 {
-        clientc <- &device.Message {
-            Type:   "response",
-            Device: dn,
-            Action: "connection",
-            Body:   "attached",
+        default:
+            var dm device.Message
+            if err := dec.Decode(&dm); err != nil  && err != io.EOF {
+                log.Println("[ERROR] dec.Decode: ", err)
+                return
+            }
+            devc <- &dm
+            
         }
     }
 }
@@ -387,19 +387,39 @@ func hit(q *[]device.Command, h *[]device.Command) {
     queue := *q
 
     dn, cmd := (queue[0]).Devicename, (queue[0]).Command
-    if devices[dn] == nil {
-        clientc <- &device.Message {
-            Type:   "response",
-            Device: dn,
-            Action: "error",
-            Body:   `{
-                        error:   'device not available',
-                        command: '` + cmd + `',
-                    }`,
+    if dn != "" {
+        dev     := devices[dn]
+
+        queue   = append(queue[:0], queue[1:]...)
+
+        if dev == nil {
+            clientc <- &device.Message {
+                Type:   "response",
+                Device: dn,
+                Action: "error",
+                Body:   `{
+                            error:   'device not available',
+                            command: '` + cmd + `',
+                        }`,
+            }
+
+            //  [ TODO ]
+            //  remove all commands in queue related dn
+            return
         }
 
-        //  [ TODO ]
-        //  remove all commands in queue related dn
-        return
+        r, err := dev.LobCommand(cmd)
+        if err != nil {
+            log.Println("[ERROR] hit / dev.LobCommand: ", err)
+
+            //  [ TODO ]
+            //  handle this better
+        }
+
+        clientc <- dev.ResponseMsg("job", r)
     }
+
+    //  [ TODO ]
+    //  clear comm listen buffer
+    //  end a device queue cleanly
 }
