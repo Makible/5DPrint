@@ -7,11 +7,6 @@ var dbg = 0,
     deviceName,
     socketAddr  = 'ws://';
 
-
-
-//  WARNING!!!! THE BELOW CODE IS BAD!!!!
-// var dn = (isWin()) ? 'COM3' : '/dev/tty.usbmodem001';
-
 $(document).ready(function() {
     //  display "initializing" message
     //  attempt to create a socket and 
@@ -44,7 +39,7 @@ $(document).ready(function() {
 
     //  ===[ DEBUG ]
     // fakeDevice();
-    showDbg();
+    // showDbg();
 });
 
 var manageDevConnection = function(msg) {
@@ -133,7 +128,6 @@ var attachBtnEvents = function() {
 
     $('#init').on('click', function(evt) {
         if($(this).is(':visible')) {
-            console.log('Clicking to force connection check');
             checkConn();
         }
     });
@@ -201,12 +195,21 @@ var start = function() {
             $('#file').html(f.name);
         });
         $(inp).click();
-
     }
 };
 
+var resume = function() {
+    sendDevMsg('resume', '');
+    
+    $('#start').off('click');
+    $('#start').on('click', start);
+}
+
 var pause = function() {
     sendDevMsg('interrupt', 'pause');
+
+    $('#start').off('click');
+    $('#start').on('click', resume);
 };
 
 var stop = function() {
@@ -357,7 +360,6 @@ var onClose = function(e) {
 
     $('#status').html('ws closed');
     console.log('[WARN] socket connection closed and stat timer killed');
-    console.log(e);
 };
 
 //  ===[ HELPERS ]
