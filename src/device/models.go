@@ -20,11 +20,8 @@ type Device struct {
 	GCode      GCodeFile
 	JobRunning bool
 	JobPaused  bool
-}
-
-type Command struct {
-	Devicename	string
-	Command		string
+    JobQueue   []string
+    HoldQueue  []string
 }
 
 type GCodeFile struct {

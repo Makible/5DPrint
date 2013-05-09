@@ -4,6 +4,7 @@ import (
 	"device/comms/serial"
 	"device/makibox"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -108,6 +109,8 @@ func GetAttachedDevices(existing *map[string]*Device) (string, error) {
 			Greeting:   string(buf[:n]),
 			JobRunning: false,
 			JobPaused: 	false,
+            JobQueue:   make([]string, 1),
+            HoldQueue:  make([]string, 1),
 		}
 
 		(*existing)[devName] = dev
@@ -304,11 +307,14 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 			return nil, err
 		}
 
-		lines := strings.Split(gc.Data, "\n")
-		for _, ln := range lines {
-			if _, err := f.Write([]byte(ln)); err != nil {
-				log.Println(err)
-			}
+		// lines := strings.Split(gc.Data, "\n")
+		// for _, ln := range lines {
+		// 	if _, err := f.Write([]byte(ln)); err != nil {
+		// 		log.Println(err)
+		// 	}
+		// }
+		if _, err := f.Write([]byte(gc.Data)); err != nil {
+			log.Println(err)
 		}
 
 		dev.GCode = gc
@@ -359,12 +365,27 @@ func (dev *Device) LobCommand(cmd string) (string, error) {
 		return "", err
 	}
 
-	//  read response from device
-	buf := make([]byte, 255)
-	n, err = dev.IODevice.Read(buf)
-	if n < 1 {
-		log.Printf("[ERROR] looks like the device didn't respond properly: %d\n", n)
-		return "", nil
+	if n < 1 { return "", errors.New("unable to write to device") }
+
+	// if err := dev.IODevice.Writer.Flush(); err != nil {
+	// 	return "", err
+	// }
+
+	response := "\n"
+	for i := 0; i < 20; i++ {
+
+		//  read response from device
+		buf := make([]byte, 255)
+		n, err = dev.IODevice.Read(buf)
+		if n < 1 {
+			log.Printf("[ERROR] looks like the device didn't respond properly: %d\n", n)
+			return "", nil
+		}
+
+		response += string(buf[:n])
+		if strings.Contains(response, "go") && strings.Contains(response, "ok") { break }
 	}
-	return string(buf[:n]), nil
+
+	// log.Println(response)
+	return response, nil
 }

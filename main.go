@@ -17,6 +17,18 @@ import (
     "time"
 )
 
+type connection struct {
+    ws   *websocket.Conn
+    send chan *device.Message
+}
+
+type hub struct {
+    connections map[*connection] bool
+    register    chan *connection
+    unregister  chan *connection
+    broadcast   chan *device.Message
+}
+
 var (
     defServPort = "8080"
     uiDir       = "/ui/"
@@ -29,23 +41,35 @@ var (
     openBrowser = false
     dbg = true
 
-    devc, clientc           chan *device.Message
-    devices                 map[string] *device.Device
-    workingDir              string
-    launchBrowserArgs       []string
-    deviceListenerRunning   bool
+    wshub             hub
+    devices           map[string] *device.Device
+    devc              chan *device.Message
+    errc              chan error
+    workingDir        string
+    launchBrowserArgs []string
+    listenerRunning   bool
 )
 
 func main() {
     log.Println("[INFO] 5DPrint starting...")
-    runtime.GOMAXPROCS(2)   //  increasing the count for background processes
+    //    runtime.GOMAXPROCS(2)   //  increasing the count for background processes
 
-    devices              = make(map[string] *device.Device)
-    devc, clientc        = make(chan *device.Message), make(chan *device.Message)
+    devices = make(map[string] *device.Device)
+    devc    = make(chan *device.Message)
+    errc    = make(chan error, 1)
+    wshub = hub {
+        connections: make(map[*connection] bool),
+        register:    make(chan *connection),
+        unregister:  make(chan *connection),
+        broadcast:   make(chan *device.Message),
+    }
 
     //  init OS specific variables
     initOSVars()
+
     go initDeviceListener()
+    go initWsSwitchBoard()
+
     initHttpServer()
 }
 
@@ -76,20 +100,20 @@ func initOSVars() {
 //  attached and update the list accordingly
 func initDeviceListener() {
     for {
-        if !deviceListenerRunning { deviceListenerRunning = true }
+        listenerRunning = true
 
         dn, err := device.GetAttachedDevices(&devices)
         if err != nil {
             if !strings.HasSuffix(err.Error(), device.NSF) && !strings.HasSuffix(err.Error(), device.DNC) {
                 if strings.HasSuffix(err.Error(), device.RM) {
                     //  notify device detached
-                    clientc <- &device.Message {
+                    wshub.broadcast <- &device.Message {
                         Type:   "response",
                         Device: (strings.Split(err.Error(), " "))[0],
                         Action: "connection",
                         Body:   "detached",
                     }
-                }else {
+                } else {
                     //
                     //  [ TODO ] 
                     //  handle this better but for now
@@ -103,7 +127,7 @@ func initDeviceListener() {
         //  this means a new device was attached
         //  and someone should be notified
         if len(dn) > 1 {
-            clientc <- &device.Message {
+            wshub.broadcast <- &device.Message {
                 Type:   "response",
                 Device: dn,
                 Action: "connection",
@@ -111,7 +135,7 @@ func initDeviceListener() {
             }
 
             //  we'll just accept the one for now to free up some resources
-            deviceListenerRunning = false
+            listenerRunning = false
             return
         }
 
@@ -121,137 +145,26 @@ func initDeviceListener() {
     }
 }
 
-func initJobQueue(dev *device.Device) {
-    go func() {
-        done, loopCounter := false, 0
-
-        for !done {
-            cmd := dev.JobQueue[0]
-            if dev.JobRunning && !dev.JobPaused && len(dev.JobQueue) > 1 {
-                dev.JobQueue = dev.JobQueue[1:len(dev.JobQueue)-1]  //  pop the zero item off
-
-                //
-                //  Do not send over comments or empty commands.
-                //  Empty lines are possible depending on the slicer used
-                if !strings.HasPrefix(cmd, ";") && cmd != "" {
-                    //  debug for now; hide later and possible reply back to the UI that the cmd
-                    //  has been shipped to the device
-                    log.Println("[INFO] JobQueue cmd: \n", cmd)
-
-                    //  wash and tag
-                    cmd = strings.TrimLeft(cmd, " ")
-                    cmd += device.FWLINETERMINATOR
-                    resp, err := dev.LobCommand(cmd)
-                    if err != nil {
-                        log.Println("[ERROR] dev.JobQueue processing for device ", dev.Name, err)
-
-                        //  
-                        //  This usually means the device was detached.
-                        //  We will update the client / UI, clean up values and exit
-                        if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
-                            clientc <-&device.Message {
-                                Type:   "response",
-                                Device: dev.Name,
-                                Action: "error",
-                                Body:   `{
-                                            error:   'device not available',
-                                            command: '` + cmd + `',
-                                        }`,
-                            }
-
-                            dev.JobQueue   = make([]string, 1)
-                            dev.JobRunning = false
-                            delete(devices, dev.Name)
-                            go initDeviceListener()
-
-                            done = true
-                            continue
-                        }
-                    }
-
-                    //  debug info
-                    log.Println("[INFO] JobQueue response: ", resp)
-                    clientc <-dev.ResponseMsg("job", resp)
-
-                    //  
-                    //  === [ HACK ]
-                    //  this is assuming we're on a 3D
-                    //  printer and doesn't generalize
-                    //  for all devices
-                    if strings.HasPrefix(cmd, "M109") || strings.HasPrefix(cmd, "M190") {
-                        pre, heatMsg := "B:", "waiting for bed to reach temp"
-                        if strings.HasPrefix(cmd, "M109") {
-                            pre, heatMsg = "T:", "waiting for hotend to reach temp"
-                        }
-
-                        log.Println("[INFO] ", heatMsg)
-                        clientc <-dev.ResponseMsg("job", heatMsg)
-
-                        //  parse out the temp bit
-                        temp := cmd[strings.Index(cmd, "S")+1:]
-                        if strings.Contains(temp, " ") {
-                            temp = temp[:strings.Index(temp, " ")]
-                        }
-
-                        for {
-                            buf := make([]byte, 255)
-                            n, err := dev.IODevice.Read(buf)
-                            if n < 1 || err != nil {
-                                log.Printf("[ERROR] looks like the device didn't respond properly: %d\n", n)
-                                break
-                            }
-
-                            val := string(buf[:n])
-                            log.Println("[INFO] ", val)
-                            clientc <- dev.ResponseMsg("job", val)
-
-                            if strings.Contains(pre + temp, val) {
-                                log.Println("[DEBUG] temp: ", val)
-                                break
-                            }
-                        }
-                    }
-
-
-                    loopCounter++
-                    if loopCounter % 8 == 0 {
-                        var (
-                            r *device.Message
-                            e error
-                        )
-
-                        r, e = dev.Do("status", "")
-                        if e != nil { log.Println("[WARN] JobQueue: unable to get status info: ", e) }
-                        if r != nil { 
-                            log.Println("[INFO] JobQueue - status response: ", r.Body)
-                            clientc <-r 
-                        }
-
-                        //  show RAM info
-                        r, e = dev.Do("console", "M603")
-                        if e != nil { log.Println("[WARN] JobQueue: unable to get status info: ", e) }
-                        if r != nil { 
-                            log.Println("[INFO] JobQueue - RAM info response: ", r.Body)
-                            clientc <- r 
-                        }
-                    }
+func initWsSwitchBoard() {
+    for {
+        select {
+        case c := <-wshub.register:
+            wshub.connections[c] = true
+        case c := <-wshub.unregister:
+            delete(wshub.connections, c)
+            if _, ok := <-c.send; ok { close(c.send) }
+        case msg := <-wshub.broadcast:
+            for c := range wshub.connections {
+                select {
+                case c.send <-msg:
+                default:
+                    delete(wshub.connections, c)
+                    close(c.send)
+                    go c.ws.Close()
                 }
-            } else {
-                done = true
             }
         }
-
-        log.Println("[INFO] JobQueue cleaning up and exiting")
-        log.Println("[DEBUG] JobRunning ", dev.JobRunning)
-        log.Println("[DEBUG] JobPaused ", dev.JobPaused)
-        log.Println("[DEBUG] len(dev.JobQueue)", len(dev.JobQueue))
-        log.Println("[DEBUG]")
-
-        //  cleanup
-        dev.JobRunning = false
-        dev.JobQueue   = make([]string, 1)
-
-    }()
+    }
 }
 
 func initHttpServer() {
@@ -310,10 +223,12 @@ func initHttpServer() {
     http.Handle("/abs", websocket.Handler(clientWsHandler))
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path == "/" {
-            t, err := template.ParseFiles(dir + "/index.html")
+            index := "/index.html"
+            t, err := template.ParseFiles(dir + index)
             if err != nil {
                 log.Fatal(fmt.Printf("[ERROR] unable to reneder default UI: %v\n", err))
             }
+
             t.Execute(w, "")
             return
         }
@@ -322,13 +237,75 @@ func initHttpServer() {
 
     go func() {
         url := "http://" + addr
-        if wait(url) && openBrowser && launchBrowser(url) {
+        if httpWait(url) && openBrowser && launchBrowser(url) {
             log.Printf("[INFO] a browser window should open. If not, please visit %s\n", url)
         } else {
             log.Printf("[INFO] unable to open your browser. Please open and visit %s\n", url)
         }
     }()
-    log.Fatal(http.ListenAndServe(addr, nil))
+
+    if err := http.ListenAndServe(addr, nil); err != nil {
+        log.Fatal("[ERROR] ListenAndServe: ", err)
+    }
+}
+
+func initJobQueue(dev *device.Device) {
+    go func() {
+        done := false
+        log.Println("[INFO] Starting job with line count of ", len(dev.JobQueue))
+
+        for !done {
+            cmd := dev.JobQueue[0]
+            if len(dev.JobQueue) > 1 {
+                dev.JobQueue = dev.JobQueue[1:len(dev.JobQueue)-1]  //  pop the zero item off
+            } else {
+                done = true
+            }
+            
+            //
+            //  Do not send over comments or empty commands.
+            //  Empty lines are possible depending on the slicer used
+            if !strings.HasPrefix(cmd, ";") && cmd != "" {
+                //  debug for now; hide later and possible reply back to the UI that the cmd
+                //  has been shipped to the device
+                log.Println(cmd)
+
+                cmd += device.FWLINETERMINATOR
+                resp, err := dev.LobCommand(cmd)
+                if err != nil {
+                    log.Println("[ERROR] dev.JobQueue processing for device ", dev.Name, err)
+
+                    //  
+                    //  This usually means the device was detached.
+                    //  We will update the client / UI, clean up values and exit
+                    if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
+                        wshub.broadcast <-&device.Message {
+                            Type:   "response",
+                            Device: dev.Name,
+                            Action: "error",
+                            Body:   `{
+                                        error:   'device not available',
+                                        command: '` + cmd + `',
+                                    }`,
+                        }
+
+                        dev.JobQueue   = make([]string, 1)
+                        dev.JobRunning = false
+                        delete(devices, dev.Name)
+                        go initDeviceListener()
+
+                        return
+                    }
+                }
+                wshub.broadcast <-dev.ResponseMsg("job", resp)
+            }
+        }
+        //  cleanup
+        dev.JobRunning  = false
+        dev.JobQueue    = make([]string, 1)
+
+        log.Println("[INFO] Job complete")
+    }()
 }
 
 //  
@@ -336,7 +313,7 @@ func initHttpServer() {
 //  
 
 //  wait a bit for the web server to start
-func wait(url string) bool {
+func httpWait(url string) bool {
     tries := 20
     for tries > 0 {
         resp, err := http.Get(url)
@@ -355,35 +332,45 @@ func launchBrowser(url string) bool {
     return cmd.Start() == nil
 }
 
-func clientWsHandler(c *websocket.Conn) {
-    //  [ TODO ]
-    //  do we need a check in each of these routines
-    //  that will return when the channels are closed?
-    //  will this holdq open memory after the application
-    //  hask "shutdown"?
-    go func() {
-        enc := json.NewEncoder(c)
-        for m := range clientc {
-            if err := enc.Encode(m); err != nil {
-                log.Println("[ERROR] clientc channel read: ", err)
-                return
-            }
-        }
-    }()
+func clientWsHandler(ws *websocket.Conn) {
+    wsc := &connection { send: make(chan *device.Message), ws: ws }
 
-    dec := json.NewDecoder(c)
+    wshub.register <-wsc
+    defer func() { wshub.unregister <-wsc }()
+
+    go wsc.write()
+    wsc.read()
+}
+
+
+
+func (conn *connection) write() {
+    enc := json.NewEncoder(conn.ws)
+    for msg := range conn.send {
+        if err := enc.Encode(msg); err != nil {
+            log.Println("[ERROR] web socket read: ", err)
+            break
+        }
+    }
+
+    log.Println("[WARN] write: closing socket")
+    conn.ws.Close()
+}
+
+func (conn *connection) read() {
+    dec := json.NewDecoder(conn.ws)
     for {
         var msg device.Message
         if err := dec.Decode(&msg); err != nil  && err != io.EOF {
-            log.Println("[ERROR] dec.Decode: ", err)
-            return
+            log.Println("[ERROR] web socket read: ", err)
+            break
         }
-
+        
         if msg.Action != "connection" {
             if devices != nil && len(devices) > 0 && devices[msg.Device] != nil {
                 dev := devices[msg.Device]
                 if dev.JobRunning && msg.Action == "job" {
-                    clientc <-&device.Message {
+                    wshub.broadcast <-&device.Message {
                         Type:   "response",
                         Device: dev.Name,
                         Action: "error",
@@ -394,20 +381,21 @@ func clientWsHandler(c *websocket.Conn) {
                                 }`,
                     }
                 } else {
+                    //  load up the cmdq and let the job run
                     if msg.Action == "job" && !dev.JobRunning {
-                        //  load up the job queue and let it run
                         lines := strings.Split(dev.GCode.Data, "\n")
-                        if len(lines) > 1 {
+                        if len(lines) > 1 { 
                             dev.JobQueue = make([]string, 1)
+
                             for _, line := range lines {
-                                dev.JobQueue = append(dev.JobQueue, line)
+                                dev.JobQueue = append(dev.JobQueue, line) 
                             }
 
-                            dev.JobQueue    = dev.JobQueue[1:len(dev.JobQueue)-1] //   pop the empty item off
-                            dev.JobRunning  = true
+                            dev.JobQueue   = dev.JobQueue[1:len(dev.JobQueue)-1]  //  pop the empty item off
+                            dev.JobRunning = true
                             initJobQueue(dev)
                         } else {
-                            clientc <-&device.Message {
+                            wshub.broadcast <-&device.Message {
                                 Type:   "response",
                                 Device: msg.Device,
                                 Action: "error",
@@ -423,7 +411,7 @@ func clientWsHandler(c *websocket.Conn) {
                             r, err := dev.Do(msg.Action, msg.Body)
                             if err != nil {
                                 if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
-                                    clientc <-&device.Message {
+                                    wshub.broadcast <-&device.Message {
                                         Type:   "response",
                                         Device: msg.Device,
                                         Action: "error",
@@ -435,17 +423,18 @@ func clientWsHandler(c *websocket.Conn) {
                                     }
                                     delete(devices, msg.Device)
                                     go initDeviceListener()
+
                                 } else {
                                     log.Println("[ERROR] unable to complete action: ", err)
                                 }
                             }
-                            if r != nil { clientc <-r }    //  send the response even with an error
+                            if r != nil { wshub.broadcast <-r }    //  send the response even with an error
                         } else {
                             if msg.Action == "status" {
                                 r, err := dev.Do(msg.Action, msg.Body)
                                 if err != nil {
                                     if strings.HasSuffix(err.Error(), device.NSF) || strings.HasSuffix(err.Error(), device.DNC) {
-                                        clientc <-&device.Message {
+                                        wshub.broadcast <-&device.Message {
                                             Type:   "response",
                                             Device: msg.Device,
                                             Action: "error",
@@ -457,11 +446,12 @@ func clientWsHandler(c *websocket.Conn) {
                                         }
                                         delete(devices, msg.Device)
                                         go initDeviceListener()
+
                                     } else {
                                         log.Println("[ERROR] unable to complete action: ", err)
                                     }
                                 }
-                                if r != nil { clientc <-r }    //  send the response even with an error
+                                if r != nil { wshub.broadcast <-r }    //  send the response even with an error
                             } else if msg.Action == "resume" && dev.JobPaused {
                                 //
                                 //  Shift from HoldQueue to JobQueue
@@ -473,19 +463,32 @@ func clientWsHandler(c *websocket.Conn) {
                                 initJobQueue(dev)
 
                             } else if msg.Action == "interrupt" {
-                                //
-                                //  Shift from JobQueue to HoldQueue
-                                dev.HoldQueue = make([]string, len(dev.JobQueue))
-                                copy(dev.HoldQueue, dev.JobQueue)
 
-                                dev.JobQueue  = make([]string, 1)
-                                dev.JobPaused = true;
+                                if msg.Body != "stop" {
+                                    //
+                                    //  Shift from JobQueue to HoldQueue
+                                    dev.HoldQueue = make([]string, len(dev.JobQueue))
+                                    copy(dev.HoldQueue, dev.JobQueue)
+
+                                    dev.JobQueue  = make([]string, 1)
+                                    dev.JobPaused = true;
+                                } else {
+                                    //  [ TODO ]
+                                    //  Need to determine what we want to do on a 'stop'
+                                    //  click... E-Stop or just similar to a pause?
+
+                                    //  MakiBox Emergency Stop
+                                    //  dev.Do("console", "M112")
+
+                                    log.Println("[WARN] On the TODO's...")
+                                }
+
                             }
                         }
                     }
                 }
             } else {
-                clientc <-&device.Message {
+                wshub.broadcast <-&device.Message {
                     Type:   "response",
                     Device: msg.Device,
                     Action: "error",
@@ -501,7 +504,7 @@ func clientWsHandler(c *websocket.Conn) {
             //  else notify there is a device available
             if devices != nil && len(devices) > 0 {
                 for dn, _ := range devices {
-                    clientc <-&device.Message {
+                    wshub.broadcast <-&device.Message {
                         Type:   "response",
                         Device: dn,
                         Action: "connection",
@@ -510,8 +513,11 @@ func clientWsHandler(c *websocket.Conn) {
                     break
                 }
             } else {
-                if !deviceListenerRunning { go initDeviceListener() }
+                if !listenerRunning { go initDeviceListener() }
             }
         }
     }
+
+    log.Println("[WARN] read: closing socket")
+    conn.ws.Close()
 }

@@ -357,8 +357,8 @@ var onMsg = function(e) {
 
 var onClose = function(e) {
     window.clearInterval(statTimer);
-
     $('#status').html('ws closed');
+    connTimer = setInterval(checkConn, 1000);
     console.log('[WARN] socket connection closed and stat timer killed');
 };
 
