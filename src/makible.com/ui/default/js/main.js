@@ -43,7 +43,7 @@ $(document).ready(function() {
 });
 
 var manageDevConnection = function(msg) {
-    if(msg.Device == '' || msg.Device == 'nil') {
+    if(msg.DeviceName == '' || msg.DeviceName == 'nil') {
         //  ===[ TODO ]
         //  display no device attached msg
         //  and attach checkConn timer
@@ -53,7 +53,7 @@ var manageDevConnection = function(msg) {
     }
     if(msg.Body == 'attached') {
         $('#init-msg').html('initializing device...');
-        deviceName  = msg.Device;
+        deviceName  = msg.DeviceName;
         var greet   = msg.Body;
 
         //  ===[ TODO ]
@@ -199,7 +199,7 @@ var start = function() {
 };
 
 var resume = function() {
-    sendDevMsg('resume', '');
+    sendDevMsg('interrupt', 'resume');
     
     $('#start').off('click');
     $('#start').on('click', start);
@@ -210,10 +210,6 @@ var pause = function() {
 
     $('#start').off('click');
     $('#start').on('click', resume);
-};
-
-var stop = function() {
-    sendDevMsg('interrupt', 'stop');
 };
 
 var mover = function(btn) {
@@ -265,7 +261,7 @@ var temper = function(btn) {
     if(inp != undefined && inp != null) {
         if($(inp).val().length > 0) {
             var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-            sendDevMsg('temper', { Heater: $(heater).attr('id'), Temp: parseInt(tmp) });
+            sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
         }else
             console.log('INSERT A VALID TEMPERATURE');
     } else {
@@ -326,7 +322,17 @@ var onMsg = function(e) {
     if(msg.Type === 'response') {
         switch(msg.Action) {
         case 'job':
-            //  TODO:
+            if(msg.Body == "complete") {
+                $('#over-msg').fadeOut(100);
+                $('#init')
+                    .css('z-index', '799')
+                    .slideUp(1000, function() {
+                        $('#init').css('z-index', '-1');
+                    });
+                    
+                $('#file').html('');
+                statTimer = setInterval(getStats, 1500);
+            }
             break;
 
         case 'status':
@@ -344,6 +350,11 @@ var onMsg = function(e) {
         case 'error':
             //  TODO: alert invalid device name
             console.log('[WARN] 5DPrint serv responded with error: ' + msg.Body);
+            if(msg.Body.indexOf('invalid device name') > -1) {
+                msg.Body = 'detached';
+                manageDevConnection(msg);
+            }
+
             break;
 
         default:
@@ -409,12 +420,12 @@ var updateUIStatus = function(msg) {
 var sendCoreMsg = function(action, body) {
     var b = (body.length > 0) ? JSON.stringify(body) : body;
 
-    var msg = JSON.stringify({ Type: 'core', Device: '', Action: action, Body: b });
+    var msg = JSON.stringify({ Type: 'core', DeviceName: '', Action: action, Body: b });
     socket.send(msg);
 };
 
 var sendDevMsg = function(action, body) {
-    var msg = JSON.stringify({ Type: 'device', Device: deviceName, Action: action, Body: JSON.stringify(body) });
+    var msg = JSON.stringify({ Type: 'device', DeviceName: deviceName, Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
