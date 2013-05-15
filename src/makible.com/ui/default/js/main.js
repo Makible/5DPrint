@@ -38,7 +38,7 @@ $(document).ready(function() {
     connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    // fakeDevice();
+    fakeDevice();
     // showDbg();
 });
 
@@ -54,18 +54,7 @@ var manageDevConnection = function(msg) {
     if(msg.Body == 'attached') {
         $('#init-msg').html('initializing device...');
         deviceName  = msg.DeviceName;
-        var greet   = msg.Body;
 
-        //  ===[ TODO ]
-        //  display the greeting / firmware
-        //  version info in the "status"
-        //  display area ...
-        // console.log(deviceName);
-        // console.log(greet);
-
-        //  init UI button events and 
-        //  hide init message
-        //  attachBtnEvents();
         $('#over-msg').fadeOut(100);
         $('#init')
             .css('z-index', '799')
@@ -452,6 +441,6 @@ var hideDbg = function() {
 
 var fakeDevice = function() {
     window.clearInterval(connTimer);
-    initUIWithDev({ Device: 'foo', Body: 'bar' });
+    manageDevConnection({ Device: 'foo', Body: 'attached' });
     window.clearInterval(statTimer);
 };
