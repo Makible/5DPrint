@@ -389,7 +389,7 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 
 	//  read response from device
 	response := "\n"
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		buf := make([]byte, 255)
 		n, err = (*dev).Read(buf)
 		if n < 1 {

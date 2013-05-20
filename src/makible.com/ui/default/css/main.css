@@ -362,13 +362,14 @@ nav {
 #graph {
     background-color: #3e3e3e;
     border: 1px solid #333;
+    cursor: pointer;
 }
 
 /* TEMP SECTION */
 #temperature {
     position: absolute;
-    top: 70px;
-    left: 940px;
+    top: 160px;
+    left: 880px;
     width: 240px;
     height: 480px;
 }
@@ -444,6 +445,7 @@ nav {
 }
 
 .valu {
+    position: relative;
     margin: 54px 45px;
     width: 100%;
 }
@@ -463,8 +465,9 @@ nav {
 
 .intemp {
     position: relative;
+    display: block;
     margin-top: 0px; 
-    margin-left: 22px;
+    margin-left: 32px;
     width: 38px;
     height: 24px;
     text-align: right;
@@ -474,18 +477,30 @@ nav {
     border-bottom: 1px solid rgba(180, 180, 180, 0.8);
 }
 
-.set {
+.set,
+.off {
     position: relative;
-    display: inline-block;
+    margin: 10px auto;
+    float: left;
+    width: 42px;
     text-transform: uppercase;
     font-family: "OpenSansRegular";
     font-weight: 300;
-    font-size: 1.1em;
+    font-size: 0.9em;
     cursor: pointer; 
 }
 
-.set:hover {
+.set:hover,
+.off:hover {
     color: #1c8cc8;
+}
+
+.off {
+    margin-left: 18px;
+}
+
+.set {
+    display: inline-block;
 }
 
 /* HOME ACTIONS */

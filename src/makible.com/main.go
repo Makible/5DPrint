@@ -36,14 +36,16 @@ var (
 
 func main() {
 	log.Println("5DPrint starting...")
-	// runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(2)
 
 	devices = make(map[string]*Device)
 	devc, clientc = make(chan *Message), make(chan *Message)
 
 	initOSVars()
 	go initDeviceListener()
-	initHttpServer()
+	go initHttpServer()
+
+	select {} // sleep forever
 }
 
 func initOSVars() {
@@ -202,7 +204,8 @@ func initJobQueue(dname string) {
 
 	log.Println("Starting job queue...")
 
-	for i, cmd := range lines {
+	// for i, cmd := range lines {
+	for _, cmd := range lines {
 		//  [ TODO ]
 		//  add a select here that will listen on a channel
 		//  for an incoming interrupt and default to running
@@ -265,11 +268,13 @@ func initJobQueue(dname string) {
 					return
 				}
 
-				//  give a high / low of about 4 degrees
-				high, low := strconv.Itoa(itemp+4), strconv.Itoa(itemp-4)
+				//  give a high / low of about nth degrees
+				offset := 2
+				high, low := strconv.Itoa(itemp+offset), strconv.Itoa(itemp-offset)
 
-				log.Println("debug: listening on serial ... seems it might take a min to respond")
 				for {
+					log.Println("debug: requesting temp")
+
 					buf := make([]byte, 255)
 					n, err := dev.IODevice.Read(buf)
 					if n < 1 || err != nil {
@@ -304,22 +309,22 @@ func initJobQueue(dname string) {
 				log.Println(resp)
 				clientc <- responseMsg(dev.Name, "job", resp)
 
-				if (i % 10) == 0 {
-					resp, err := dev.Do("status", "")
-					if err != nil {
-						if checkConnError(err.Error(), dev.Name) {
-							dev.JobStatus = IDLE
-							delete(devices, dev.Name)
-							if !deviceListenerRunning {
-								go initDeviceListener()
-							}
+				// if (i % 10) == 0 {
+				// 	resp, err := dev.Do("status", "")
+				// 	if err != nil {
+				// 		if checkConnError(err.Error(), dev.Name) {
+				// 			dev.JobStatus = IDLE
+				// 			delete(devices, dev.Name)
+				// 			if !deviceListenerRunning {
+				// 				go initDeviceListener()
+				// 			}
 
-							return
-						}
-					}
+				// 			return
+				// 		}
+				// 	}
 
-					log.Println(resp)
-				}
+				// 	log.Println(resp)
+				// }
 			}
 		}
 	}

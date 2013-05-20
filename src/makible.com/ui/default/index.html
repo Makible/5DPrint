@@ -49,7 +49,9 @@
             <section id="movement">
                 <div id="x" class="slider"></div>
                 <div id="y" class="slider"></div>
-                <canvas id="graph" width="491" height="427">
+                <canvas id="graph" width="491" height="427"></canvas>
+                <div id="z" class="slider"></div>
+                <div id="e" class="slider"></div>
             </section>
 
             <!-- <section id="movement">
@@ -77,14 +79,6 @@
                         <input id="xysteps" type="number" min="0" max="200" class="steps" value="10" />
                         <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="3000" />
                     </div>
-
-                    <div id="e1pos" class="btn icon-up-open-big pos"></div>
-                    <div id="e1neg" class="btn icon-down-open-big neg"></div>
-                    <div id="e" class="island">
-                        <div id="elabel" class="label">e</div>
-                        <input id="esteps" type="number" min="0" max="200" class="steps" value="5" />
-                        <input id="espeed" type="number" min="0" max="3000" class="speed" value="3000" />
-                    </div>
                 </div>
 
 
@@ -98,17 +92,16 @@
                 </div>
             </section> -->
 
-            <!-- <section id="temperature">
+            <section id="temperature">
                 <div id="hotend" class="scale">
                     <div id="hotend-ico" class="label">
                         <div id="platform" class="icon-campsite"></div>
                         <div id="extrusion" class="icon-split"></div>
                     </div>
                     <div class="valu">
-                        <div class="actual">
-                            0<span class="deg">&deg;C</span>
-                        </div>
+                        <div class="actual">0<span class="deg">&deg;C</span></div>
                         <input type="number" min="0" max="300" class="intemp" value="240" />
+                        <div class="btn off" data-heater="he">off</div>
                         <div class="btn set" data-heater="he">set</div>
                     </div>
                 </div>
@@ -122,10 +115,11 @@
                             0<span class="deg">&deg;C</span>
                         </div>
                         <input type="number" min="0" max="145" class="intemp" value="100" />
+                        <div class="btn off" data-heater="hb">off</div>
                         <div class="btn set" data-heater="hb">set</div>
                     </div>
                 </div>
-            </section> -->
+            </section>
 
             <!-- <section id="console">
             </section> -->

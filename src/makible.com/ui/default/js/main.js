@@ -38,7 +38,7 @@ $(document).ready(function() {
     connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    fakeDevice();
+    // fakeDevice();
     // showDbg();
 });
 
@@ -109,7 +109,7 @@ var attachBtnEvents = function() {
                         mover(btn);
                 }             
             }else {
-                if($(btn).hasClass('set'))
+                if($(btn).hasClass('set') || $(btn).hasClass('off'))
                     temper(btn);
             }
         });
@@ -246,17 +246,20 @@ var homer = function(btn) {
 var temper = function(btn) {
     var heater  = $(btn).parent().parent(),
         inp     = $(heater).find('input');
-
-    if(inp != undefined && inp != null) {
-        if($(inp).val().length > 0) {
-            var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-            sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-        }else
-            console.log('INSERT A VALID TEMPERATURE');
+    if($(btn).hasClass('off')) {
+        sendDevMsg('temper', { Name: $(heater).attr('id'), Value: 0 });
     } else {
-        //  something bad happened...
-        //  apparently there isn't an input
-        console.log('[WARN] temper was not dispatched properly');
+        if(inp != undefined && inp != null) {
+            if($(inp).val().length > 0) {
+                var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+                sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
+            }else
+                console.log('INSERT A VALID TEMPERATURE');
+        } else {
+            //  something bad happened...
+            //  apparently there isn't an input
+            console.log('[WARN] temper was not dispatched properly');
+        }
     }
 };
 

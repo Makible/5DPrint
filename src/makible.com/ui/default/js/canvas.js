@@ -4,6 +4,8 @@
 //    1[mm] == 3.779[pixel]
 */
 
+var MAGICNUM = 3.779;
+
 var canvas, ctx, w, h, inc;
 
 canvas  = $('#graph');
@@ -14,14 +16,9 @@ inc     = 14.2;
 
 var clickHandler = function(e) {
     var x, y;
-
-    console.log(e);
-
-    console.log(e.offsetX);
-    console.log(e.offsetY);
-
-    // ctx.moveTo(e.offsetX, e.offsetY);
-    // ctx.lineTo(e.offsetX + inc, e.offsetY + inc);
+    x = ' X' + pixelToMilliMeter(e.offsetY);
+    y = ' Y' + pixelToMilliMeter(e.offsetX);
+    sendConsoleMsg('G1'+x+y);
 };
 
 var displayGrid = function() {
@@ -37,6 +34,18 @@ var displayGrid = function() {
     }
     ctx.stroke();
 };
+
+var pixelToMilliMeter = function(p) {
+    if(p != 0) return Math.floor(p / MAGICNUM);
+
+    return p
+};
+
+var milliMeterToPixel = function(mm) {
+    if(mm != 0) return Math.floor(mm * MAGICNUM);
+
+    return mm
+}
 
 $(canvas).on('click', clickHandler);
 displayGrid();
