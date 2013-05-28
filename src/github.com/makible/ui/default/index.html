@@ -27,7 +27,7 @@
                 <div id="pause" class="btn icon-pause"></div>
             </div>
 
-            <div id="status"></div>
+            <!-- <div id="status"></div> -->
 
             <div id="misc">
                 <div id="device"></div>
@@ -47,53 +47,35 @@
         <div class="wrapper">
 
             <section id="movement">
-                <div id="x" class="slider"></div>
-                <div id="y" class="slider"></div>
-                <canvas id="graph" width="491" height="427"></canvas>
-                <div id="z" class="slider"></div>
-                <div id="e" class="slider"></div>
-            </section>
-
-            <!-- <section id="movement">
-                <div id="controller">
-                    <div id="zneg" class="btn icon-up-open-big neg"></div>
-                    <div id="zpos" class="btn icon-down-open-big pos"></div>
-                    <div id="z" class="island">
-                        <div id="zlabel" class="label">z</div>
-                        <input id="zsteps" type="number" min="0" max="200" class="steps" value="5" />
-                        <input id="zspeed" type="number" min="0" max="3000" class="speed" value="3000" />
-                    </div>
-
-                    <label for="xneg" class="directional">x</label>
-                    <label for="ypos" class="directional">y</label>
-                    <label for="xpos" class="directional">x</label>
-                    <label for="yneg" class="directional">y</label>
-
-                    <div id="xneg" class="btn neg">-</div>
-                    <div id="ypos" class="btn pos">+</div>
-                    <div id="xpos" class="btn pos">+</div>
-                    <div id="yneg" class="btn neg">-</div>
-                    <div id="xy" class="island">
-                        <label for="xysteps" class="mm">mm</label>
-                        <label for="xyspeed" class="mmm">mm/min.</label>
-                        <input id="xysteps" type="number" min="0" max="200" class="steps" value="10" />
-                        <input id="xyspeed" type="number" min="0" max="3000" class="speed" value="3000" />
-                    </div>
-                </div>
-
-
                 <div id="homer">
+                    <div id="hlabel">home:</div>
                     <div id="ha" class="btn">all</div>
-                    <div class="icon-home"></div>
-                    <div id="hz" class="btn">z</div>
                     <div id="hx" class="btn">x</div>
                     <div id="hy" class="btn">y</div>
-                    <div id="ho" class="btn">off</div>
+                    <div id="hz" class="btn last">z</div>
                 </div>
-            </section> -->
+
+                <div id="mo" class="btn">motors off</div>
+
+                <div id="x" class="slider">
+                    <div class="handle">x</div>
+                </div>
+                <div id="y" class="slider">
+                    <div class="handle">y</div>
+                </div>
+                <canvas id="pa" width="567" height="415"></canvas>
+
+                <!-- <div id="e" class="btn">e</div>
+                <div id="z" class="slider">
+                    <div class="handle">z</div>
+                </div> -->
+
+
+                
+            </section>
 
             <section id="temperature">
-                <div id="hotend" class="scale">
+                <!-- <div id="hotend" class="scale">
                     <div id="hotend-ico" class="label">
                         <div id="platform" class="icon-campsite"></div>
                         <div id="extrusion" class="icon-split"></div>
@@ -118,6 +100,12 @@
                         <div class="btn off" data-heater="hb">off</div>
                         <div class="btn set" data-heater="hb">set</div>
                     </div>
+                </div> -->
+
+                <div id="hotend" class="tempr">
+
+                </div>
+                <div id="hotbed" class="tempr">
                 </div>
             </section>
 

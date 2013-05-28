@@ -477,7 +477,6 @@ func clientWsHandler(ws *websocket.Conn) {
 	}
 }
 
-//  wait a bit for the web server to start
 func httpWait(url string) bool {
 	tries := 20
 	for tries > 0 {

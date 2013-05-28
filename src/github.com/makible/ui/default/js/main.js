@@ -38,7 +38,7 @@ $(document).ready(function() {
     connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    // fakeDevice();
+    fakeDevice();
     // showDbg();
 });
 
@@ -69,6 +69,33 @@ var manageDevConnection = function(msg) {
 
         $('#device').html(deviceName);
         statTimer = setInterval(getStats, 1500); 
+
+        //  TODO
+        //  send request to see if the device has been homed 
+        //  (via M114 for the Makibox A6) and handle accordingly
+
+        /*
+            2 sample output responses from Makibox A6 for M114
+
+            "
+            go 272 (executing M114)
+            -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
+            -- X:0 Y:0 Z:0 E:0 (steps)
+            -- Axes Homed X:0 Y:0 Z:0
+            -- *Not all axes homed! Positions reported may be incorrect!!!
+            ok 272 Q64 (2ms execute)
+            "
+            "
+            go 301 (executing M114)
+            -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
+            -- X:0 Y:0 Z:0 E:0 (steps)
+            -- Axes Homed X:0 Y:1 Z:0
+            -- *Not all axes homed! Positions reported may be incorrect!!!
+            ok 301 Q64 (1ms execute)
+            "
+
+
+        */
 
         return;
     }
