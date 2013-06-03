@@ -54,8 +54,8 @@ var canvasClickHandler = function(e) {
     osy = e.offsetY - POINTERVISUALOFFSET;
 
     //  send coords to device
-    xstr = ' X' + pixelToMillimeter(osx);
-    ystr = ' Y' + pixelToMillimeter(osy);
+    xstr = ' X' + pixelToMillimeter(osy);
+    ystr = ' Y' + pixelToMillimeter(osx);
     sendConsoleMsg('G1'+xstr+ystr);
    
     // setup projected point indicator
@@ -64,46 +64,41 @@ var canvasClickHandler = function(e) {
     pp.y = osy;
     pp.color = '#7fa8cd';
 
-    //  update the ui to reflect
+    var dx, dy, sx, sy, err;
+
+    dx = Math.abs(osx - ph.x);
+    dy = Math.abs(osy - ph.y);
+    sx = (ph.x < osx) ? 1 : -1;
+    sy = (ph.y < osy) ? 1 : -1;
+    err = dx - dy;
+
     var i = setInterval(function(e) {
-        if(osx == ph.x && osy == ph.y) {
+        if(ph.x == osx && ph.y == osy) {
             window.clearInterval(i);
             pp = undefined;
             $(c).on('click', canvasClickHandler);
-
             return;
         }
 
-        if(osx != ph.x) {
-            if(osx < ph.x) {
-                ph.x--;
+        var e = 2 * err;
+        if(e > -dy) {
+            err -= dy;
 
-                var l = $('#y > .handle').position().left - 1;
-                $('#y > .handle').css('left', l+'px');
-            } else {
-                ph.x++;
-
-                var l = $('#y > .handle').position().left + 1;
-                $('#y > .handle').css('left', l+'px');
-            }
+            ph.x += sx;
+            var l = $('#y > .handle').position().left + sx;
+            $('#y > .handle').css('left', l+'px');
         }
 
-        if(osy != ph.y) {
-            if(osy < ph.y) {
-                ph.y--;
+        if(e < dx) {
+            err += dx;
 
-                var t = $('#x > .handle').position().top - 1;
-                $('#x > .handle').css('top', t+'px');
-            } else {
-                ph.y++;
-
-                var t = $('#x > .handle').position().top + 1;
-                $('#x > .handle').css('top', t+'px');
-            }
+            ph.y += sy;
+            var t = $('#x > .handle').position().top + sy;
+            $('#x > .handle').css('top', t+'px');
         }
 
         redraw();
-    }, 15);
+    },12);
 };
 
 var displayGrid = function() {
@@ -143,23 +138,5 @@ var redraw = function() {
     if(pp != undefined) pp.drawStroke();
 };
 
-$(c).on('click', canvasClickHandler);
-
-$(c).on('mousemove', function(e) {
-    if(ct == undefined) {
-        ct = new Indicator();
-        ct.color = 'rgba(222, 222, 222, 0.4)';
-    }
-
-    ct.x = e.offsetX - POINTERVISUALOFFSET;
-    ct.y = e.offsetY - POINTERVISUALOFFSET;
-    redraw();
-});
-
-$(c).on('mouseout', function(e) {
-    ct = undefined;
-    redraw();
-});
-
 displayGrid();
-ph.drawFill();
+redraw();

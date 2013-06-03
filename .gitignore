@@ -1,6 +1,7 @@
 .DS_Store
 pkg/
 src/code.google.com/p/go.net/.hg/cache/branchheads-served
+src/github.com/makible/data/*
 data/*
 *.un~
 *.hg/

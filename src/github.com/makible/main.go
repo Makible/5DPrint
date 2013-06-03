@@ -12,13 +12,13 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
+	// "strconv"
 	"strings"
 	"time"
 )
 
 var (
-	defServPort = "8080"
+	defServPort = ":8080"
 	uiDir       = "/ui/"
 	// openBrowser = true
 	// dbg         = false
@@ -37,6 +37,7 @@ var (
 func main() {
 	log.Println("5DPrint starting...")
 	runtime.GOMAXPROCS(2)
+	// runtime.GOMAXPROCS(4)
 
 	devices = make(map[string]*Device)
 	devc, clientc = make(chan *Message), make(chan *Message)
@@ -155,7 +156,7 @@ func initHttpServer() {
 		}
 	}
 
-	addr := ip + ":" + defServPort
+	addr := ip + defServPort
 	dir := workingDir + uiDir + "/default"
 
 	//  [ TODO ]
@@ -193,7 +194,7 @@ func initHttpServer() {
 		}
 	}()
 
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := http.ListenAndServe(defServPort, nil); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
@@ -226,9 +227,9 @@ func initJobQueue(dname string) {
 						DeviceName: dev.Name,
 						Action:     "error",
 						Body: `{
-                                        error: 'unable to complete job',
-                                        body:  '` + err.Error() + `',
-                                    }`,
+                                error: 'unable to complete job',
+                                body:  '` + err.Error() + `',
+                            }`,
 					}
 					return
 				}
@@ -240,41 +241,23 @@ func initJobQueue(dname string) {
 						DeviceName: dev.Name,
 						Action:     "error",
 						Body: `{
-                                        error:  'unable to write to device',
-                                        action: 'job',
-                                        body:   'job failed'
-                                    }`,
+                                error:  'unable to write to device',
+                                action: 'job',
+                                body:   'job failed'
+                            }`,
 					}
 					return
 				}
 
-				pre, heatMsg := "B:", "waiting for bed to reach temp"
+				heatMsg := "waiting for bed to reach temp"
 				if strings.HasPrefix(cmd, "M109") {
-					pre, heatMsg = "T:", "waiting for hotend to reach temp"
+					heatMsg = "waiting for hotend to reach temp"
 				}
 
 				log.Println(heatMsg)
 				clientc <- responseMsg(dev.Name, "job", heatMsg)
 
-				//  parse out the temp bit
-				temp := cmd[strings.Index(cmd, "S")+1:]
-				if strings.Contains(temp, " ") {
-					temp = temp[:strings.Index(temp, " ")]
-				}
-
-				itemp, err := strconv.Atoi(temp)
-				if err != nil {
-					log.Println("error converting temp")
-					return
-				}
-
-				//  give a high / low of about nth degrees
-				offset := 2
-				high, low := strconv.Itoa(itemp+offset), strconv.Itoa(itemp-offset)
-
 				for {
-					log.Println("debug: requesting temp")
-
 					buf := make([]byte, 255)
 					n, err := dev.IODevice.Read(buf)
 					if n < 1 || err != nil {
@@ -283,16 +266,14 @@ func initJobQueue(dname string) {
 					}
 
 					val := string(buf[:n])
+					log.Println(val) //	debugging
 
-					log.Println(val)
 					clientc <- responseMsg(dev.Name, "status", val)
-
-					if strings.Contains(val, pre+temp) || strings.Contains(val, pre+high) || strings.Contains(val, pre+low) {
+					if strings.Contains(val, "ok") {
 						break
 					}
 				}
 			} else {
-
 				resp, err := dev.LobCommand(cmd + dev.LineTerminator)
 				if err != nil {
 					if checkConnError(err.Error(), dev.Name) {
@@ -308,23 +289,6 @@ func initJobQueue(dname string) {
 
 				log.Println(resp)
 				clientc <- responseMsg(dev.Name, "job", resp)
-
-				// if (i % 10) == 0 {
-				// 	resp, err := dev.Do("status", "")
-				// 	if err != nil {
-				// 		if checkConnError(err.Error(), dev.Name) {
-				// 			dev.JobStatus = IDLE
-				// 			delete(devices, dev.Name)
-				// 			if !deviceListenerRunning {
-				// 				go initDeviceListener()
-				// 			}
-
-				// 			return
-				// 		}
-				// 	}
-
-				// 	log.Println(resp)
-				// }
 			}
 		}
 	}
@@ -371,10 +335,10 @@ func clientWsHandler(ws *websocket.Conn) {
 				DeviceName: msg.DeviceName,
 				Action:     "error",
 				Body: `{
-                                error:  'invalid device name',
-                                action: '` + msg.Action + `',
-                                body:   '` + msg.Body + `',
-                            }`,
+                        error:  'invalid device name',
+                        action: '` + msg.Action + `',
+                        body:   '` + msg.Body + `',
+                    }`,
 			}
 
 			continue
@@ -431,35 +395,38 @@ func clientWsHandler(ws *websocket.Conn) {
 					DeviceName: dev.Name,
 					Action:     "error",
 					Body: `{
-                                    error:  'unable to run multiple jobs on a single device',
-                                    action: '` + msg.Action + `',
-                                    body:   '` + msg.Body + `',
-                                }`,
+                            error:  'unable to run multiple jobs on a single device',
+                            action: '` + msg.Action + `',
+                            body:   '` + msg.Body + `',
+                        }`,
 				}
 			} else {
 				if len(strings.Split(dev.FileData, "\n")) > 1 {
 					dev.JobStatus = RUNNING
-					go initJobQueue(dev.Name)
+					initJobQueue(dev.Name)
 				} else {
 					clientc <- &Message{
 						Type:       "response",
 						DeviceName: msg.DeviceName,
 						Action:     "error",
 						Body: `{
-                                        error:  'invalid job file',
-                                        action: '` + msg.Action + `',
-                                        body:   '` + msg.Body + `',
-                                    }`,
+                                error:  'invalid job file',
+                                action: '` + msg.Action + `',
+                                body:   '` + msg.Body + `',
+                            }`,
 					}
 
 				}
 			}
 		case "interrupt":
 			//  [ TODO ]
+			log.Println("not done, but this should be where we do the pause logic...")
+			log.Println(msg)
 
 		default:
 			r, err := dev.Do(msg.Action, msg.Body)
 			if err != nil {
+				log.Println(err)
 				if checkConnError(err.Error(), msg.DeviceName) {
 					delete(devices, msg.DeviceName)
 					if !deviceListenerRunning {

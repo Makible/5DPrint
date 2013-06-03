@@ -47,7 +47,7 @@
         <div class="wrapper">
 
             <section id="movement">
-                <div id="homer">
+                <div id="homer" class="toggle-wrapper">
                     <div id="hlabel">home:</div>
                     <div id="ha" class="btn">all</div>
                     <div id="hx" class="btn">x</div>
@@ -57,6 +57,19 @@
 
                 <div id="mo" class="btn">motors off</div>
 
+                <div id="pm">
+                    <div id="z" class="toggle-wrapper">
+                        <div id="zlabel">z</div>
+                        <div class="plus-btn">+</div>
+                        <div class="minus-btn">&ndash;</div>
+                    </div>
+                    <div id="e" class="toggle-wrapper">
+                        <div id="elabel">e</div>
+                        <div class="plus-btn">+</div>
+                        <div class="minus-btn">&ndash;</div>
+                    </div>
+                </div>
+
                 <div id="x" class="slider">
                     <div class="handle">x</div>
                 </div>
@@ -65,47 +78,23 @@
                 </div>
                 <canvas id="pa" width="567" height="415"></canvas>
 
-                <!-- <div id="e" class="btn">e</div>
-                <div id="z" class="slider">
-                    <div class="handle">z</div>
-                </div> -->
-
-
-                
             </section>
 
             <section id="temperature">
-                <!-- <div id="hotend" class="scale">
-                    <div id="hotend-ico" class="label">
-                        <div id="platform" class="icon-campsite"></div>
-                        <div id="extrusion" class="icon-split"></div>
-                    </div>
-                    <div class="valu">
-                        <div class="actual">0<span class="deg">&deg;C</span></div>
-                        <input type="number" min="0" max="300" class="intemp" value="240" />
-                        <div class="btn off" data-heater="he">off</div>
-                        <div class="btn set" data-heater="he">set</div>
-                    </div>
+                <label for="extruder1">extruder 1</label>
+                <div id="extruder1" class="tempr">
+                    <div class="off-btn">off</div>
+                    <div class="on-btn">on</div>
+                    <input type="number" min="0" max="260" class="intemp" value="220" />
+                    <div class="actual">0&deg;<span class="deg">C</span></div>
                 </div>
 
-                <div id="hotbed" class="scale" data-temp="100">
-                    <div id="hotbed-ico" class="label">
-                        <div class="icon-fire"></div>
-                    </div>
-                    <div class="valu">
-                        <div class="actual">
-                            0<span class="deg">&deg;C</span>
-                        </div>
-                        <input type="number" min="0" max="145" class="intemp" value="100" />
-                        <div class="btn off" data-heater="hb">off</div>
-                        <div class="btn set" data-heater="hb">set</div>
-                    </div>
-                </div> -->
-
-                <div id="hotend" class="tempr">
-
-                </div>
+                <label for="hotbed">hot bed</label>
                 <div id="hotbed" class="tempr">
+                    <div class="off-btn">off</div>
+                    <div class="on-btn">on</div>
+                    <input type="number" min="0" max="145" class="intemp" value="100" />
+                    <div class="actual">0&deg;<span class="deg">C</span></div>
                 </div>
             </section>
 
@@ -127,6 +116,7 @@
         </div>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
+        <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>
         <script src="/js/plugins.js"></script>
         <script src="/js/main.js"></script>
         <script src="/js/canvas.js"></script>

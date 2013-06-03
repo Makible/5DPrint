@@ -24,7 +24,7 @@ $(document).ready(function() {
     socket              = new WebSocket(socketAddr);
     socket.onmessage    = onMsg;
     socket.onclose      = onClose;
-    socket.onopen       = function() { $('#status').html('connected'); };
+    // socket.onopen       = ...
 
     //  attach the btn events to
     //  (hopefully) give the socket time
@@ -38,7 +38,7 @@ $(document).ready(function() {
     connTimer = setInterval(checkConn, 1000);
 
     //  ===[ DEBUG ]
-    fakeDevice();
+    // fakeDevice();
     // showDbg();
 });
 
@@ -51,6 +51,7 @@ var manageDevConnection = function(msg) {
         connTimer = setInterval(checkConn, 1500);
         return;
     }
+
     if(msg.Body == 'attached') {
         $('#init-msg').html('initializing device...');
         deviceName  = msg.DeviceName;
@@ -61,11 +62,6 @@ var manageDevConnection = function(msg) {
             .slideUp(1000, function() {
                 $('#init').css('z-index', '-1');
             });
-
-        //  update basic info and start
-        //  the status request timer
-        if($('#status').html() != 'connected')
-            $('#status').html('connected');
 
         $('#device').html(deviceName);
         statTimer = setInterval(getStats, 1500); 
@@ -93,8 +89,6 @@ var manageDevConnection = function(msg) {
             -- *Not all axes homed! Positions reported may be incorrect!!!
             ok 301 Q64 (1ms execute)
             "
-
-
         */
 
         return;
@@ -104,8 +98,6 @@ var manageDevConnection = function(msg) {
         window.clearInterval(statTimer);
 
         $('#device').html('device detached');
-        $('#status').html('WARNING');
-
         $('#init-msg').html('waiting for device(s)...');
         $('#init')
             .css('z-index', '901')
@@ -119,6 +111,7 @@ var manageDevConnection = function(msg) {
 };
 
 var attachBtnEvents = function() {
+    //  general / generic button events
     $('.btn').each(function() {
         var btn = this;
         $(btn).on('click', function(evt) {
@@ -131,15 +124,102 @@ var attachBtnEvents = function() {
                 else {
                     if($(btn).parent().attr('id') === 'homer')
                         homer(btn);
-
-                    if($(btn).parent().attr('id') === 'controller')
-                        mover(btn);
                 }             
             }else {
                 if($(btn).hasClass('set') || $(btn).hasClass('off'))
                     temper(btn);
             }
         });
+    });
+
+    $('.plus-btn').on('click', function(e) {
+        var axis = $(e.target).parent().attr('id');
+        sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: 5, Speed: -1 });
+    });
+
+    $('.minus-btn').on('click', function(e) {
+        var axis = $(e.target).parent().attr('id');
+        sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
+    });
+
+    $('.tempr > .on-btn').on('click', function(e) {
+        var heater, inp;
+        heater  = $(e.target).parent();
+        inp     = $(heater).find('input');
+
+        if(inp != undefined && inp != null) {
+            if($(inp).val().length > 0) {
+                var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+                sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
+            } else
+                console.log('invalid temperature');
+        } else
+            console.log('temperature was not dispatched properly');
+    });
+
+    $('.tempr > .off-btn').on('click', function(e) {
+        var heater = $(e.target).parent().attr('id');
+        sendDevMsg('temper', { Name: heater, Value: 0 });
+    });
+
+    $('.tempr > input').on('change', function(e) {
+        $(e.target).parent().find('.on-btn').click();
+    });
+
+    //  canvas click listener (the canvas is essentially a big button) ;)
+    $(c).on('click', canvasClickHandler);
+    $(c).on('mousemove', function(e) {
+        if(ct == undefined) {
+            ct = new Indicator();
+            ct.color = 'rgba(222, 222, 222, 0.4)';
+        }
+
+        ct.x = e.offsetX - POINTERVISUALOFFSET;
+        ct.y = e.offsetY - POINTERVISUALOFFSET;
+        redraw();
+    });
+
+    $(c).on('mouseout', function(e) {
+        ct = undefined;
+        redraw();
+    });
+
+    //  TODO
+    //  show ghosting indicator similar to when clicking in the grid
+    //  rather than moving the blue indicator
+    var xtb, xbb, ylb, yrb;
+    xtb = $('#x').position().top + 54;  //  54 was found through trial and error
+    xbb = xtb + $('#x').height();
+    ylb = $('#y').position().left;
+    yrb = ylb + $('#y').width();
+
+    $('#x > .handle').draggable({ 
+        axis: 'y', 
+        containment: [0, xtb, 0, xbb],
+        drag: function(e) {
+            var h = e.target;
+            ph.y = $(h).position().top + Math.floor($(h).height() / 2) + (POINTERVISUALOFFSET / 2);
+            redraw();
+        }
+    });
+    $('#y > .handle').draggable({ 
+        axis: 'x', 
+        containment: [ylb, 0, yrb, 0],
+        drag: function(e) {
+            var h = e.target;
+            ph.x = $(h).position().left + Math.floor($(h).width() / 2) + (POINTERVISUALOFFSET / 2);
+            redraw();
+        }
+    });
+
+    //  TODO
+    //  handle this a bit better so that if the user overshoots the
+    //  "bounds" / containment, it will strill trigger the mouseup
+    $('.handle').on('mouseup', function(e) {
+        var xstr, ystr;
+        xstr = ' X' + pixelToMillimeter(ph.y);
+        ystr = ' Y' + pixelToMillimeter(ph.x);
+        sendConsoleMsg('G1'+xstr+ystr);
     });
 
     $('#init').on('click', function(evt) {
@@ -172,23 +252,20 @@ var nav = function() {
 };
 
 var start = function() {
-    if($('#file').html() != '' && $('#status').html() == 'loaded') {
+    if($('#file').html() != '') {
         window.clearInterval(statTimer);    //  stop the UI stat request
         sendDevMsg('job', 'start');
 
-        $('#status').html('printing');
         $('#init')
             .css('z-index', '799')
             .css('cursor', 'auto')
+            .css('background-color', 'rgba(0, 0, 0, 0.4)')
             .slideDown(1000, function() {
                 $('#over-msg').fadeIn(200);
                 $('#over-msg > .init-msg').html('printing in progress');
             })
             .off('click');
     }else {
-        //  notify 'nothing to print'
-        // $('#status').html('no file');
-
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
         $(inp).on('change', function(evt) {
@@ -197,14 +274,11 @@ var start = function() {
 
             r.readAsText(f, 'UTF-8');
             r.onload = shipFile;
-            r.onloadstart = function(evt) {
-                $('#status').html('loading');
-            };
+            // r.onloadstart = ...
             // r.onprogress = ... <-- allows you to update a progress bar.
             // r.onabort = ...
             // r.onerror = ...
             r.onloadend = function(evt) {
-                $('#status').html('loaded');
                 start();
             };
 
@@ -228,66 +302,88 @@ var pause = function() {
     $('#start').on('click', resume);
 };
 
-var mover = function(btn) {
-    var axis    = $(btn).attr('id').substring(0, 1),
-        dir     = ($(btn).hasClass('pos')) ? 'pos' : 'neg',
-        island  = (axis == 'x' || axis == 'y') ? 'xy' : axis,
-        stp     = $('#' + island + 'steps'),
-        spd     = $('#' + island + 'speed');
-
-    //  do NOT do anything here
-    //  should not use neg. value in the input field
-    if(parseInt($(stp).val()) < parseInt($(stp).attr('min')) || 
-        parseInt($(spd).val()) < parseInt($(spd).attr('min')))
-        return;
-
-    //  ===[ TODO ]
-    //  display neg number warning
-
-    var distance = (parseInt($(stp).val()) > parseInt($(stp).attr('max'))) ? $(stp).attr('max') : $(stp).val();
-    var speed    = (parseInt($(spd).val()) > parseInt($(spd).attr('max'))) ? $(spd).attr('max') : $(spd).val();
-
-    //  so this sorta negates the previous
-    //  "do not do...", but it makes sense
-    //  because the user should not type the 
-    //  neg value, the button press will 
-    //  determine this, except for 'z'
-    if(dir == 'neg')
-        distance *= -1;
-
-    if(axis == 'e')
-        axis += '1';
-
-    sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: parseInt(distance), Speed: parseInt(speed) });
-};
-
 var homer = function(btn) {
     if($(btn).attr('id') == 'ho')
         sendDevMsg('motley', 'motorsoff');
     else {
-        var axis = $(btn).html().toUpperCase();
-        sendDevMsg('home', { Axis: axis, Distance: 0, Speed: 0 });
+        var axis = $(btn).html();
+        sendDevMsg('home', { Axis: axis.toUpperCase(), Distance: 0, Speed: 0 });
+
+        if(axis != 'z') {
+            $(c).off('click');  //  detach canvas click handler
+
+            var dx, dy, sx, sy, err;
+            dx = Math.abs(ph.x);
+            dy = Math.abs(ph.y);
+            sx = sy = -1;
+            err = dx - dy;
+
+            var i = setInterval(function(e) {
+                if((axis == 'all' && ph.x == 0 && ph.y == 0)
+                    || (axis == 'x' && ph.y == 0)
+                    || (axis == 'y' && ph.x == 0)) {
+                    window.clearInterval(i);
+                    $(c).on('click', canvasClickHandler);
+                    return;
+                }
+
+                var e = 2 * err;
+                if(axis == 'all') {
+                    if(e > -dy) {
+                        err -= dy;
+
+                        ph.x += sx;
+                        var l = $('#y > .handle').position().left + sx;
+                        $('#y > .handle').css('left', l+'px');
+                    }
+                
+                    if(e < dx) {
+                        err += dx;
+
+                        ph.y += sy;
+                        var t = $('#x > .handle').position().top + sy;
+                        $('#x > .handle').css('top', t+'px');
+                    }
+                }
+
+                if(axis == 'y') {
+                    ph.x += sx;
+                    var l = $('#y > .handle').position().left + sx;
+                    $('#y > .handle').css('left', l+'px');
+                }
+
+                if(axis == 'x') {
+                    ph.y += sy;
+                    var t = $('#x > .handle').position().top + sy;
+                    $('#x > .handle').css('top', t+'px');
+                }
+
+                redraw();
+            }, 10);
+        }
     }
 };
 
 var temper = function(btn) {
-    var heater  = $(btn).parent().parent(),
-        inp     = $(heater).find('input');
-    if($(btn).hasClass('off')) {
-        sendDevMsg('temper', { Name: $(heater).attr('id'), Value: 0 });
-    } else {
-        if(inp != undefined && inp != null) {
-            if($(inp).val().length > 0) {
-                var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-                sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-            }else
-                console.log('INSERT A VALID TEMPERATURE');
-        } else {
-            //  something bad happened...
-            //  apparently there isn't an input
-            console.log('[WARN] temper was not dispatched properly');
-        }
-    }
+
+
+    // var heater  = $(btn).parent().parent(),
+    //     inp     = $(heater).find('input');
+    // if($(btn).hasClass('off')) {
+    //     sendDevMsg('temper', { Name: $(heater).attr('id'), Value: 0 });
+    // } else {
+    //     if(inp != undefined && inp != null) {
+    //         if($(inp).val().length > 0) {
+    //             var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+    //             sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
+    //         }else
+    //             console.log('INSERT A VALID TEMPERATURE');
+    //     } else {
+    //         //  something bad happened...
+    //         //  apparently there isn't an input
+    //         console.log('[WARN] temper was not dispatched properly');
+    //     }
+    // }
 };
 
 var menus = function(btn) {
@@ -302,15 +398,11 @@ var menus = function(btn) {
 
             r.readAsText(f, 'UTF-8');
             r.onload = shipFile;
-            r.onloadstart = function(evt) {
-                $('#status').html('loading');
-            };
+            // r.onloadstart = ...
             // r.onprogress = ... <-- allows you to update a progress bar.
             // r.onabort = ...
             // r.onerror = ...
-            r.onloadend = function(evt) {
-                $('#status').html('loaded');
-            };
+            // r.onloadend = ...
 
             $('#file').html(f.name);
         });
@@ -387,7 +479,6 @@ var onMsg = function(e) {
 
 var onClose = function(e) {
     window.clearInterval(statTimer);
-    $('#status').html('ws closed');
     connTimer = setInterval(checkConn, 1000);
     console.log('[WARN] socket connection closed and stat timer killed');
 };
@@ -420,12 +511,12 @@ var updateUIStatus = function(msg) {
 
             var he      = stats.split(' ')[idx],
                 hb      = stats.split(' ')[idx + 2],
-                span    = '<span class="deg">&deg;C</span>';
+                span    = '&deg;<span class="deg">C</span>';
 
             if(he == undefined || hb == undefined) return;
 
             val = he.substring(2, he.length);
-            $('#hotend').find('.actual').html(val + span);
+            $('#extruder1').find('.actual').html(val + span);
 
             val = hb.substring(2, hb.length);
             $('#hotbed').find('.actual').html(val + span);

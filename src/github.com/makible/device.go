@@ -175,13 +175,6 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		}
 
 		cmd := "G1 " + mvr.Axis
-		if mvr.Axis == "E1" {
-			//  [ TODO ]
-			//  The A6 only has 1 extruder so force to "G1 E"
-			//  for the command. Will need to pull from a config
-			//  .json file to dynamically manage this
-			cmd = "G1 E"
-		}
 
 		//  using absolute positioning so the need to track where
 		//  the device is in space and append the distance prior
@@ -210,7 +203,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 			}
 			dev.Pos.Z += mvr.Distance
 			dist = dev.Pos.Z
-		case "E1":
+		case "E":
 			dev.Pos.E1 += mvr.Distance
 			dist = dev.Pos.E1
 		default:
@@ -221,9 +214,11 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 
 		//  check to see if the speed has
 		//  changed or not and set accordingly
-		if mvr.Speed != dev.MoveSpeed {
-			dev.MoveSpeed = mvr.Speed
-			cmd += " F" + strconv.Itoa(mvr.Speed)
+		if mvr.Speed > 0 {
+			if mvr.Speed != dev.MoveSpeed {
+				dev.MoveSpeed = mvr.Speed
+				cmd += " F" + strconv.Itoa(mvr.Speed)
+			}
 		}
 
 		//  tag on the device specific line terminator
@@ -246,7 +241,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//  [ TODO ]
 		//  get the proper MCodes from the device config
 		cmd := "M140 S" //  defaulting to heated bed for A6
-		if tmp.Name == "hotend" {
+		if strings.HasPrefix(tmp.Name, "extruder") {
 			cmd = "M104 S"
 		}
 		cmd += strconv.Itoa(tmp.Value) + dev.LineTerminator
@@ -320,6 +315,15 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 			return nil, err
 		}
 
+		//	see if the data dir exist and panic if we can't create it
+		if _, err := os.Stat("data/"); err != nil {
+			if os.IsNotExist(err) {
+				if err := os.Mkdir("data", 0777); err != nil {
+					panic(err)
+				}
+			}
+		}
+
 		fn := "data/" + gc.Name
 		info, _ := os.Stat(fn)
 		if info != nil {
@@ -388,8 +392,9 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 	}
 
 	//  read response from device
+	var goseq, okseq string
 	response := "\n"
-	for i := 0; i < 20; i++ {
+	for {
 		buf := make([]byte, 255)
 		n, err = (*dev).Read(buf)
 		if n < 1 {
@@ -397,9 +402,25 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 			return "", nil
 		}
 
-		response += string(buf[:n])
-		if strings.Contains(response, "go") && strings.Contains(response, "ok ") {
-			break
+		resp := string(buf[:n])
+
+		///	TODO
+		//	add in logic to parse our the "rs" response
+		//	for a resend request from the device
+
+		if strings.Contains(resp, "go") {
+			r := strings.Split(resp, " ")
+			goseq = r[1]
+		}
+
+		response += resp
+		if strings.Contains(resp, "ok") && strings.Contains(resp, "execute") {
+			r := strings.Split(resp, " ")
+			okseq = r[1]
+
+			if strings.Contains(goseq, okseq) {
+				return response, nil
+			}
 		}
 	}
 
