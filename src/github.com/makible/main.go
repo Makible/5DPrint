@@ -305,141 +305,286 @@ func initJobQueue(dname string) {
 	dev.FileName = ""
 }
 
+// func clientWsHandler(ws *websocket.Conn) {
+// 	//	handle all outgoing messages from the client channel
+// 	go func() {
+// 		enc := json.NewEncoder(ws)
+// 		for msg := range clientc {
+// 			if err := enc.Encode(msg); err != nil {
+// 				log.Println("clientWsHandler: ", err)
+// 				return
+// 			}
+// 		}
+// 	}()
+
+// 	//	loop through all incoming messages
+// 	dec := json.NewDecoder(ws)
+// 	for {
+// 		var msg Message
+// 		if err := dec.Decode(&msg); err != nil && err != io.EOF {
+// 			log.Println("clientWsHandler: ", err)
+// 			return
+// 		}
+
+// 		//	clean up after any disconnects
+// 		if msg.Type == "" && msg.Action == "" {
+// 			log.Println("Closing socket connection due to no connection from client")
+
+// 			ws.Close()
+// 			return
+// 		}
+
+// 		//	no devices are available so the user's request will technically be invalid
+// 		if msg.Action != "connection" && (devices == nil || len(devices) < 1) {
+// 			clientc <- &Message{
+// 				Type:       "response",
+// 				DeviceName: msg.DeviceName,
+// 				Action:     "error",
+// 				Body: `{
+//                         error:  'invalid device name',
+//                         action: '` + msg.Action + `',
+//                         body:   '` + msg.Body + `',
+//                     }`,
+// 			}
+
+// 			continue
+// 		}
+
+// 		dev := devices[msg.DeviceName]
+// 		switch msg.Action {
+// 		case "connection":
+// 			//
+// 			//  if the message is a connection request go ahead
+// 			//  and inform the UI else start the device listener
+// 			if devices != nil && len(devices) > 0 {
+// 				found := false
+
+// 				for dn, _ := range devices {
+// 					clientc <- &Message{
+// 						Type:       "response",
+// 						DeviceName: dn,
+// 						Action:     "connection",
+// 						Body:       "attached",
+// 					}
+
+// 					found = true
+// 					break
+// 				}
+
+// 				if !found {
+// 					clientc <- &Message{
+// 						Type:       "response",
+// 						DeviceName: "",
+// 						Action:     "error",
+// 						Body: `{
+//                                 error:  'no devices avialable',
+//                                 action: '` + msg.Action + `',
+//                                 body:   '` + msg.Body + `',
+//                             }`,
+// 					}
+
+// 					if !deviceListenerRunning {
+// 						go initDeviceListener()
+// 					}
+// 				}
+// 			} else {
+// 				//  if the list is empty and the UI is requesting a device,
+// 				//  we should probably be looking for a device
+// 				if !deviceListenerRunning {
+// 					go initDeviceListener()
+// 				}
+// 			}
+// 		case "job":
+// 			if dev.JobStatus == RUNNING {
+// 				clientc <- &Message{
+// 					Type:       "response",
+// 					DeviceName: dev.Name,
+// 					Action:     "error",
+// 					Body: `{
+//                             error:  'unable to run multiple jobs on a single device',
+//                             action: '` + msg.Action + `',
+//                             body:   '` + msg.Body + `',
+//                         }`,
+// 				}
+// 			} else {
+// 				if len(strings.Split(dev.FileData, "\n")) > 1 {
+// 					dev.JobStatus = RUNNING
+// 					initJobQueue(dev.Name)
+// 				} else {
+// 					clientc <- &Message{
+// 						Type:       "response",
+// 						DeviceName: msg.DeviceName,
+// 						Action:     "error",
+// 						Body: `{
+//                                 error:  'invalid job file',
+//                                 action: '` + msg.Action + `',
+//                                 body:   '` + msg.Body + `',
+//                             }`,
+// 					}
+
+// 				}
+// 			}
+// 		case "interrupt":
+// 			//  [ TODO ]
+// 			log.Println("not done, but this should be where we do the pause logic...")
+// 			log.Println(msg)
+
+// 		default:
+// 			r, err := dev.Do(msg.Action, msg.Body)
+// 			if err != nil {
+// 				log.Println(err)
+// 				if checkConnError(err.Error(), msg.DeviceName) {
+// 					delete(devices, msg.DeviceName)
+// 					if !deviceListenerRunning {
+// 						go initDeviceListener()
+// 					}
+// 				} else {
+// 					log.Println("dev.Do: ", err)
+// 				}
+// 			}
+
+// 			if r != nil {
+// 				clientc <- r
+// 			} //  send the response even with an error
+// 		}
+// 	}
+// }
+
 func clientWsHandler(ws *websocket.Conn) {
-	go func() {
-		enc := json.NewEncoder(ws)
-		for msg := range clientc {
+	for {
+		enc, dec := json.NewEncoder(ws), json.NewDecoder(ws)
+		select {
+		case msg := <-clientc:
 			if err := enc.Encode(msg); err != nil {
 				log.Println("clientWsHandler: ", err)
 				return
 			}
-		}
-	}()
-
-	dec := json.NewDecoder(ws)
-	for {
-		var msg Message
-		if err := dec.Decode(&msg); err != nil && err != io.EOF {
-			log.Println("clientWsHandler: ", err)
-			return
-		}
-
-		if msg.Type == "" && msg.Action == "" {
-			ws.Close()
-			return
-		}
-
-		if msg.Action != "connection" && (devices == nil || len(devices) < 1) {
-			clientc <- &Message{
-				Type:       "response",
-				DeviceName: msg.DeviceName,
-				Action:     "error",
-				Body: `{
-                        error:  'invalid device name',
-                        action: '` + msg.Action + `',
-                        body:   '` + msg.Body + `',
-                    }`,
+		default:
+			var msg Message
+			if err := dec.Decode(&msg); err != nil && err != io.EOF {
+				log.Println("clientWsHandler: ", err)
+				return
 			}
 
-			continue
-		}
+			//	clean up after any disconnects
+			if msg.Type == "" && msg.Action == "" {
+				log.Println("Closing socket connection due to no connection from client")
 
-		dev := devices[msg.DeviceName]
-		switch msg.Action {
-		case "connection":
-			//
-			//  if the message is a connection request go ahead
-			//  and inform the UI else start the device listener
-			if devices != nil && len(devices) > 0 {
-				found := false
-
-				for dn, _ := range devices {
-					clientc <- &Message{
-						Type:       "response",
-						DeviceName: dn,
-						Action:     "connection",
-						Body:       "attached",
-					}
-
-					found = true
-					break
-				}
-
-				if !found {
-					clientc <- &Message{
-						Type:       "response",
-						DeviceName: "",
-						Action:     "error",
-						Body: `{
-                                        error:  'no devices avialable',
-                                        action: '` + msg.Action + `',
-                                        body:   '` + msg.Body + `',
-                                    }`,
-					}
-
-					if !deviceListenerRunning {
-						go initDeviceListener()
-					}
-				}
-			} else {
-				//  if the list is empty and the UI is requesting a device,
-				//  we should probably be looking for a device
-				if !deviceListenerRunning {
-					go initDeviceListener()
-				}
+				ws.Close()
+				return
 			}
-		case "job":
-			if dev.JobStatus == RUNNING {
+
+			//	no devices are available so the user's request will technically be invalid
+			if msg.Action != "connection" && (devices == nil || len(devices) < 1) {
 				clientc <- &Message{
 					Type:       "response",
-					DeviceName: dev.Name,
+					DeviceName: msg.DeviceName,
 					Action:     "error",
 					Body: `{
-                            error:  'unable to run multiple jobs on a single device',
-                            action: '` + msg.Action + `',
-                            body:   '` + msg.Body + `',
-                        }`,
+	                        error:  'invalid device name',
+	                        action: '` + msg.Action + `',
+	                        body:   '` + msg.Body + `',
+	                    }`,
 				}
 			} else {
-				if len(strings.Split(dev.FileData, "\n")) > 1 {
-					dev.JobStatus = RUNNING
-					initJobQueue(dev.Name)
-				} else {
-					clientc <- &Message{
-						Type:       "response",
-						DeviceName: msg.DeviceName,
-						Action:     "error",
-						Body: `{
-                                error:  'invalid job file',
-                                action: '` + msg.Action + `',
-                                body:   '` + msg.Body + `',
-                            }`,
+				dev := devices[msg.DeviceName]
+				switch msg.Action {
+				case "connection":
+					//
+					//  if the message is a connection request go ahead
+					//  and inform the UI else start the device listener
+					if devices != nil && len(devices) > 0 {
+						found := false
+
+						for dn, _ := range devices {
+							clientc <- &Message{
+								Type:       "response",
+								DeviceName: dn,
+								Action:     "connection",
+								Body:       "attached",
+							}
+
+							found = true
+							break
+						}
+
+						if !found {
+							clientc <- &Message{
+								Type:       "response",
+								DeviceName: "",
+								Action:     "error",
+								Body: `{
+		                                error:  'no devices avialable',
+		                                action: '` + msg.Action + `',
+		                                body:   '` + msg.Body + `',
+		                            }`,
+							}
+
+							if !deviceListenerRunning {
+								go initDeviceListener()
+							}
+						}
+					} else {
+						//  if the list is empty and the UI is requesting a device,
+						//  we should probably be looking for a device
+						if !deviceListenerRunning {
+							go initDeviceListener()
+						}
+					}
+				case "job":
+					if dev.JobStatus == RUNNING {
+						clientc <- &Message{
+							Type:       "response",
+							DeviceName: dev.Name,
+							Action:     "error",
+							Body: `{
+		                            error:  'unable to run multiple jobs on a single device',
+		                            action: '` + msg.Action + `',
+		                            body:   '` + msg.Body + `',
+		                        }`,
+						}
+					} else {
+						if len(strings.Split(dev.FileData, "\n")) > 1 {
+							dev.JobStatus = RUNNING
+							initJobQueue(dev.Name)
+						} else {
+							clientc <- &Message{
+								Type:       "response",
+								DeviceName: msg.DeviceName,
+								Action:     "error",
+								Body: `{
+		                                error:  'invalid job file',
+		                                action: '` + msg.Action + `',
+		                                body:   '` + msg.Body + `',
+		                            }`,
+							}
+
+						}
+					}
+				case "interrupt":
+					//  [ TODO ]
+					log.Println("not done, but this should be where we do the pause logic...")
+					log.Println(msg)
+
+				default:
+					r, err := dev.Do(msg.Action, msg.Body)
+					if err != nil {
+						log.Println(err)
+						if checkConnError(err.Error(), msg.DeviceName) {
+							delete(devices, msg.DeviceName)
+							if !deviceListenerRunning {
+								go initDeviceListener()
+							}
+						} else {
+							log.Println("dev.Do: ", err)
+						}
 					}
 
+					if r != nil {
+						clientc <- r
+					} //  send the response even with an error
 				}
 			}
-		case "interrupt":
-			//  [ TODO ]
-			log.Println("not done, but this should be where we do the pause logic...")
-			log.Println(msg)
-
-		default:
-			r, err := dev.Do(msg.Action, msg.Body)
-			if err != nil {
-				log.Println(err)
-				if checkConnError(err.Error(), msg.DeviceName) {
-					delete(devices, msg.DeviceName)
-					if !deviceListenerRunning {
-						go initDeviceListener()
-					}
-				} else {
-					log.Println("dev.Do: ", err)
-				}
-			}
-
-			if r != nil {
-				clientc <- r
-			} //  send the response even with an error
 		}
 	}
 }

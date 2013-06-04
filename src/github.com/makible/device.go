@@ -301,11 +301,30 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		return responseMsg(dev.Name, action, resp), nil
 
 	case "status":
-		cmd := "M105" + dev.LineTerminator
-		resp, err := dev.LobCommand(cmd)
-		if err != nil {
-			return nil, err
+		//	M105 	-- Current Temp(s)
+		//	M114	-- Current Position
+		//	M115	-- Capabilities String (??)
+		//	M119	-- Show endstopper state
+		//	M603	-- Show free RAM
+		//	M608	-- Show firmware version
+		//	M503	-- Current setting in memory
+
+		resp := ""
+		cmds := []string{"M105", "M114", "M115", "M119", "M603", "M608"}
+
+		for _, cmd := range cmds {
+			fmt.Println("attempting command: ", cmd)
+
+			r, err := dev.LobCommand(cmd + dev.LineTerminator)
+			if err != nil {
+				return nil, err
+			}
+
+			resp += r
 		}
+
+		fmt.Println(resp)
+
 		return responseMsg(dev.Name, action, resp), nil
 
 	case "load":
@@ -359,7 +378,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		}
 
 	//  manual gcode entered by user
-	//  via interactive console
+	//  via "interactive console"
 	case "console":
 		cmd := params + dev.LineTerminator
 		resp, err := dev.LobCommand(cmd)

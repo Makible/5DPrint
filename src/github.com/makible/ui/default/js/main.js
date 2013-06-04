@@ -1,6 +1,7 @@
 'use strict';
 
 var dbg = 0,
+    shaderDown = !0,
     socket,
     statTimer,
     connTimer,
@@ -8,88 +9,41 @@ var dbg = 0,
     socketAddr  = 'ws://';
 
 $(document).ready(function() {
-    //  display "initializing" message
-    //  attempt to create a socket and 
-    //  see if a device is connected
-    //  if no device present, display
-    //  "connect or power on device" 
-    //  message
-
     //  display init message
     $('#init').show();
 
-    // start websocket
     socketAddr          += document.URL.substring(6) + "abs";
-    
     socket              = new WebSocket(socketAddr);
     socket.onmessage    = onMsg;
     socket.onclose      = onClose;
     // socket.onopen       = ...
 
-    //  attach the btn events to
-    //  (hopefully) give the socket time
-    //  to initialize -- tho this may be
-    //  moot since the call is not exactly
-    //  sequencial being Javascript
+
+    //  attach button events and connection checker
     attachBtnEvents();
+    connTimer = setInterval(checkConn, 500);
 
-    //  ping core to see if a
-    //  device has been attached
-    connTimer = setInterval(checkConn, 1000);
-
-    //  ===[ DEBUG ]
+    //  ===[ DEBUG HELPERS ]
     // fakeDevice();
     // showDbg();
 });
 
 var manageDevConnection = function(msg) {
+    console.log(msg.Body);
     if(msg.DeviceName == '' || msg.DeviceName == 'nil') {
-        //  ===[ TODO ]
-        //  display no device attached msg
-        //  and attach checkConn timer
-        // $('#over-msg').html('[WARNING] <br />No device detected. Please attach or power on a valid device.');
         connTimer = setInterval(checkConn, 1500);
         return;
     }
 
+    //  inform user initializing and start the stat timer
     if(msg.Body == 'attached') {
-        $('#init-msg').html('initializing device...');
+        $('.init-msg').html('initializing device...');
         deviceName  = msg.DeviceName;
 
-        $('#over-msg').fadeOut(100);
-        $('#init')
-            .css('z-index', '799')
-            .slideUp(1000, function() {
-                $('#init').css('z-index', '-1');
-            });
-
         $('#device').html(deviceName);
+
+        getStats();
         statTimer = setInterval(getStats, 1500); 
-
-        //  TODO
-        //  send request to see if the device has been homed 
-        //  (via M114 for the Makibox A6) and handle accordingly
-
-        /*
-            2 sample output responses from Makibox A6 for M114
-
-            "
-            go 272 (executing M114)
-            -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
-            -- X:0 Y:0 Z:0 E:0 (steps)
-            -- Axes Homed X:0 Y:0 Z:0
-            -- *Not all axes homed! Positions reported may be incorrect!!!
-            ok 272 Q64 (2ms execute)
-            "
-            "
-            go 301 (executing M114)
-            -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
-            -- X:0 Y:0 Z:0 E:0 (steps)
-            -- Axes Homed X:0 Y:1 Z:0
-            -- *Not all axes homed! Positions reported may be incorrect!!!
-            ok 301 Q64 (1ms execute)
-            "
-        */
 
         return;
     }
@@ -98,11 +52,12 @@ var manageDevConnection = function(msg) {
         window.clearInterval(statTimer);
 
         $('#device').html('device detached');
-        $('#init-msg').html('waiting for device(s)...');
+        $('.init-msg').html('waiting for device(s)...');
         $('#init')
             .css('z-index', '901')
             .slideDown(1000, function() {
                 $('#over-msg').fadeIn(100);
+                shaderDown = !0;
             });
 
         connTimer = setInterval(checkConn, 500);
@@ -132,16 +87,24 @@ var attachBtnEvents = function() {
         });
     });
 
+    //  motors off button
+    $('#mo').on('click', function(e) {
+        sendDevMsg('motley', 'motorsoff');
+    });
+
+    //  plus function for Z and E
     $('.plus-btn').on('click', function(e) {
         var axis = $(e.target).parent().attr('id');
         sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: 5, Speed: -1 });
     });
 
+    //  minus function for Z and E
     $('.minus-btn').on('click', function(e) {
         var axis = $(e.target).parent().attr('id');
         sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
     });
 
+    //  power on / set the temperature for the heating elements
     $('.tempr > .on-btn').on('click', function(e) {
         var heater, inp;
         heater  = $(e.target).parent();
@@ -157,11 +120,13 @@ var attachBtnEvents = function() {
             console.log('temperature was not dispatched properly');
     });
 
+    //  "turn off" the heating elements by setting their temp to zero
     $('.tempr > .off-btn').on('click', function(e) {
         var heater = $(e.target).parent().attr('id');
         sendDevMsg('temper', { Name: heater, Value: 0 });
     });
 
+    //  update the temp when the user changes it's value
     $('.tempr > input').on('change', function(e) {
         $(e.target).parent().find('.on-btn').click();
     });
@@ -227,8 +192,6 @@ var attachBtnEvents = function() {
             checkConn();
         }
     });
-
-    //  we'll attach some UI flurishes here
 };
 
 var nav = function() {
@@ -256,6 +219,8 @@ var start = function() {
         window.clearInterval(statTimer);    //  stop the UI stat request
         sendDevMsg('job', 'start');
 
+        //  TODO
+        //  allow more features while printing
         $('#init')
             .css('z-index', '799')
             .css('cursor', 'auto')
@@ -303,87 +268,61 @@ var pause = function() {
 };
 
 var homer = function(btn) {
-    if($(btn).attr('id') == 'ho')
-        sendDevMsg('motley', 'motorsoff');
-    else {
-        var axis = $(btn).html();
-        sendDevMsg('home', { Axis: axis.toUpperCase(), Distance: 0, Speed: 0 });
+    var axis = $(btn).html();
+    sendDevMsg('home', { Axis: axis.toUpperCase(), Distance: 0, Speed: 0 });
 
-        if(axis != 'z') {
-            $(c).off('click');  //  detach canvas click handler
+    if(axis != 'z') {
+        $(c).off('click');  //  detach canvas click handler
 
-            var dx, dy, sx, sy, err;
-            dx = Math.abs(ph.x);
-            dy = Math.abs(ph.y);
-            sx = sy = -1;
-            err = dx - dy;
+        var dx, dy, sx, sy, err;
+        dx = Math.abs(ph.x);
+        dy = Math.abs(ph.y);
+        sx = sy = -1;
+        err = dx - dy;
 
-            var i = setInterval(function(e) {
-                if((axis == 'all' && ph.x == 0 && ph.y == 0)
-                    || (axis == 'x' && ph.y == 0)
-                    || (axis == 'y' && ph.x == 0)) {
-                    window.clearInterval(i);
-                    $(c).on('click', canvasClickHandler);
-                    return;
-                }
+        var i = setInterval(function(e) {
+            if((axis == 'all' && ph.x == 0 && ph.y == 0)
+                || (axis == 'x' && ph.y == 0)
+                || (axis == 'y' && ph.x == 0)) {
+                window.clearInterval(i);
+                $(c).on('click', canvasClickHandler);
+                return;
+            }
 
-                var e = 2 * err;
-                if(axis == 'all') {
-                    if(e > -dy) {
-                        err -= dy;
+            var e = 2 * err;
+            if(axis == 'all') {
+                if(e > -dy) {
+                    err -= dy;
 
-                        ph.x += sx;
-                        var l = $('#y > .handle').position().left + sx;
-                        $('#y > .handle').css('left', l+'px');
-                    }
-                
-                    if(e < dx) {
-                        err += dx;
-
-                        ph.y += sy;
-                        var t = $('#x > .handle').position().top + sy;
-                        $('#x > .handle').css('top', t+'px');
-                    }
-                }
-
-                if(axis == 'y') {
                     ph.x += sx;
                     var l = $('#y > .handle').position().left + sx;
                     $('#y > .handle').css('left', l+'px');
                 }
+            
+                if(e < dx) {
+                    err += dx;
 
-                if(axis == 'x') {
                     ph.y += sy;
                     var t = $('#x > .handle').position().top + sy;
                     $('#x > .handle').css('top', t+'px');
                 }
+            }
 
-                redraw();
-            }, 10);
-        }
+            if(axis == 'y') {
+                ph.x += sx;
+                var l = $('#y > .handle').position().left + sx;
+                $('#y > .handle').css('left', l+'px');
+            }
+
+            if(axis == 'x') {
+                ph.y += sy;
+                var t = $('#x > .handle').position().top + sy;
+                $('#x > .handle').css('top', t+'px');
+            }
+
+            redraw();
+        }, 10);
     }
-};
-
-var temper = function(btn) {
-
-
-    // var heater  = $(btn).parent().parent(),
-    //     inp     = $(heater).find('input');
-    // if($(btn).hasClass('off')) {
-    //     sendDevMsg('temper', { Name: $(heater).attr('id'), Value: 0 });
-    // } else {
-    //     if(inp != undefined && inp != null) {
-    //         if($(inp).val().length > 0) {
-    //             var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-    //             sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-    //         }else
-    //             console.log('INSERT A VALID TEMPERATURE');
-    //     } else {
-    //         //  something bad happened...
-    //         //  apparently there isn't an input
-    //         console.log('[WARN] temper was not dispatched properly');
-    //     }
-    // }
 };
 
 var menus = function(btn) {
@@ -412,11 +351,8 @@ var menus = function(btn) {
     case 'prefs':
         break;
     
-    case 'admin':
-        break;
-    
-
     case 'exit':
+        window.close();
         break;
     
     default:
@@ -499,31 +435,68 @@ var updateUIStatus = function(msg) {
     //  temper settings. We'll want to include
     //  other data in the status feedback
 
+    //  TODO
+    //  send request to see if the device has been homed 
+    //  (via M114 for the Makibox A6) and handle accordingly
+
+    /*
+        2 sample output responses from Makibox A6 for M114
+
+        "
+        go 272 (executing M114)
+        -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
+        -- X:0 Y:0 Z:0 E:0 (steps)
+        -- Axes Homed X:0 Y:0 Z:0
+        -- *Not all axes homed! Positions reported may be incorrect!!!
+        ok 272 Q64 (2ms execute)
+        "
+        "
+        go 301 (executing M114)
+        -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
+        -- X:0 Y:0 Z:0 E:0 (steps)
+        -- Axes Homed X:0 Y:1 Z:0
+        -- *Not all axes homed! Positions reported may be incorrect!!!
+        ok 301 Q64 (1ms execute)
+        "
+    */
+
+    console.log(msg);
+
     var val,
         rows    = msg.Body.split('\n');
 
-    for(var i = 0; i < rows.length; i++) {
-        if(rows[i].indexOf('T:') > -1) {
-            var stats   = rows[i],
-                idx     = 0;
-            if(stats.indexOf('ok') != -1) 
-                idx = 1;
+    // for(var i = 0; i < rows.length; i++) {
+    //     if(rows[i].indexOf('T:') > -1) {
+    //         var stats   = rows[i],
+    //             idx     = 0;
+    //         if(stats.indexOf('ok') != -1) 
+    //             idx = 1;
 
-            var he      = stats.split(' ')[idx],
-                hb      = stats.split(' ')[idx + 2],
-                span    = '&deg;<span class="deg">C</span>';
+    //         var he      = stats.split(' ')[idx],
+    //             hb      = stats.split(' ')[idx + 2],
+    //             span    = '&deg;<span class="deg">C</span>';
 
-            if(he == undefined || hb == undefined) return;
+    //         if(he == undefined || hb == undefined) return;
 
-            val = he.substring(2, he.length);
-            $('#extruder1').find('.actual').html(val + span);
+    //         val = he.substring(2, he.length);
+    //         $('#extruder1').find('.actual').html(val + span);
 
-            val = hb.substring(2, hb.length);
-            $('#hotbed').find('.actual').html(val + span);
+    //         val = hb.substring(2, hb.length);
+    //         $('#hotbed').find('.actual').html(val + span);
 
-            if(dbg) 
-                console.log('[DBG] RAW: ' + stats);
-        }
+    //         if(dbg) 
+    //             console.log('[DBG] RAW: ' + stats);
+    //     }
+    // }
+
+    if(shaderDown) {
+        $('#over-msg').fadeOut(100);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+            });
+        shaderDown = 0;
     }
 };
 
@@ -547,6 +520,10 @@ var shipFile = function(evt) {
     var action  = 'load',
         fname   = document.getElementById('floader').files[0].name,
         content = evt.target.result;
+
+    //  TODO
+    //  check to see if ...files[0].name caused an error 
+    //  and handle appropriately
 
     sendDevMsg(action, { Name: fname, Data: content });
     $('#floader').remove();
