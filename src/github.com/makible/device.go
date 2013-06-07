@@ -99,6 +99,10 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 		}
 	}
 
+	if runtime.GOOS == "linux" {
+		devName := "ttyACM0"
+	}
+
 	//  ===
 	if (*existing)[devName] != nil {
 		//  this means we should be tracking the device

@@ -193,6 +193,17 @@ var attachBtnEvents = function() {
         sendConsoleMsg('G1'+xstr+ystr);
     });
 
+    $('.prog-manual > input').on('click', function(e) { $(this).val(''); });
+    $('.prog-manual > input').on('blur', function(e) { 
+        $(this).val('enter manual g/m codes here');
+    });
+    $('.prog-manual > input').on('change', function(e) {
+        if($(this).val() != '' || $(this).val().length > 2)
+            sendConsoleMsg($(this).val());
+
+        $(this).blur();
+    });
+
     //  fall back for forcing the UI to have the App server check for an
     //  attached device. Right now, on some refreshes it won't update
     //  properly if a device is attached -- not sure why
@@ -431,7 +442,7 @@ var updateUIStatus = function(msg) {
         }
 
         if(cmd && cmd != undefined) {
-            $('.prog-status').html(cmd.toString().replace(/,/g, ' '));
+            // $('.prog-status').html(cmd.toString().replace(/,/g, ' '));
 
             //  for every Z movement, we'll need to close the path for
             //  clear the screen and draw the new path coords
@@ -594,7 +605,7 @@ var initPrintUI = function() {
     $('#hz').css('background-color', '#fff')
             .css('color', '#333');
 
-    $('.prog-status').html('initializing print, please wait...');
+    // $('.prog-status').html('initializing print, please wait...');
 
     //  reset paths just before printing
     paths = new Array();
