@@ -28,6 +28,7 @@ var (
 	dbg         = true
 
 	devc, clientc         chan *Message
+	interruptc            chan *Message
 	devices               map[string]*Device
 	workingDir            string
 	launchBrowserArgs     []string
@@ -41,6 +42,7 @@ func main() {
 
 	devices = make(map[string]*Device)
 	devc, clientc = make(chan *Message), make(chan *Message)
+	interruptc = make(chan *Message, 1)
 
 	initOSVars()
 	go initDeviceListener()
@@ -202,14 +204,16 @@ func initJobQueue(dname string) {
 	dev := devices[dname]
 	lines := strings.Split(dev.FileData, "\n")
 	nl := len(lines)
+	ln := 0
 
 	log.Println("Starting job queue...")
 
-	for ln, cmd := range lines {
-		//  [ TODO ]
-		//  add a select here that will listen on a channel
-		//  for an incoming interrupt and default to running
-		//  the command
+	select {
+	case msg := <-interruptc:
+		//	do interrupt
+		log.Println(msg)
+	default:
+		cmd := lines[ln]
 		if !strings.HasPrefix(cmd, ";") && cmd != "" {
 			//
 			//  [ TODO ]
@@ -304,7 +308,16 @@ func initJobQueue(dname string) {
 				clientc <- responseMsg(dev.Name, "status", resp)
 			}
 		}
+		ln++
 	}
+
+	// for ln, cmd := range lines {
+	//  [ TODO ]
+	//  add a select here that will listen on a channel
+	//  for an incoming interrupt and default to running
+	//  the command
+
+	// }
 
 	clientc <- &Message{
 		DeviceName: dev.Name,

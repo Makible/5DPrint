@@ -100,7 +100,7 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 	}
 
 	if runtime.GOOS == "linux" {
-		devName := "ttyACM0"
+		devName = "ttyACM0"
 	}
 
 	//  ===
