@@ -26,10 +26,11 @@ $(document).ready(function() {
     //  ===[ DEBUG HELPERS ]
     // fakeDevice();
     // showDbg();
+    // $('#init').slideUp(1000);
 });
 
 var manageDevConnection = function(msg) {
-    console.log(msg.Body);
+    //  no device connected, reset checkConn timer
     if(msg.DeviceName == '' || msg.DeviceName == 'nil') {
         connTimer = setInterval(checkConn, 1500);
         return;
@@ -37,22 +38,26 @@ var manageDevConnection = function(msg) {
 
     //  inform user initializing and start the stat timer
     if(msg.Body == 'attached') {
-        $('.init-msg').html('initializing device...');
         deviceName  = msg.DeviceName;
 
+        $('.init-msg').html('initializing device...');
         $('#device').html(deviceName);
 
-        getStats();
+        //  get full list of stats (i.e. temp, position, etc.)
+        //  and start the stat timer
+        getStats(true); 
         statTimer = setInterval(getStats, 1500); 
 
         return;
     }
 
+    //  the device was detached and we need to update the
+    //  display to hide all the buttons
     if(msg.Body == 'detached') {
         window.clearInterval(statTimer);
 
-        $('#device').html('device detached');
-        $('.init-msg').html('waiting for device(s)...');
+        $('#device').html('');
+        $('.init-msg').html('waiting for device...');
         $('#init')
             .css('z-index', '901')
             .slideDown(1000, function() {
@@ -89,19 +94,19 @@ var attachBtnEvents = function() {
 
     //  motors off button
     $('#mo').on('click', function(e) {
-        sendDevMsg('motley', 'motorsoff');
+        notifyServer('motley', 'motorsoff');
     });
 
     //  plus function for Z and E
     $('.plus-btn').on('click', function(e) {
         var axis = $(e.target).parent().attr('id');
-        sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: 5, Speed: -1 });
+        notifyServer('move', { Axis: axis.toUpperCase(), Distance: 5, Speed: -1 });
     });
 
     //  minus function for Z and E
     $('.minus-btn').on('click', function(e) {
         var axis = $(e.target).parent().attr('id');
-        sendDevMsg('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
+        notifyServer('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
     });
 
     //  power on / set the temperature for the heating elements
@@ -113,7 +118,7 @@ var attachBtnEvents = function() {
         if(inp != undefined && inp != null) {
             if($(inp).val().length > 0) {
                 var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-                sendDevMsg('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
+                notifyServer('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
             } else
                 console.log('invalid temperature');
         } else
@@ -123,17 +128,19 @@ var attachBtnEvents = function() {
     //  "turn off" the heating elements by setting their temp to zero
     $('.tempr > .off-btn').on('click', function(e) {
         var heater = $(e.target).parent().attr('id');
-        sendDevMsg('temper', { Name: heater, Value: 0 });
+        notifyServer('temper', { Name: heater, Value: 0 });
     });
 
-    //  update the temp when the user changes it's value
+    //  update the temp when the user changes it's value by clicking the "on" button
     $('.tempr > input').on('change', function(e) {
         $(e.target).parent().find('.on-btn').click();
     });
 
     //  canvas click listener (the canvas is essentially a big button) ;)
-    $(c).on('click', canvasClickHandler);
-    $(c).on('mousemove', function(e) {
+    $(phLayer.canvas).on('click', canvasClickHandler);
+
+    //  ghosting indicator ring for clicker
+    $(phLayer.canvas).on('mousemove', function(e) {
         if(ct == undefined) {
             ct = new Indicator();
             ct.color = 'rgba(222, 222, 222, 0.4)';
@@ -141,12 +148,11 @@ var attachBtnEvents = function() {
 
         ct.x = e.offsetX - POINTERVISUALOFFSET;
         ct.y = e.offsetY - POINTERVISUALOFFSET;
-        redraw();
+        redrawIndicators();
     });
-
-    $(c).on('mouseout', function(e) {
+    $(phLayer.canvas).on('mouseout', function(e) {
         ct = undefined;
-        redraw();
+        redrawIndicators();
     });
 
     //  TODO
@@ -163,8 +169,8 @@ var attachBtnEvents = function() {
         containment: [0, xtb, 0, xbb],
         drag: function(e) {
             var h = e.target;
-            ph.y = $(h).position().top + Math.floor($(h).height() / 2) + (POINTERVISUALOFFSET / 2);
-            redraw();
+            ph.y = $(h).position().top + Math.floor($(h).height() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
+            redrawIndicators();
         }
     });
     $('#y > .handle').draggable({ 
@@ -172,8 +178,8 @@ var attachBtnEvents = function() {
         containment: [ylb, 0, yrb, 0],
         drag: function(e) {
             var h = e.target;
-            ph.x = $(h).position().left + Math.floor($(h).width() / 2) + (POINTERVISUALOFFSET / 2);
-            redraw();
+            ph.x = $(h).position().left + Math.floor($(h).width() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
+            redrawIndicators();
         }
     });
 
@@ -187,6 +193,9 @@ var attachBtnEvents = function() {
         sendConsoleMsg('G1'+xstr+ystr);
     });
 
+    //  fall back for forcing the UI to have the App server check for an
+    //  attached device. Right now, on some refreshes it won't update
+    //  properly if a device is attached -- not sure why
     $('#init').on('click', function(evt) {
         if($(this).is(':visible')) {
             checkConn();
@@ -217,19 +226,8 @@ var nav = function() {
 var start = function() {
     if($('#file').html() != '') {
         window.clearInterval(statTimer);    //  stop the UI stat request
-        sendDevMsg('job', 'start');
-
-        //  TODO
-        //  allow more features while printing
-        $('#init')
-            .css('z-index', '799')
-            .css('cursor', 'auto')
-            .css('background-color', 'rgba(0, 0, 0, 0.4)')
-            .slideDown(1000, function() {
-                $('#over-msg').fadeIn(200);
-                $('#over-msg > .init-msg').html('printing in progress');
-            })
-            .off('click');
+        notifyServer('job', 'start');
+        initPrintUI();
     }else {
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
         $('body').append(inp);
@@ -250,18 +248,21 @@ var start = function() {
             $('#file').html(f.name);
         });
         $(inp).click();
+
+        paths = new Array();
+        resetAndDrawPaths();
     }
 };
 
 var resume = function() {
-    sendDevMsg('interrupt', 'resume');
+    notifyServer('interrupt', 'resume');
     
     $('#start').off('click');
     $('#start').on('click', start);
 }
 
 var pause = function() {
-    sendDevMsg('interrupt', 'pause');
+    notifyServer('interrupt', 'pause');
 
     $('#start').off('click');
     $('#start').on('click', resume);
@@ -269,10 +270,20 @@ var pause = function() {
 
 var homer = function(btn) {
     var axis = $(btn).html();
-    sendDevMsg('home', { Axis: axis.toUpperCase(), Distance: 0, Speed: 0 });
+    notifyServer('home', { Axis: axis.toUpperCase(), Distance: 0, Speed: 0 });
+
+    if(axis == 'all') {
+        $('#homer > .btn').each(function() {
+            $(this).css('background-color', '#fff')
+                    .css('color', '#333');
+        });
+    } else {
+        $(btn).css('background-color', '#fff')
+              .css('color', '#333');
+    }
 
     if(axis != 'z') {
-        $(c).off('click');  //  detach canvas click handler
+        $(phLayer.canvas).off('click');  //  detach canvas click handler
 
         var dx, dy, sx, sy, err;
         dx = Math.abs(ph.x);
@@ -285,7 +296,7 @@ var homer = function(btn) {
                 || (axis == 'x' && ph.y == 0)
                 || (axis == 'y' && ph.x == 0)) {
                 window.clearInterval(i);
-                $(c).on('click', canvasClickHandler);
+                $(phLayer.canvas).on('click', canvasClickHandler);
                 return;
             }
 
@@ -320,7 +331,7 @@ var homer = function(btn) {
                 $('#x > .handle').css('top', t+'px');
             }
 
-            redraw();
+            redrawIndicators();
         }, 10);
     }
 };
@@ -346,13 +357,30 @@ var menus = function(btn) {
             $('#file').html(f.name);
         });
         $(inp).click();
+
+        paths = new Array();
+        resetAndDrawPaths();
+
         break;
 
     case 'prefs':
         break;
     
     case 'exit':
-        window.close();
+        notifyServer('shutdown', '');
+        socket.close();
+
+        $('#device').html('');
+        $('.init-msg').html('see ya next time!');
+        $('#init')
+            .css('z-index', '901')
+            .css('background-color', '#333')
+            .css('cursor', 'auto')
+            .slideDown(1000, function() {
+                $('#over-msg').fadeIn(100);
+                shaderDown = !0;
+            });
+
         break;
     
     default:
@@ -360,134 +388,176 @@ var menus = function(btn) {
     }
 };
 
-
-//  ===[ SOCKET HANDLERS ]
-var onMsg = function(e) {
-    if(dbg) console.log(e);
-
-    var msg = JSON.parse(e.data);
-    if(msg.Type === 'response') {
-        switch(msg.Action) {
-        case 'job':
-            if(msg.Body == "complete") {
-                $('#over-msg').fadeOut(100);
-                $('#init')
-                    .css('z-index', '799')
-                    .slideUp(1000, function() {
-                        $('#init').css('z-index', '-1');
-                    });
-                    
-                $('#file').html('');
-                statTimer = setInterval(getStats, 1500);
-            }
-            break;
-
-        case 'status':
-            updateUIStatus(msg);
-            break;
-
-        case 'connection':
-            manageDevConnection(msg);
-            break;
-
-        case 'console':
-            console.log(msg);
-            break;
-
-        case 'error':
-            //  TODO: alert invalid device name
-            console.log('[WARN] 5DPrint serv responded with error: ' + msg.Body);
-            if(msg.Body.indexOf('invalid device name') > -1) {
-                msg.Body = 'detached';
-                manageDevConnection(msg);
-            }
-
-            break;
-
-        default:
-            // console.log("[WARN] doesn't appear to be a valid action");
-            if(dbg)
-                console.log(msg);
-            break;
-        }
-    }
-};
-
-var onClose = function(e) {
-    window.clearInterval(statTimer);
-    connTimer = setInterval(checkConn, 1000);
-    console.log('[WARN] socket connection closed and stat timer killed');
-};
-
-//  ===[ HELPERS ]
-var getStats = function() {
-    sendDevMsg('status', '');
+var getStats = function(full) {
+    notifyServer('status', (full) ? 'full' : '');
 };
 
 var checkConn = function() {
-    sendCoreMsg('connection', '');
+    notifyServer('connection', '');
     window.clearInterval(connTimer);
 };
 
 var updateUIStatus = function(msg) {
-    //  TODO:
-    //  right now, we're only updating the
-    //  temper settings. We'll want to include
-    //  other data in the status feedback
+    if(msg.Body == 'job in progress') {
+        //  TODO
+        //  request printed file from server to 
+        //  update data on the UI
+        window.clearInterval(statTimer);
+        initPrintUI();
+        return;
+    }
 
-    //  TODO
-    //  send request to see if the device has been homed 
-    //  (via M114 for the Makibox A6) and handle accordingly
+    //  do this seperately from all the other data
+    updateTempDisplay(msg);
 
-    /*
-        2 sample output responses from Makibox A6 for M114
+    //  display the status of a running job
+    if(msg.Body.indexOf('-- JOB STAT REPORT') > -1) {
+        var data, cmd, ln, nl;
+        data = msg.Body.split('\n');
 
-        "
-        go 272 (executing M114)
-        -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
-        -- X:0 Y:0 Z:0 E:0 (steps)
-        -- Axes Homed X:0 Y:0 Z:0
-        -- *Not all axes homed! Positions reported may be incorrect!!!
-        ok 272 Q64 (2ms execute)
-        "
-        "
-        go 301 (executing M114)
-        -- C: X:0.00000 Y:0.00000 Z:0.00000 E:0.00000 (mm)
-        -- X:0 Y:0 Z:0 E:0 (steps)
-        -- Axes Homed X:0 Y:1 Z:0
-        -- *Not all axes homed! Positions reported may be incorrect!!!
-        ok 301 Q64 (1ms execute)
-        "
-    */
 
-    console.log(msg);
+        for(var i = 0; i < data.length; i++) {
+            if(data[i].indexOf('G1') == 0) {
+                cmd = data[i].split(' ');
+                continue;
+            }
 
-    var val,
-        rows    = msg.Body.split('\n');
+            if(data[i].indexOf('-- FILE LINE: ') > -1) {
+                ln = $.trim(data[i].split(':')[1]);
+                nl = $.trim(data[i+1].split(':')[1]);
 
-    // for(var i = 0; i < rows.length; i++) {
-    //     if(rows[i].indexOf('T:') > -1) {
-    //         var stats   = rows[i],
-    //             idx     = 0;
-    //         if(stats.indexOf('ok') != -1) 
-    //             idx = 1;
+                continue;
+            }
+        }
 
-    //         var he      = stats.split(' ')[idx],
-    //             hb      = stats.split(' ')[idx + 2],
-    //             span    = '&deg;<span class="deg">C</span>';
+        if(cmd && cmd != undefined) {
+            $('.prog-status').html(cmd.toString().replace(/,/g, ' '));
 
-    //         if(he == undefined || hb == undefined) return;
+            //  for every Z movement, we'll need to close the path for
+            //  clear the screen and draw the new path coords
+            if(cmd.toString().indexOf('Z') > -1) {
+                objLayer.ctx.closePath();
+                objLayer.ctx.clearRect(0, 0, w, h);
+                objLayer.ctx.beginPath();
 
-    //         val = he.substring(2, he.length);
-    //         $('#extruder1').find('.actual').html(val + span);
+                redrawIndicators();
+                return;
+            }
 
-    //         val = hb.substring(2, hb.length);
-    //         $('#hotbed').find('.actual').html(val + span);
+            //  we'll need to flip the X and Y here because of the
+            //  way the physical printer is versus the screen X and Y
+            var mx, my;
+            for(var i = 0; i < cmd.length; i++) {
+                // get cmd X value and set to my
+                if(cmd[i].indexOf('X') > -1)
+                    my = millimeterToPixel(cmd[i].substring(1));
 
-    //         if(dbg) 
-    //             console.log('[DBG] RAW: ' + stats);
-    //     }
-    // }
+                // get cmd Y value and set to mx
+                if(cmd[i].indexOf('Y') > -1)
+                    mx = millimeterToPixel(cmd[i].substring(1));
+            }
+
+
+            var yw, xh;
+            yw = mx - (Math.floor($('#y > .handle').width() / 2)) - Math.floor(POINTERVISUALOFFSET / 2);
+            xh = my - (Math.floor($('#x > .handle').height() / 2)) - Math.floor(POINTERVISUALOFFSET / 2);
+
+            ph.x = mx;
+            ph.y = my;
+
+            $('#y > .handle').css('left', yw + 'px');
+            $('#x > .handle').css('top', xh + 'px');
+
+            //  only draw the new path here
+            objLayer.ctx.strokeStyle = '#ffc0cb';
+            objLayer.ctx.lineTo(mx, my);
+            objLayer.ctx.moveTo(mx, my);
+            objLayer.ctx.stroke();
+
+            redrawIndicators();
+        }
+
+        if(ln && nl && ln != undefined && nl != undefined) {
+            var val = Math.floor((ln / nl) * 100);
+            if(val != 0 && $('.prog-complete').html() != val + '% complete') 
+                $('.prog-complete').html(val + '% complete');
+        }
+
+        return;
+    }
+
+    //  display init UI data
+    var rows, homedData, posData;
+    rows = msg.Body.split('\n');
+
+    for(var i = 0; i < rows.length; i++) {
+        if(rows[i].indexOf('-- Axes Homed') > -1 ) {
+            homedData = rows[i].split(' ');
+            continue;
+        }
+
+        if(rows[i].indexOf('-- C: X:') > -1) {
+            posData = rows[i].split(' ');
+            continue;
+        }
+    }
+
+    //  process homing values and update accordingly
+    if(homedData && homedData != undefined) {
+        for(var i = 0; i < homedData.length; i++) {
+            if(homedData[i].indexOf('X') > -1) {
+                if(homedData[i].substring(2) == 0) {
+                    $('#hx').css('background-color', '#da4b39')
+                            .css('color', '#fff');
+                }
+                continue;
+            }
+
+            if(homedData[i].indexOf('Y') > -1) {
+                if(homedData[i].substring(2) == 0) {
+                    $('#hy').css('background-color', '#da4b39')
+                            .css('color', '#fff');
+                }
+                continue;
+            }
+
+            if(homedData[i].indexOf('Z') > -1) {
+                if(homedData[i].substring(2) == 0) {
+                    $('#hz').css('background-color', '#da4b39')
+                            .css('color', '#fff');
+                }
+                continue;
+            }
+        }
+    }
+
+    //  process position values and update canvas accordingly
+    if(posData && posData != undefined) {
+        for(var i = 0; i < posData.length; i++) {
+            if(posData[i].indexOf('X:') > -1 && posData[i].indexOf('X:0.0') <= -1 ) {
+                var val, t;
+                val = millimeterToPixel(posData[i].substring(2)) - POINTERVISUALOFFSET;
+                t   = $('#x > .handle').position().top + val;
+
+                ph.y = val;
+                $('#x > .handle').css('top', t+'px');
+
+                continue;
+            }
+
+            if(posData[i].indexOf('Y:') > -1 && posData[i].indexOf('Y:0.0') <= -1) {
+                var val, l;
+                val = millimeterToPixel(posData[i].substring(2)) - POINTERVISUALOFFSET;
+                l   = $('#y > .handle').position().left + val;
+
+                ph.x = val;
+                $('#y > .handle').css('left', l+'px');
+
+                continue;
+            }
+        }
+        redrawIndicators();
+    }
 
     if(shaderDown) {
         $('#over-msg').fadeOut(100);
@@ -500,22 +570,88 @@ var updateUIStatus = function(msg) {
     }
 };
 
-var sendCoreMsg = function(action, body) {
-    var b = (body.length > 0) ? JSON.stringify(body) : body;
+//  drop the shader down, hide the 'message' box
+//  and show the print status indication area
+var initPrintUI = function() {
+    $('#init')
+        .css('z-index', '799')
+        .css('cursor', 'auto')
+        .css('background-color', 'rgba(0, 0, 0, 0.4)')
+        .slideDown(1000, function() {
+            $('#progress').fadeIn(100);
+            $('.prog-complete').html('0% complete');
+        })
+        .off('click');
 
-    var msg = JSON.stringify({ Type: 'core', DeviceName: '', Action: action, Body: b });
+    if($('#over-msg').is(':visible')) $('#over-msg').hide();
+
+    //  just in case the X/Y/Z haven't been homed, the gcode
+    //  will usually do this, so we'll update the UI as such
+    $('#hx').css('background-color', '#fff')
+            .css('color', '#333');
+    $('#hy').css('background-color', '#fff')
+            .css('color', '#333');
+    $('#hz').css('background-color', '#fff')
+            .css('color', '#333');
+
+    $('.prog-status').html('initializing print, please wait...');
+
+    //  reset paths just before printing
+    paths = new Array();
+    resetAndDrawPaths();
+};
+
+//  this should update only the temperature UI elements
+var updateTempDisplay = function(msg) {
+    var val, rows, tempData;
+    rows = msg.Body.split('\n');
+
+    //  pull out only the temp data
+    for(var i = 0; i < rows.length; i++) {
+        if(rows[i].indexOf('T:') > -1 && rows[i].indexOf('B:') > -1) {
+            tempData = rows[i].split('\n');
+            continue;
+        }
+    }
+
+    //  process temp data and display
+    if(tempData && tempData != undefined) {
+        for(var i = 0; i < tempData.length; i++) {
+            if(tempData[i].indexOf('T:') > -1) {
+                var stats   = tempData[i],
+                    idx     = 0;
+                if(stats.indexOf('ok') != -1)  idx = 1;
+
+                var he      = stats.split(' ')[idx],
+                    hb      = stats.split(' ')[idx + 2],
+                    span    = '&deg;<span class="deg">C</span>';
+
+                if(he == undefined || hb == undefined) return;
+
+                val = he.substring(2, he.length);
+                $('#extruder1').find('.actual').html(val + span);
+
+                val = hb.substring(2, hb.length);
+                $('#hotbed').find('.actual').html(val + span);
+
+                if(dbg) 
+                    console.log('[DBG] RAW: ' + stats);
+            }
+        }
+    }
+};
+
+//  send messages to the app server
+var notifyServer = function(action, body) {
+    var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: JSON.stringify(body) });
     socket.send(msg);
 };
 
-var sendDevMsg = function(action, body) {
-    var msg = JSON.stringify({ Type: 'device', DeviceName: deviceName, Action: action, Body: JSON.stringify(body) });
-    socket.send(msg);
+var sendConsoleMsg = function(cmd) {
+    notifyServer('console', cmd);
 };
 
-var sendConsoleMsg = function(msg) {
-    sendDevMsg('console', msg);
-};
-
+//  send the file to the app server to be processed / printed
 var shipFile = function(evt) {
     var action  = 'load',
         fname   = document.getElementById('floader').files[0].name,
@@ -525,20 +661,106 @@ var shipFile = function(evt) {
     //  check to see if ...files[0].name caused an error 
     //  and handle appropriately
 
-    sendDevMsg(action, { Name: fname, Data: content });
+    var cmds = content.split('\n');
+    paths = new Array();
+    paths.push({ x: 0, y: 0 });
+
+    //  loop through the file, getting each 'G1' line and loading the
+    //  x / y coords into the paths array, ignoring the commented rows
+    for(var i = 0; i < cmds.length; i++) {
+        if(cmds[i] && cmds[i] != undefined
+            && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
+            && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
+
+            var move, mx, my;
+            move = cmds[i].split(' ');
+
+            for(var j = 0; j < move.length; j++) {
+                if(move[j].indexOf('X') > -1)
+                    mx = millimeterToPixel(move[j].substring(1));
+
+                if(move[j].indexOf('Y') > -1)
+                    my = millimeterToPixel(move[j].substring(1));
+            }
+
+            paths.push({ x: my, y: mx });
+        }
+    }
+
+    //   if for some reason the file doesn't pan out right, reset paths
+    if(paths.length == 1) 
+        paths = new Array();
+
+    resetAndDrawPaths();
+
+    //  send the file to the server and cleanup
+    notifyServer(action, { Name: fname, Data: content });
     $('#floader').remove();
 };
 
-var showDbg = function() {
-    dbg = !0;
-};
-
-var hideDbg = function() {
-    dbg = 0;
-};
-
+//  used for debugging
 var fakeDevice = function() {
     window.clearInterval(connTimer);
     manageDevConnection({ Device: 'foo', Body: 'attached' });
     window.clearInterval(statTimer);
+
+    //  TODO
+    //  set a nice little timer and then feed in a fake
+    //  full stat message to display
+};
+
+//  ===[ SOCKET HANDLERS ]
+var onMsg = function(e) {
+    if(dbg) console.log(e);
+
+    var msg = JSON.parse(e.data);
+    switch(msg.Action) {
+    case 'job':
+        if(msg.Body == "complete") {
+            $('#over-msg').fadeOut(100);
+            $('#init')
+                .css('z-index', '799')
+                .slideUp(1000, function() {
+                    $('#init').css('z-index', '-1');
+                });
+                
+            $('#file').html('');
+            statTimer = setInterval(getStats, 1500);
+        }
+        break;
+
+    case 'status':
+        updateUIStatus(msg);
+        break;
+
+    case 'connection':
+        manageDevConnection(msg);
+        break;
+
+    case 'console':
+        console.log(msg);
+        break;
+
+    case 'error':
+        //  TODO: alert invalid device name
+        console.log('[WARN] 5DPrint serv responded with error: ' + msg.Body);
+        if(msg.Body.indexOf('invalid device name') > -1) {
+            msg.Body = 'detached';
+            manageDevConnection(msg);
+        }
+
+        break;
+
+    default:
+        // console.log("[WARN] doesn't appear to be a valid action");
+        if(dbg)
+            console.log(msg);
+        break;
+    }
+};
+
+var onClose = function(e) {
+    window.clearInterval(statTimer);
+    connTimer = setInterval(checkConn, 1000);
+    console.log('[WARN] socket connection closed and stat timer killed');
 };

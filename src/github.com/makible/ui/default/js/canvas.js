@@ -5,33 +5,47 @@
 */
 
 var MAGICNUM = 3.78,
-    POINTERVISUALOFFSET = 8;
+    POINTERVISUALOFFSET = 5;
 
 function Indicator() {
-    this.r = 8;
+    this.r = POINTERVISUALOFFSET;
     this.x = 0;
     this.y = 0;
     this.color = '';
     this.drawFill = function() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
+        phLayer.ctx.beginPath();
+        phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+        phLayer.ctx.strokeStyle = this.color;
+        phLayer.ctx.fillStyle = this.color;
+        phLayer.ctx.fill();
     };
+
     this.drawStroke = function() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = this.color;
-        ctx.stroke();
+        phLayer.ctx.beginPath();
+        phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+        phLayer.ctx.strokeStyle = this.color;
+        phLayer.ctx.stroke();
     };
 }
 
-var c, ctx, w, h, ph, ct, pp, paths;
+function Layer(c) {
+    this.canvas = c;
+    this.ctx    = c.getContext('2d');
+    this.w      = $(c).attr('width');
+    this.h      = $(c).attr('height');
+}
 
-c       = document.getElementById('pa');
-ctx     = c.getContext('2d');
-w       = $(c).attr('width');
-h       = $(c).attr('height');
+var bgLayer, hlLayer, cLayer, objLayer, phLayer, loadLayer, w, h, ph, ct, pp, paths;
+
+bgLayer     = new Layer(document.getElementById('grid-layer'));
+hlLayer     = new Layer(document.getElementById('highlight-layer'));
+cLayer      = new Layer(document.getElementById('cross-layer'));
+objLayer    = new Layer(document.getElementById('obj-layer'));
+phLayer     = new Layer(document.getElementById('ph-layer'));
+
+w       = bgLayer.w;
+h       = bgLayer.h;
+
 ph      = new Indicator();
 ct      = undefined;
 pp      = undefined;
@@ -43,11 +57,11 @@ ph.y     = 0;
 
 var canvasClickHandler = function(e) {
     if((e.offsetX == ph.x && e.offsetY == ph.y)
-        || e.offSetX < 0 || e.offSetX > c.height 
-        || e.offsetY < 0 || e.offsetY > c.width) 
+        || e.offSetX < 0 || e.offSetX > h
+        || e.offsetY < 0 || e.offsetY > w) 
         return;  //  don't need to do anything
 
-    $(c).off('click');
+    $(phLayer.canvas).off('click');
 
     var xstr, ystr, osx, osy;
     osx = e.offsetX - POINTERVISUALOFFSET;
@@ -64,19 +78,23 @@ var canvasClickHandler = function(e) {
     pp.y = osy;
     pp.color = '#7fa8cd';
 
+    movePrintHead(osx, osy);   
+};
+
+var movePrintHead = function(offsetX, offsetY) {
     var dx, dy, sx, sy, err;
 
-    dx = Math.abs(osx - ph.x);
-    dy = Math.abs(osy - ph.y);
-    sx = (ph.x < osx) ? 1 : -1;
-    sy = (ph.y < osy) ? 1 : -1;
+    dx = Math.abs(offsetX - ph.x);
+    dy = Math.abs(offsetY - ph.y);
+    sx = (ph.x < offsetX) ? 1 : -1;
+    sy = (ph.y < offsetY) ? 1 : -1;
     err = dx - dy;
 
     var i = setInterval(function(e) {
-        if(ph.x == osx && ph.y == osy) {
+        if(ph.x == offsetX && ph.y == offsetY) {
             window.clearInterval(i);
             pp = undefined;
-            $(c).on('click', canvasClickHandler);
+            $(phLayer.canvas).on('click', canvasClickHandler);
             return;
         }
 
@@ -97,25 +115,48 @@ var canvasClickHandler = function(e) {
             $('#x > .handle').css('top', t+'px');
         }
 
-        redraw();
-    },12);
+        redrawIndicators();
+    }, 12);
 };
 
 var displayGrid = function() {
     var inc = millimeterToPixel(5);
 
-    ctx.strokeStyle = '#555';
+    bgLayer.ctx.strokeStyle = '#555';
     for(var x = 0; x <= w; x+=inc) {
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
+        bgLayer.ctx.moveTo(x, 0);
+        bgLayer.ctx.lineTo(x, h);
     }
 
     for(var y = 0; y <= h; y+=inc) {
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
+        bgLayer.ctx.moveTo(0, y);
+        bgLayer.ctx.lineTo(w, y);
     }
-    ctx.stroke();
+    bgLayer.ctx.stroke();
+
+    // inc = millimeterToPixel(10);
+    // hlLayer.ctx.strokeStyle = 'rgba(57, 190, 231, 0.4)';
+    // for(var x = 0; x <= w; x+=inc) {
+    //     hlLayer.ctx.moveTo(x, 0);
+    //     hlLayer.ctx.lineTo(x, h);
+    // }
+   
+    // for(var y = 0; y <= h; y+=inc) {
+    //     hlLayer.ctx.moveTo(0, y);
+    //     hlLayer.ctx.lineTo(w, y);
+    // }
+    // hlLayer.ctx.stroke();
+ 
+
+    // clayer.ctx.strokestyle = '#777';
+    // clayer.ctx.moveto((w/2), 0);
+    // clayer.ctx.lineto((w/2), h);
+    // clayer.ctx.moveto(0, (h/2));
+    // clayer.ctx.lineto(w, (h/2));
+    // clayer.ctx.stroke();
 };
+
+
 
 var pixelToMillimeter = function(p) {
     if(p != 0) return Math.floor(p / MAGICNUM);
@@ -129,14 +170,32 @@ var millimeterToPixel = function(mm) {
     return mm
 }
 
-var redraw = function() {
-    ctx.clearRect(0, 0, c.width, c.height);
-    displayGrid();
-
+var redrawIndicators = function() {
+    phLayer.ctx.clearRect(0, 0, w, h);
     ph.drawFill();
+
     if(ct != undefined) ct.drawStroke();
     if(pp != undefined) pp.drawStroke();
 };
 
+var resetAndDrawPaths = function() {
+    objLayer.ctx.closePath();
+    objLayer.ctx.clearRect(0, 0, w, h);
+    objLayer.ctx.beginPath();
+
+    if(paths.length > 0) {
+        objLayer.ctx.strokeStyle = '#ffc0cb';
+        objLayer.ctx.moveTo(paths[0].x, paths[0].y);
+
+        for(var i = 1; i < paths.length; i++) {
+            var x = paths[i].x, 
+                y = paths[i].y;
+            objLayer.ctx.lineTo(x, y);
+            objLayer.ctx.moveTo(x, y);
+        }
+    }
+    objLayer.ctx.stroke();
+}
+
 displayGrid();
-redraw();
+redrawIndicators();

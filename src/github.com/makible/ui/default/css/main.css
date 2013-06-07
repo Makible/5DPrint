@@ -94,23 +94,27 @@ textarea {
    ========================================================================== */
 
 @-webkit-keyframes loading {
-    from { -webkit-transform: rotate(0deg); }
-    to { -webkit-transform: rotate(-360deg); }
+    0% { -webkit-transform: translate(0px, 10px); }
+    50% { -webkit-transform: translate(210px, 10px); }
+    100% { -webkit-transform: translate(0px, 10px); }
 }
 
 @-moz-keyframes loading {
-    from { -moz-transform: rotate(0deg); }
-    to { -moz-transform: rotate(-360deg); }
+    0% { -moz-transform: translate(0px, 20px); }
+    50% { -moz-transform: translate(210px, 20px); }
+    100% { -moz-transform: translate(0px, 20px); }
 }
 
 @-ms-keyframes loading {
-    from { -ms-transform: rotate(0deg); }
-    to { -ms-transform: rotate(-360deg); }
+    0% { -ms-transform: translate(0px, 20px); }
+    50% { -ms-transform: translate(210px, 20px); }
+    100% { -ms-transform: translate(0px, 20px); }
 }
 
 @-o-keyframes loading {
-    from { -o-transform: rotate(0deg); }
-    to { -o-transform: rotate(-360deg); }
+    0% { -o-transform: translate(0px, 20px); }
+    50% { -o-transform: translate(210px, 20px); }
+    100% { -o-transform: translate(0px, 20px); }
 }
 
 input::-webkit-outer-spin-button,
@@ -166,30 +170,60 @@ section,
     margin: 25% auto;
     width: 320px;
     height: 68px;
-    background-color: #fff;
-    border: 1px solid #333;
     border-radius: 8px;
-    box-shadow: 0px 4px 8px -4px rgba(0, 0, 0, 0.8);
+    color: #fff;
 }
 
 .loader {
     position: relative;
     display: inline-block;
-    margin-left: 30px;
-    color: rgba(0, 82, 156, 0.5);
-    font-size: 1.3em;
-    -webkit-animation:  loading 0.8s infinite linear;
-    -moz-animation:     loading 0.8s infinite linear;
-    -ms-animation:      loading 0.8s infinite linear;
-    -o-animation:       loading 0.8s infinite linear;
-    animation:          loading 0.8s infinite linear;
+    width: 28px;
+    height: 4px;
+    /*background-color: rgba(0, 82, 156, 0.5);*/
+    background-color: #da4b39;
+    border-radius: 4px;
+    -webkit-animation:  loading 3.5s infinite ease;
+    -moz-animation:     loading 3.5s infinite ease;
+    -ms-animation:      loading 3.5s infinite ease;
+    -o-animation:       loading 3.5s infinite ease;
+    animation:          loading 3.5s infinite ease;
 }
 
 .init-msg {
     display: inline-block;
     margin-left: 14px;
     line-height: 4.3em;
+    text-transform: uppercase;
 }
+
+#progress {
+    position: fixed;
+    right: 0;
+    bottom: 128px;
+    width: 320px;
+    height: 120px;
+    background-color: #333;
+    color: #eee;
+    display: none;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    padding: 4px 8px 4px 8px;
+    line-height: 1.5em;
+}
+
+#progress div {
+    position: relative;
+    margin: 4px auto;
+    width: 100%;
+    height: 24px;
+    padding: 0 4px 0 4px;
+    font-weight: 300;
+
+    /*border: 1px solid #da4b39;*/
+}
+
+.prog-status { color: #ccc; }
+
 
 /* NAVIGATION */
 nav {
@@ -227,14 +261,6 @@ nav {
     cursor: pointer;
 }
 
-/*
-#nav:hover,
-.nav-hover {
-    box-shadow: inset -9px 9px 8px -6px rgba(20, 20, 20, 0.4);
-    color: rgba(0, 82, 156, 0.5);
-}
-*/
-
 #menu {
     position: fixed;
     top: 48px;
@@ -268,24 +294,6 @@ nav {
 #menu li.last {
     border-bottom: 0;
 }
-
-/*#status {
-    position: relative;
-    display: inline-block;
-    margin-left: 280px;
-    padding: 4px;
-    width: 180px;
-    height: 40px;
-    overflow: hidden;
-    border: 1px solid rgba(100, 100, 100, 0.8);
-    border-top: 0;
-    border-bottom: 0;
-    text-align: center;
-    text-transform: uppercase;
-    font-size: 1em;
-    line-height: 2.8em;
-    color: #eee;
-}*/
 
 #misc {
     position: relative;
@@ -368,13 +376,30 @@ nav {
     height: 540px;
 }
 
-#pa {
-    position: relative;
-    margin-top: 68px;
-    margin-left: 98px;
-    background-color: #3e3e3e;
-    border: 8px solid #333;
+#grid-layer,
+#highlight-layer,
+#cross-layer,
+#obj-layer,
+#ph-layer {
+    position: absolute;
+    top: 202px;
+    left: 98px;
+    border: 8px solid rgba(0, 0, 0, 0);
     border-radius: 8px;
+}
+
+#grid-layer {
+    background-color: #3e3e3e;
+    border-color: #333;
+    z-index: 1;
+}
+
+#highlight-layer { z-index: 2; }
+#cross-layer { z-index: 3; }
+#obj-layer { z-index: 4; }
+
+#ph-layer {
+    z-index: 790;
     cursor: pointer;
 }
 

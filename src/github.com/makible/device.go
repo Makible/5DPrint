@@ -312,18 +312,21 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		resp := ""
 		cmds := []string{"M105", "M114", "M115", "M119", "M603", "M608"}
 
-		for _, cmd := range cmds {
-			fmt.Println("attempting command: ", cmd)
-
-			r, err := dev.LobCommand(cmd + dev.LineTerminator)
+		if strings.Contains(params, "full") {
+			for _, cmd := range cmds {
+				r, err := dev.LobCommand(cmd + dev.LineTerminator)
+				if err != nil {
+					return nil, err
+				}
+				resp += r
+			}
+		} else {
+			r, err := dev.LobCommand(cmds[0] + dev.LineTerminator)
 			if err != nil {
 				return nil, err
 			}
-
-			resp += r
+			resp = r
 		}
-
-		fmt.Println(resp)
 
 		return responseMsg(dev.Name, action, resp), nil
 
@@ -448,7 +451,6 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 
 func responseMsg(dn string, action string, body string) *Message {
 	return &Message{
-		Type:       "response",
 		DeviceName: dn,
 		Action:     action,
 		Body:       body,

@@ -27,8 +27,6 @@
                 <div id="pause" class="btn icon-pause"></div>
             </div>
 
-            <!-- <div id="status"></div> -->
-
             <div id="misc">
                 <div id="device"></div>
                 <div id="file"></div>
@@ -59,13 +57,13 @@
                 <div id="pm">
                     <div id="z" class="toggle-wrapper">
                         <div id="zlabel">z</div>
-                        <div class="plus-btn">+</div>
                         <div class="minus-btn">&ndash;</div>
+                        <div class="plus-btn">+</div>
                     </div>
                     <div id="e" class="toggle-wrapper">
                         <div id="elabel">e</div>
-                        <div class="plus-btn">+</div>
                         <div class="minus-btn">&ndash;</div>
+                        <div class="plus-btn">+</div>
                     </div>
                 </div>
 
@@ -75,7 +73,12 @@
                 <div id="y" class="slider">
                     <div class="handle">y</div>
                 </div>
-                <canvas id="pa" width="567" height="415"></canvas>
+
+                <canvas id="grid-layer" width="567" height="415"></canvas>
+                <canvas id="highlight-layer" width="567" height="415"></canvas>
+                <canvas id="cross-layer" width="567" height="415"></canvas>
+                <canvas id="obj-layer" width="567" height="415"></canvas>
+                <canvas id="ph-layer" width="567" height="415"></canvas>
 
             </section>
 
@@ -109,8 +112,14 @@
         
         <div id="init" class="overlay">
             <div id="over-msg">
-                <div class="loader icon-location-1"></div>
-                <div class="init-msg">waiting for device(s)...</div>
+                <div class="loader"></div>
+                <div class="init-msg">waiting for device...</div>
+            </div>
+            <div id="progress">
+                <div class="prog-complete"></div>
+                <div class="prog-est"></div>
+                <div class="prog-current"></div>
+                <div class="prog-status"></div>
             </div>
         </div>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
