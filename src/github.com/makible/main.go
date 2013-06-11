@@ -307,10 +307,6 @@ func initJobQueue(dname string) {
 				// report += "\n--EST TIME: " + dev.EstRunTime.Format(time.Kitchen)
 				report += "\n--EST TIME: Code not done yet"
 				report += "\n--COMMAND: " + cmd + "\n--DEVICE RESPONSE: " + resp
-
-				if dbg {
-					log.Println(report)
-				}
 				clientc <- responseMsg(dev.Name, "status", report)
 			}
 		}

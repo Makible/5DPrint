@@ -32,7 +32,9 @@ $(document).ready(function() {
     // $('#init').slideUp(1000);
 
     natch = {
-        'STOP': 'M112', 
+        'STOP': ['M112'], 
+        'EJECT': ['G92 E0', 'G1 F2000 E-200', 'M84'], 
+        'LOAD FILAMENT': ['G92 E0', 'G1 F2000 E200', 'M84'], 
         // 'DROP BED': '',
     };
 });
@@ -224,9 +226,12 @@ var attachBtnEvents = function() {
     });
     $('#console > input').on('change', function(e) {
         if($(this).val() != '' || $(this).val().length > 2) {
-            if(natch[$(this).val()] != undefined && natch[$(this).val()] != undefined)
-                sendConsoleMsg(natch[$(this).val()]);
-            else
+            if(natch[$(this).val()] != undefined && natch[$(this).val()] != undefined) {
+                $(natch[$(this).val()]).each(function(e) {
+                    sendConsoleMsg(this);
+                    window.setTimeout(1000);
+                });
+            } else
                 sendConsoleMsg($(this).val());
         }
         $(this).blur();
@@ -527,8 +532,8 @@ var updateUIStatus = function(msg) {
         }
 
         if(dr && dr != undefined) {
-            $('#console > .output').append(dr.toString());
-            $('#console > .output').scrollTop($('#console > .output')[0].scrollHeight);
+            $('#status > .output').append(dr.toString());
+            $('#status > .output').scrollTop($('#status > .output')[0].scrollHeight);
             // $('.prog-output').html($('.prog-output').html() + dr.toString());
         }
 
