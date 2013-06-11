@@ -44,9 +44,7 @@ func main() {
 
 	initOSVars()
 	go initDeviceListener()
-	go initHttpServer()
-
-	select {} // sleep forever
+	initHttpServer()
 }
 
 func initOSVars() {
@@ -198,12 +196,15 @@ func initHttpServer() {
 }
 
 func initJobQueue(dname string) {
-	header := "\n-- JOB STAT REPORT\n-- FILE LINE: "
+	header := "\n--JOB STAT REPORT\n--FILE LINE: "
 	dev := devices[dname]
 	lines := strings.Split(dev.FileData, "\n")
 	nl := len(lines)
 
 	log.Println("Starting job queue...")
+
+	dev.JobTime = time.Now()
+	dev.EstRunTime = time.Now().Add(60 * time.Minute) //	not valid!! TODO
 
 	for ln, cmd := range lines {
 		//  [ TODO ]
@@ -249,7 +250,9 @@ func initJobQueue(dname string) {
 					heatMsg = "waiting for hotend to reach temp"
 				}
 
-				// log.Println(heatMsg)
+				if dbg {
+					log.Println(heatMsg)
+				}
 				clientc <- responseMsg(dev.Name, "job", heatMsg)
 
 				for {
@@ -299,9 +302,16 @@ func initJobQueue(dname string) {
 				}
 
 				//	prep report
-				// log.Println(resp)
-				resp = header + strconv.Itoa(ln) + "\n--OF TOTAL LINES: " + strconv.Itoa(nl) + "\n" + cmd + "\n" + resp
-				clientc <- responseMsg(dev.Name, "status", resp)
+				report := header + strconv.Itoa(ln) + "\n--OF TOTAL LINES: " + strconv.Itoa(nl)
+				report += "\n--CURRENT DURATION: " + strconv.FormatFloat(time.Since(dev.JobTime).Minutes(), 'f', 1, 64) + " minutes"
+				// report += "\n--EST TIME: " + dev.EstRunTime.Format(time.Kitchen)
+				report += "\n--EST TIME: Code not done yet"
+				report += "\n--COMMAND: " + cmd + "\n--DEVICE RESPONSE: " + resp
+
+				if dbg {
+					log.Println(report)
+				}
+				clientc <- responseMsg(dev.Name, "status", report)
 			}
 		}
 	}
@@ -466,7 +476,7 @@ func clientWsHandler(ws *websocket.Conn) {
 			os.Exit(2)
 
 		default:
-			r, err := dev.Do(msg.Action, msg.Body)
+			r, err := dev.Do(msg.Action, strings.Trim(msg.Body, "\""))
 			if err != nil {
 				log.Println(err)
 				if checkConnError(err.Error(), msg.DeviceName) {
@@ -505,7 +515,7 @@ func launchBrowser(url string) bool {
 	return cmd.Start() == nil
 }
 
-func checkConnError(err string, dn string) bool {
+func checkConnError(err, dn string) bool {
 	//
 	//  This usually means the device was detached.
 	//  We will update the client / UI, clean up values and exit

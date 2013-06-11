@@ -2,10 +2,13 @@
 
 var dbg = 0,
     shaderDown = !0,
+    exited = 0,
     socket,
     statTimer,
     connTimer,
     deviceName,
+    handlesMouseDown,
+    natch,
     socketAddr  = 'ws://';
 
 $(document).ready(function() {
@@ -27,6 +30,11 @@ $(document).ready(function() {
     // fakeDevice();
     // showDbg();
     // $('#init').slideUp(1000);
+
+    natch = {
+        'STOP': 'M112', 
+        // 'DROP BED': '',
+    };
 });
 
 var manageDevConnection = function(msg) {
@@ -60,10 +68,14 @@ var manageDevConnection = function(msg) {
         $('.init-msg').html('waiting for device...');
         $('#init')
             .css('z-index', '901')
+            .css('background-color', '#333')
+            .css('cursor', 'pointer')
             .slideDown(1000, function() {
                 $('#over-msg').fadeIn(100);
                 shaderDown = !0;
             });
+
+        $('#progress').fadeOut(100);
 
         connTimer = setInterval(checkConn, 500);
         return;
@@ -168,8 +180,8 @@ var attachBtnEvents = function() {
         axis: 'y', 
         containment: [0, xtb, 0, xbb],
         drag: function(e) {
-            var h = e.target;
-            ph.y = $(h).position().top + Math.floor($(h).height() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
+            handlesMouseDown = e.target;
+            ph.y = $(handlesMouseDown).position().top + Math.floor($(handlesMouseDown).height() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
             redrawIndicators();
         }
     });
@@ -177,8 +189,8 @@ var attachBtnEvents = function() {
         axis: 'x', 
         containment: [ylb, 0, yrb, 0],
         drag: function(e) {
-            var h = e.target;
-            ph.x = $(h).position().left + Math.floor($(h).width() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
+            handlesMouseDown = e.target;
+            ph.x = $(handlesMouseDown).position().left + Math.floor($(handlesMouseDown).width() / 2) + Math.floor(POINTERVISUALOFFSET / 2);
             redrawIndicators();
         }
     });
@@ -186,21 +198,37 @@ var attachBtnEvents = function() {
     //  TODO
     //  handle this a bit better so that if the user overshoots the
     //  "bounds" / containment, it will strill trigger the mouseup
-    $('.handle').on('mouseup', function(e) {
+    $('.slider > .handle').on('mouseup', function(e) {
+        handlesMouseDown = undefined;
+
         var xstr, ystr;
         xstr = ' X' + pixelToMillimeter(ph.y);
         ystr = ' Y' + pixelToMillimeter(ph.x);
         sendConsoleMsg('G1'+xstr+ystr);
     });
 
-    $('.prog-manual > input').on('click', function(e) { $(this).val(''); });
-    $('.prog-manual > input').on('blur', function(e) { 
-        $(this).val('enter manual g/m codes here');
+    $(document).on('mouseup', function(e) {
+        if(handlesMouseDown && handlesMouseDown != undefined) {
+            $(handlesMouseDown).trigger('mouseup');
+            handlesMouseDown = undefined;
+        }
     });
-    $('.prog-manual > input').on('change', function(e) {
-        if($(this).val() != '' || $(this).val().length > 2)
-            sendConsoleMsg($(this).val());
 
+    $('#status > .handle').on('click', openConsole);
+    $('#console > input').on('click', function(e) {
+        $(this).val('').removeClass('ghost');
+        openConsole(e);
+    });
+    $('#console > input').on('blur', function(e) {
+        $(this).addClass('ghost').val('enter manual commands here');
+    });
+    $('#console > input').on('change', function(e) {
+        if($(this).val() != '' || $(this).val().length > 2) {
+            if(natch[$(this).val()] != undefined && natch[$(this).val()] != undefined)
+                sendConsoleMsg(natch[$(this).val()]);
+            else
+                sendConsoleMsg($(this).val());
+        }
         $(this).blur();
     });
 
@@ -208,9 +236,8 @@ var attachBtnEvents = function() {
     //  attached device. Right now, on some refreshes it won't update
     //  properly if a device is attached -- not sure why
     $('#init').on('click', function(evt) {
-        if($(this).is(':visible')) {
+        if($(this).is(':visible'))
             checkConn();
-        }
     });
 };
 
@@ -379,18 +406,8 @@ var menus = function(btn) {
     
     case 'exit':
         notifyServer('shutdown', '');
+        exited = !0;
         socket.close();
-
-        $('#device').html('');
-        $('.init-msg').html('see ya next time!');
-        $('#init')
-            .css('z-index', '901')
-            .css('background-color', '#333')
-            .css('cursor', 'auto')
-            .slideDown(1000, function() {
-                $('#over-msg').fadeIn(100);
-                shaderDown = !0;
-            });
 
         break;
     
@@ -421,28 +438,43 @@ var updateUIStatus = function(msg) {
     //  do this seperately from all the other data
     updateTempDisplay(msg);
 
+    if(msg.Body.indexOf('--FULL STATS') > -1) {
+        var stats = msg.Body.substring(msg.Body.indexOf('--FULL STATS') + 12);
+        $('#status > .output').append(stats.replace(/\n/g, '<br />'));
+        $('#status > .output').animate({ scrollTop: $('#status > .output')[0].scrollHeight }, 800);
+    }
+
     //  display the status of a running job
-    if(msg.Body.indexOf('-- JOB STAT REPORT') > -1) {
-        var data, cmd, ln, nl;
+    if(msg.Body.indexOf('--JOB STAT REPORT') > -1) {
+        var data, cmd, dr, ln, nl, cd, et;
         data = msg.Body.split('\n');
 
-
         for(var i = 0; i < data.length; i++) {
-            if(data[i].indexOf('G1') == 0) {
+            if(data[i].indexOf('--COMMAND: G1') == 0) {
                 cmd = data[i].split(' ');
+                dr  = data[i+2] + '<br />' + data[i+3];
                 continue;
             }
 
-            if(data[i].indexOf('-- FILE LINE: ') > -1) {
+            if(data[i].indexOf('--FILE LINE: ') > -1) {
                 ln = $.trim(data[i].split(':')[1]);
                 nl = $.trim(data[i+1].split(':')[1]);
+
+                continue;
+            }
+
+            if(data[i].indexOf('--CURRENT DURATION: ') > -1) {
+                cd = $.trim(data[i].split(':')[1]);
+                et = $.trim(data[i+1].split(':')[1]);
 
                 continue;
             }
         }
 
         if(cmd && cmd != undefined) {
-            // $('.prog-status').html(cmd.toString().replace(/,/g, ' '));
+            var tmp = cmd.toString().replace(/,/g, ' ');
+            $('#status > .output').append(tmp.split(':')[1] + '<br />');
+            $('#status > .output').scrollTop($('#status > .output')[0].scrollHeight);
 
             //  for every Z movement, we'll need to close the path for
             //  clear the screen and draw the new path coords
@@ -490,9 +522,23 @@ var updateUIStatus = function(msg) {
 
         if(ln && nl && ln != undefined && nl != undefined) {
             var val = Math.floor((ln / nl) * 100);
-            if(val != 0 && $('.prog-complete').html() != val + '% complete') 
-                $('.prog-complete').html(val + '% complete');
+            if(val != 0 && $('.prog-complete').html().toLowerCase() != 'completed: <span style="color:#ffc0cb;">' + val + '%</span>') 
+                $('.prog-complete').html('completed: <span style="color:#ffc0cb;">' + val + '%</span>');
         }
+
+        if(dr && dr != undefined) {
+            $('#console > .output').append(dr.toString());
+            $('#console > .output').scrollTop($('#console > .output')[0].scrollHeight);
+            // $('.prog-output').html($('.prog-output').html() + dr.toString());
+        }
+
+        if(cd && et && cd != undefined && et != undefined) {
+            if($('.prog-est').html() == '') 
+                $('.prog-est').html('estimated: <span style="color:#ffc0cb;">' + et + '</span>');
+            $('.prog-current').html('time passed: <span style="color:#ffc0cb;">' + cd + '</span>');
+        }
+
+        // console.log(data);
 
         return;
     }
@@ -590,7 +636,7 @@ var initPrintUI = function() {
         .css('background-color', 'rgba(0, 0, 0, 0.4)')
         .slideDown(1000, function() {
             $('#progress').fadeIn(100);
-            $('.prog-complete').html('0% complete');
+            $('.prog-complete').html('completed: <span style="color:#ffc0cb;">0%</span>');
         })
         .off('click');
 
@@ -720,6 +766,30 @@ var fakeDevice = function() {
     //  full stat message to display
 };
 
+var openConsole = function(e) {
+    $('#status').animate({ bottom: '+=196px' }, 800);
+    $('#status > .handle')
+        .off('click')
+        .on('click', closeConsole);
+    $('#console > input')
+        .off('click')
+        .on('click', function(e) { $(this).val('').removeClass('ghost'); });
+};
+
+var closeConsole = function(e) {
+    $('#status').animate({ bottom: '-=196px' }, 800)
+    $('#status > .handle')
+        .off('click')
+        .on('click', openConsole);
+    $('#console > input')
+        .off('click')
+        .on('click', function(e) { 
+            $(this).val('').removeClass('ghost'); 
+            $('#status > .handle').click();
+        });
+
+};
+
 //  ===[ SOCKET HANDLERS ]
 var onMsg = function(e) {
     if(dbg) console.log(e);
@@ -749,12 +819,12 @@ var onMsg = function(e) {
         break;
 
     case 'console':
-        console.log(msg);
+        $('#status > .output').append(msg.Body.replace(/\n/g, '<br />'));
+        $('#status > .output').animate({ scrollTop: $('#status > .output')[0].scrollHeight }, 800);
         break;
 
     case 'error':
-        //  TODO: alert invalid device name
-        console.log('[WARN] 5DPrint serv responded with error: ' + msg.Body);
+        $('#status > .output').append('[WARN] 5DPrint serv responded with error: ' + msg.Body)
         if(msg.Body.indexOf('invalid device name') > -1) {
             msg.Body = 'detached';
             manageDevConnection(msg);
@@ -772,6 +842,23 @@ var onMsg = function(e) {
 
 var onClose = function(e) {
     window.clearInterval(statTimer);
-    connTimer = setInterval(checkConn, 1000);
+
+    $('#device').html('');
+    if(!exited)
+        $('.init-msg').html('server offline');
+    else
+        $('.init-msg').html('see ya next time!');
+
+    $('#init')
+        .css('z-index', '901')
+        .css('background-color', '#333')
+        .css('cursor', 'pointer')
+        .slideDown(1000, function() {
+            $('#over-msg').fadeIn(100);
+            shaderDown = !0;
+        });
+    $('#progress').fadeOut(100);
+    connTimer = setInterval(checkConn, 500);
+
     console.log('[WARN] socket connection closed and stat timer killed');
 };

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Device struct {
@@ -29,8 +30,8 @@ type Device struct {
 	FileName       string
 	FileData       string
 	JobStatus      int
-	ActiveQueue    []string
-	HoldQueue      []string
+	JobTime        time.Time
+	EstRunTime     time.Time
 }
 
 type position struct {
@@ -309,14 +310,15 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//	M114	-- Current Position
 		//	M115	-- Capabilities String (??)
 		//	M119	-- Show endstopper state
+		//	M503	-- Current setting in memory
 		//	M603	-- Show free RAM
 		//	M608	-- Show firmware version
-		//	M503	-- Current setting in memory
 
 		resp := ""
-		cmds := []string{"M105", "M114", "M115", "M119", "M603", "M608"}
+		cmds := []string{"M105", "M114", "M115", "M119", "M503", "M603", "M608"}
 
 		if strings.Contains(params, "full") {
+			resp = "--FULL STATS\n"
 			for _, cmd := range cmds {
 				r, err := dev.LobCommand(cmd + dev.LineTerminator)
 				if err != nil {
@@ -406,6 +408,7 @@ func (dev *Device) LobCommand(cmd string) (string, error) {
 }
 
 func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
+
 	//  check if valid code in device codes ::TODO::
 	//  if so, then lob to the device
 	n, err := (*dev).Write([]byte(cmd))
@@ -418,7 +421,7 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 	}
 
 	//  read response from device
-	var goseq, okseq string
+	var goseq string
 	response := "\n"
 	for {
 		buf := make([]byte, 255)
@@ -440,13 +443,9 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 		}
 
 		response += resp
-		if strings.Contains(resp, "ok") && strings.Contains(resp, "execute") {
-			r := strings.Split(resp, " ")
-			okseq = r[1]
 
-			if strings.Contains(goseq, okseq) {
-				return response, nil
-			}
+		if strings.Contains(response, "ok "+goseq) {
+			return response, nil
 		}
 	}
 
