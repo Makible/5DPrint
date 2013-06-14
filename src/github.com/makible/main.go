@@ -37,7 +37,6 @@ var (
 func main() {
 	log.Println("5DPrint starting...")
 	runtime.GOMAXPROCS(2)
-	// runtime.GOMAXPROCS(4)
 
 	devices = make(map[string]*Device)
 	devc, clientc = make(chan *Message), make(chan *Message)
@@ -52,8 +51,12 @@ func initOSVars() {
 
 	switch runtime.GOOS {
 	case "darwin":
-		// workingDir          = "/Applications/5DPrint.app/Contents/MacOS"
-		workingDir, err = os.Getwd()
+		if dbg {
+			workingDir, err = os.Getwd()
+		} else {
+			workingDir = "/Applications/5DPrint.app/Contents/MacOS"
+		}
+
 		launchBrowserArgs = []string{"open"}
 	case "windows":
 		workingDir, err = os.Getwd()
@@ -85,15 +88,12 @@ func initDeviceListener() {
 						Body:       "detached",
 					}
 				} else {
-					//  [ TODO ]
-					//  handle this better
 					log.Println("initDeviceListener: ", err)
 				}
 			}
 		}
 
-		//  this means a new device was attached
-		//  and someone should be notified
+		//  this means a new device was attached and someone should be notified
 		if len(dn) > 1 {
 			clientc <- &Message{
 				DeviceName: dn,

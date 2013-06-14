@@ -57,7 +57,7 @@ ph.y     = 0;
 
 var canvasClickHandler = function(e) {
     if((e.offsetX == ph.x && e.offsetY == ph.y)
-        || e.offSetX < 0 || e.offSetX > h
+        || e.offsetX < 0 || e.offsetX > h
         || e.offsetY < 0 || e.offsetY > w) 
         return;  //  don't need to do anything
 

@@ -216,7 +216,7 @@ var attachBtnEvents = function() {
         }
     });
 
-    $('#status > .handle').on('click', openConsole);
+    $('#console > .wrapper > .handle').on('click', openConsole);
     $('#console > input').on('click', function(e) {
         $(this).val('').removeClass('ghost');
         openConsole(e);
@@ -229,7 +229,6 @@ var attachBtnEvents = function() {
             if(natch[$(this).val()] != undefined && natch[$(this).val()] != undefined) {
                 $(natch[$(this).val()]).each(function(e) {
                     sendConsoleMsg(this);
-                    window.setTimeout(1000);
                 });
             } else
                 sendConsoleMsg($(this).val());
@@ -444,9 +443,13 @@ var updateUIStatus = function(msg) {
     updateTempDisplay(msg);
 
     if(msg.Body.indexOf('--FULL STATS') > -1) {
-        var stats = msg.Body.substring(msg.Body.indexOf('--FULL STATS') + 12);
-        $('#status > .output').append(stats.replace(/\n/g, '<br />'));
-        $('#status > .output').animate({ scrollTop: $('#status > .output')[0].scrollHeight }, 800);
+        var stats, output;
+
+        stats = msg.Body.substring(msg.Body.indexOf('--FULL STATS') + 12);
+        output = $('#console > .wrapper > .output');
+
+        $(output).append(stats.replace(/\n/g, '<br />'));
+        $(output).animate({ scrollTop: $(output)[0].scrollHeight }, 800);
     }
 
     //  display the status of a running job
@@ -478,8 +481,9 @@ var updateUIStatus = function(msg) {
 
         if(cmd && cmd != undefined) {
             var tmp = cmd.toString().replace(/,/g, ' ');
-            $('#status > .output').append(tmp.split(':')[1] + '<br />');
-            $('#status > .output').scrollTop($('#status > .output')[0].scrollHeight);
+            var output = $('#console > .wrapper > .output');
+            $(output).append(tmp.split(':')[1] + '<br />');
+            $(output).scrollTop($(output)[0].scrollHeight);
 
             //  for every Z movement, we'll need to close the path for
             //  clear the screen and draw the new path coords
@@ -532,9 +536,8 @@ var updateUIStatus = function(msg) {
         }
 
         if(dr && dr != undefined) {
-            $('#status > .output').append(dr.toString());
-            $('#status > .output').scrollTop($('#status > .output')[0].scrollHeight);
-            // $('.prog-output').html($('.prog-output').html() + dr.toString());
+            $('#console > .wrapper > .output').append(dr.toString());
+            $('#console > .wrapper > .output').scrollTop($('#console > .wrapper > .output')[0].scrollHeight);
         }
 
         if(cd && et && cd != undefined && et != undefined) {
@@ -772,26 +775,30 @@ var fakeDevice = function() {
 };
 
 var openConsole = function(e) {
-    $('#status').animate({ bottom: '+=196px' }, 800);
-    $('#status > .handle')
+    var console = $('#console > .wrapper');
+    $(console).animate({ bottom: '+=302px' }, 800);
+    $(console).find('.handle')
         .off('click')
         .on('click', closeConsole);
     $('#console > input')
         .off('click')
-        .on('click', function(e) { $(this).val('').removeClass('ghost'); });
+        .on('click', function(e) { $(this).val('').removeClass('ghost'); })
+        .css('border-top', '1px solid #dfdfdf');
 };
 
 var closeConsole = function(e) {
-    $('#status').animate({ bottom: '-=196px' }, 800)
-    $('#status > .handle')
+    var console = $('#console > .wrapper');
+    $(console).animate({ bottom: '-=302px' }, 800)
+    $(console).find('.handle')
         .off('click')
         .on('click', openConsole);
     $('#console > input')
         .off('click')
         .on('click', function(e) { 
             $(this).val('').removeClass('ghost'); 
-            $('#status > .handle').click();
-        });
+            $(console).find('.handle').click();
+        })
+        .css('border-top', 'none');
 
 };
 
@@ -824,12 +831,13 @@ var onMsg = function(e) {
         break;
 
     case 'console':
-        $('#status > .output').append(msg.Body.replace(/\n/g, '<br />'));
-        $('#status > .output').animate({ scrollTop: $('#status > .output')[0].scrollHeight }, 800);
+        var output = $('#console > .wrapper > .output');
+        $(output).append(msg.Body.replace(/\n/g, '<br />'));
+        $(output).animate({ scrollTop: $(output)[0].scrollHeight }, 800);
         break;
 
     case 'error':
-        $('#status > .output').append('[WARN] 5DPrint serv responded with error: ' + msg.Body)
+        $('#console > .wrapper > .output').append('[WARN] 5DPrint serv responded with error: ' + msg.Body)
         if(msg.Body.indexOf('invalid device name') > -1) {
             msg.Body = 'detached';
             manageDevConnection(msg);

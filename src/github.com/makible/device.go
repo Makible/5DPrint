@@ -74,13 +74,8 @@ const (
 //  need to dynamically list out
 //  the devices by OS
 func getAttachedDevices(existing *map[string]*Device) (string, error) {
-	devName := "/dev/tty.usbmodem001" //  POSIX style naming
+	devName := ""
 	if runtime.GOOS == "windows" {
-		//  [HACK]
-		//  temporary hack for Windows
-		//  to let the user create a .txt
-		//  file in the data dir for us to
-		//  know what the COM port enumerates
 		info, err := ioutil.ReadDir("config/")
 		if err != nil {
 			return "", fmt.Errorf("unable to get COM info from 'config/': %v\n", err)
@@ -98,13 +93,12 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 		if !found {
 			return "", fmt.Errorf("__COM device not found")
 		}
-	}
-
-	if runtime.GOOS == "linux" {
+	} else if runtime.GOOS == "linux" {
 		devName = "/dev/ttyACM0"
+	} else {
+		devName = "/dev/tty.usbmodem001" //	default to OS X
 	}
 
-	//  ===
 	if (*existing)[devName] != nil {
 		//  this means we should be tracking the device
 		//  but if the err says that we can't find the device
@@ -156,12 +150,32 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 }
 
 func getFirmwareInfo(dev *io.ReadWriteCloser) (string, error) {
-	resp, err := lobCommand(dev, models.FWMCODE+models.LINETERMINATOR)
+	n, err := (*dev).Write([]byte(models.FWMCODE + models.LINETERMINATOR))
 	if err != nil {
 		return "", err
 	}
+	if n < 1 {
+		return "", errors.New("unable to write to device")
+	}
 
-	return resp, nil
+	response := "\n"
+	for {
+		buf := make([]byte, 255)
+		n, err = (*dev).Read(buf)
+		if n < 1 {
+			fmt.Printf("lobCommand - device did not respond: %d\n", n)
+			return "", nil
+		}
+
+		resp := string(buf[:n])
+
+		response += resp
+		if strings.Contains(response, "ok ") {
+			return response, nil
+		}
+	}
+
+	return response, nil
 }
 
 func (dev *Device) Do(action string, params string) (*Message, error) {
@@ -408,8 +422,6 @@ func (dev *Device) LobCommand(cmd string) (string, error) {
 }
 
 func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
-
-	//  check if valid code in device codes ::TODO::
 	//  if so, then lob to the device
 	n, err := (*dev).Write([]byte(cmd))
 	if err != nil {
@@ -443,7 +455,6 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 		}
 
 		response += resp
-
 		if strings.Contains(response, "ok "+goseq) {
 			return response, nil
 		}

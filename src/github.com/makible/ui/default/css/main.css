@@ -199,7 +199,7 @@ section,
 #progress {
     position: fixed;
     right: 0;
-    bottom: 238px;
+    top: 78px;
     width: 320px;
     height: 94px;
     background-color: #333;
@@ -209,6 +209,7 @@ section,
     border-bottom-left-radius: 4px;
     padding: 4px 8px 4px 8px;
     line-height: 1.5em;
+    box-shadow: -2px 3px 12px -3px rgba(0, 0, 0, 0.4);
 }
 
 #progress div,
@@ -644,42 +645,30 @@ input.fi {
 
 #console {
     position: fixed;
+    right: 0;
     bottom: 0;
-    width: 100%;
-    height: 32px;
-    background-color: #eee;
+    width: 520px;
+    height: 320px;
+    border-top-left-radius: 8px;
     z-index: 800;
 }
 
 #console input {
-    margin-left: 4px;
-    margin-right: 4px;
-    width: 57%;
+    position: fixed;
+    width: 100%;
+    height: 38px;
+    bottom: -4px;
     background-color: #eee;
     color: #333;
+    padding-left: 4px;
     border: 0;
-    padding: 0;
     text-transform: uppercase;
     cursor: pointer;
+    z-index: 805;
 }
 
-#console input.ghost { color: #888; }
 
-#status {
-    position: fixed;
-    right: 0;
-    bottom: -196px;
-    width: 568px;
-    height: 212px;
-    background-color: #eee;
-    border-top-left-radius: 8px;
-    color: #999;
-    padding: 8px;
-    cursor: pointer;
-    z-index: 801;
-}
-
-#status .handle {
+#console .handle {
     padding: 4px;
     top: 0;
     right: 0;
@@ -692,15 +681,34 @@ input.fi {
     text-align: right;
     line-height: 1.6em;
     box-shadow: -5px 5px 6px -5px rgba(100, 100, 100, 0.4); 
+    cursor: pointer;
+    z-index: 806;
 }
 
-#status .output {
+#console .wrapper {
+    position: absolute;
+    margin: 0 auto;
+    bottom: -542px;
     width: 100%;
     height: 100%;
+    background-color: #eee;
+    border-top-left-radius: 8px;
+    box-shadow: -2px 3px 12px -3px rgba(0, 0, 0, 0.4);
+}
+
+#console .wrapper .output {
+    padding-left: 24px;
+    padding-bottom: 24px;
+    width: 100%;
+    height: 48%;
+    color: #333;
+    cursor: auto;
     overflow-x: hidden;
     overflow-y: scroll;
 }
-#status .output::-webkit-scrollbar { display: none; }
+
+#console input.ghost { color: #888; }
+#console .wrapper::-webkit-scrollbar { display: none; }
 
 /* ==========================================================================
    Helper classes
