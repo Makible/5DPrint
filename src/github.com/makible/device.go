@@ -67,6 +67,7 @@ const (
 const (
 	IDLE    = (1 << iota)
 	RUNNING = (1 << iota)
+	RESUME  = (1 << iota)
 	PAUSED  = (1 << iota)
 )
 

@@ -207,10 +207,12 @@ func initJobQueue(dname string) {
 	dev.EstRunTime = time.Now().Add(60 * time.Minute) //	not valid!! TODO
 
 	for ln, cmd := range lines {
-		//  [ TODO ]
-		//  add a select here that will listen on a channel
-		//  for an incoming interrupt and default to running
-		//  the command
+		for dev.JobStatus == PAUSED {
+		}
+		if dev.JobStatus == RESUME {
+			dev.JobStatus = RUNNING
+		} //	reset back to running
+
 		if !strings.HasPrefix(cmd, ";") && cmd != "" {
 			//
 			//  [ TODO ]
@@ -465,6 +467,15 @@ func clientWsHandler(ws *websocket.Conn) {
 			//  [ TODO ]
 			log.Println("not done, but this should be where we do the pause logic...")
 			log.Println(msg)
+
+			if msg.Body == "pause" {
+				dev.JobStatus = PAUSED
+			}
+
+			if msg.Body == "resume" {
+				dev.JobStatus = RESUME
+			}
+
 		case "shutdown":
 			time.Sleep(800 * time.Millisecond)
 
