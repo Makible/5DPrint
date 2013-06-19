@@ -20,6 +20,7 @@ import (
 var (
 	defServPort = ":8080"
 	uiDir       = "/ui/"
+	estop       = false
 	// openBrowser = true
 	// dbg         = false
 
@@ -208,6 +209,21 @@ func initJobQueue(dname string) {
 
 	for ln, cmd := range lines {
 		for dev.JobStatus == PAUSED {
+			//	if the interrupt that was received was an estop
+			//	(i.e. M112 for Makibox) clean up and leave job loop
+			if estop {
+				dev.JobStatus = IDLE
+				dev.FileData = ""
+				dev.FileName = ""
+				estop = false
+
+				clientc <- &Message{
+					DeviceName: dev.Name,
+					Action:     "job",
+					Body:       "stopped",
+				}
+				return
+			}
 		}
 		if dev.JobStatus == RESUME {
 			dev.JobStatus = RUNNING
@@ -299,6 +315,8 @@ func initJobQueue(dname string) {
 
 							return
 						}
+
+						log.Println(err)
 					}
 					resp += r
 				}
@@ -307,7 +325,6 @@ func initJobQueue(dname string) {
 				report := header + strconv.Itoa(ln) + "\n--OF TOTAL LINES: " + strconv.Itoa(nl)
 				report += "\n--CURRENT DURATION: " + strconv.FormatFloat(time.Since(dev.JobTime).Minutes(), 'f', 1, 64) + " minutes"
 				// report += "\n--EST TIME: " + dev.EstRunTime.Format(time.Kitchen)
-				report += "\n--EST TIME: Code not done yet"
 				report += "\n--COMMAND: " + cmd + "\n--DEVICE RESPONSE: " + resp
 				clientc <- responseMsg(dev.Name, "status", report)
 			}
@@ -323,6 +340,8 @@ func initJobQueue(dname string) {
 	dev.JobStatus = IDLE
 	dev.FileData = ""
 	dev.FileName = ""
+
+	log.Println("leaving job queue")
 }
 
 func clientWsHandler(ws *websocket.Conn) {
@@ -411,6 +430,7 @@ func clientWsHandler(ws *websocket.Conn) {
 					go initDeviceListener()
 				}
 			}
+
 		case "job":
 			if dev.JobStatus == RUNNING {
 				clientc <- &Message{
@@ -438,6 +458,7 @@ func clientWsHandler(ws *websocket.Conn) {
 					}
 				}
 			}
+
 		case "status":
 			if dev.JobStatus == RUNNING {
 				clientc <- &Message{
@@ -463,17 +484,31 @@ func clientWsHandler(ws *websocket.Conn) {
 					clientc <- r
 				} //  send the response even with an error
 			}
-		case "interrupt":
-			//  [ TODO ]
-			log.Println("not done, but this should be where we do the pause logic...")
-			log.Println(msg)
 
+		case "interrupt":
+			cmd := ""
 			if msg.Body == "pause" {
 				dev.JobStatus = PAUSED
+				cmd = "M226 P1" + dev.LineTerminator
 			}
 
 			if msg.Body == "resume" {
 				dev.JobStatus = RESUME
+				cmd = "M226 P0" + dev.LineTerminator
+				time.Sleep(90000 * time.Millisecond)
+			}
+
+			if msg.Body == "stop" {
+				dev.JobStatus = PAUSED
+				estop = true
+				continue
+			}
+
+			//
+			//	M226 P1		-- pause
+			//	M226 P0 	-- resume
+			if strings.Contains(dev.Greeting, "Makibox Firmware") && len(cmd) > 0 {
+				dev.LobCommand(cmd)
 			}
 
 		case "shutdown":
@@ -483,7 +518,7 @@ func clientWsHandler(ws *websocket.Conn) {
 			os.Exit(2)
 
 		default:
-			r, err := dev.Do(msg.Action, strings.Trim(msg.Body, "\""))
+			r, err := dev.Do(msg.Action, msg.Body)
 			if err != nil {
 				log.Println(err)
 				if checkConnError(err.Error(), msg.DeviceName) {

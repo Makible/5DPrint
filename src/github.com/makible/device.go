@@ -71,6 +71,23 @@ const (
 	PAUSED  = (1 << iota)
 )
 
+var makiboxA6 *models.Model
+
+func init() {
+	macros := make(map[string][]string)
+	macros["motorsoff"] = []string{"M84"}
+	macros["eject"] = []string{"G92 E0", "G1 F2000 E-250", "M84"}
+	macros["load"] = []string{"G92 E0", "G1 F2000 E250", "M84"}
+	macros["drop bed"] = []string{"G1 Z80"}
+
+	makiboxA6 = &models.Model{
+		IdInfo:         "1d50:604c",
+		FWMCode:        "M608",
+		LineTerminator: "\r\n",
+		Macros:         macros,
+	}
+}
+
 //  [ TODO ]
 //  need to dynamically list out
 //  the devices by OS
@@ -133,7 +150,7 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 
 		dev := &Device{
 			Name:           devName,
-			LineTerminator: models.LINETERMINATOR,
+			LineTerminator: makiboxA6.LineTerminator,
 			Baud:           DEFBAUD,
 			IODevice:       d,
 			MoveSpeed:      0,
@@ -151,7 +168,7 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 }
 
 func getFirmwareInfo(dev *io.ReadWriteCloser) (string, error) {
-	n, err := (*dev).Write([]byte(models.FWMCODE + models.LINETERMINATOR))
+	n, err := (*dev).Write([]byte(makiboxA6.FWMCode + makiboxA6.LineTerminator))
 	if err != nil {
 		return "", err
 	}
@@ -390,15 +407,31 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		dev.FileName, dev.FileData = gc.Name, gc.Data
 		return responseMsg(dev.Name, action, "temp file written"), nil
 
-	case "motley":
-		if strings.Contains(params, "motorsoff") {
-			cmd := "M84" + dev.LineTerminator
-			resp, err := dev.LobCommand(cmd)
+	case "macro":
+		if makiboxA6.Macros[params] != nil {
+			response := ""
+			for _, cmd := range makiboxA6.Macros[params] {
+				resp, err := dev.LobCommand(cmd + dev.LineTerminator)
+				if err != nil {
+					return nil, err
+				}
 
-			if err != nil {
-				return nil, err
+				response += resp
 			}
-			return responseMsg(dev.Name, action, resp), nil
+
+			//	set E to 0 ??
+			if params == "drop bed" {
+				dev.Pos.Z = 80
+			}
+
+			if params == "eject filament" {
+			}
+
+			if params == "load filament" {
+				dev.Pos.E1 = 200
+			}
+
+			return responseMsg(dev.Name, action, response), nil
 		}
 
 	//  manual gcode entered by user
@@ -449,6 +482,7 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 		///	TODO
 		//	add in logic to parse our the "rs" response
 		//	for a resend request from the device
+		//	example -- rs 135 (command code missing): ( Input file was airwolf.mid )
 
 		if strings.Contains(resp, "go") {
 			r := strings.Split(resp, " ")
@@ -456,8 +490,15 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 		}
 
 		response += resp
+
 		if strings.Contains(response, "ok "+goseq) {
 			return response, nil
+		}
+
+		//	for now, dump out on the resend requests
+		if strings.HasPrefix(response, "rs ") {
+			return response, errors.New("invalid gcode")
+
 		}
 	}
 
