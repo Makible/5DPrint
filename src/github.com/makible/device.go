@@ -424,10 +424,11 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 				dev.Pos.Z = 80
 			}
 
-			if params == "eject filament" {
+			if params == "eject" {
+				dev.Pos.E1 = 0
 			}
 
-			if params == "load filament" {
+			if params == "load" {
 				dev.Pos.E1 = 200
 			}
 
