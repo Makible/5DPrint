@@ -229,6 +229,8 @@ section,
     text-transform: uppercase;
 }
 
+.prog-est { display: none; }
+
 
 /* NAVIGATION */
 nav {

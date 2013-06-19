@@ -32,12 +32,9 @@ $(document).ready(function() {
     // showDbg();
     // $('#init').slideUp(1000);
 
-    natch = {
-        'STOP': ['M112'], 
-        'EJECT': ['G92 E0', 'G1 F2000 E-200', 'M84'], 
-        'LOAD_FILAMENT': ['G92 E0', 'G1 F2000 E200', 'M84'], 
-        // 'DROP BED': '',
-    };
+    natch = ['STOP', 'EJECT', 'LOAD', 'DROP BED'];
+
+
 });
 
 var manageDevConnection = function(msg) {
@@ -109,7 +106,7 @@ var attachBtnEvents = function() {
 
     //  motors off button
     $('#mo').on('click', function(e) {
-        notifyServer('motley', 'motorsoff');
+        notifyServer('macro', 'motorsoff');
     });
 
     //  plus function for Z and E
@@ -225,17 +222,25 @@ var attachBtnEvents = function() {
     $('#console > input').on('blur', function(e) {
         $(this).addClass('ghost').val('enter manual commands here');
     });
-    $('#console > input').on('change', function(e) {
-        if($(this).val() != '' || $(this).val().length > 2) {
-            var val = $(this).val().replace(/\s/g, '_');
-            if(natch[val] != undefined && natch[val] != undefined) {
-                $(natch[val]).each(function() {
-                    sendConsoleMsg(this);
-                });
-            } else
-                sendConsoleMsg($(this).val());
+    $('#console > input').on('keydown', function(e) {
+        if(e.keyCode == 13) {
+            if($(this).val() != '' || $(this).val().length > 2) {
+                var val  = $(this).val().toUpperCase();
+                if(natch.indexOf(val) >= 0) {
+                    if(val == 'STOP') 
+                        notifyServer('interrupt', val.toLowerCase());
+                    else
+                        notifyServer('macro', val.toLowerCase());
+                    // 'STOP': ['M112'], 
+                    // 'EJECT': ['G92 E0', 'G1 F2000 E-200', 'M84'], 
+                    // 'LOAD_FILAMENT': ['G92 E0', 'G1 F2000 E200', 'M84'], 
+                    // 'DROP BED': '',
+                    // };
+                } else
+                    sendConsoleMsg(val);
+            }
+            $(this).blur();
         }
-        $(this).blur();
     });
 
     //  fall back for forcing the UI to have the App server check for an
@@ -305,6 +310,8 @@ var resume = function() {
     
     $('#start').off('click');
     $('#start').on('click', start);
+
+    initPrintUI();
 }
 
 var pause = function() {
@@ -312,6 +319,17 @@ var pause = function() {
 
     $('#start').off('click');
     $('#start').on('click', resume);
+
+    // hide print UI
+    if(shaderDown) {
+        $('#over-msg').fadeOut(100);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+            });
+        shaderDown = 0;
+    }
 };
 
 var homer = function(btn) {
@@ -711,7 +729,9 @@ var updateTempDisplay = function(msg) {
 
 //  send messages to the app server
 var notifyServer = function(action, body) {
-    var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: JSON.stringify(body) });
+    var b = (typeof body == 'string') ? JSON.stringify(body).replace(/\"/g, '') : JSON.stringify(body);
+    var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: b });
+
     socket.send(msg);
 };
 
