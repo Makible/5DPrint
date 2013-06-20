@@ -22,6 +22,7 @@ $(document).ready(function() {
     socket.onclose      = onClose;
     // socket.onopen       = ...
 
+    natch = ['STOP', 'EJECT', 'LOAD', 'DROP BED'];
 
     //  attach button events and connection checker
     attachBtnEvents();
@@ -31,10 +32,6 @@ $(document).ready(function() {
     // fakeDevice();
     // showDbg();
     // $('#init').slideUp(1000);
-
-    natch = ['STOP', 'EJECT', 'LOAD', 'DROP BED'];
-
-
 });
 
 var manageDevConnection = function(msg) {
@@ -121,31 +118,11 @@ var attachBtnEvents = function() {
         notifyServer('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
     });
 
-    //  power on / set the temperature for the heating elements
-    $('.tempr > .on-btn').on('click', function(e) {
-        var heater, inp;
-        heater  = $(e.target).parent();
-        inp     = $(heater).find('input');
-
-        if(inp != undefined && inp != null) {
-            if($(inp).val().length > 0) {
-                var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-                notifyServer('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-            } else
-                console.log('invalid temperature');
-        } else
-            console.log('temperature was not dispatched properly');
-    });
-
-    //  "turn off" the heating elements by setting their temp to zero
-    $('.tempr > .off-btn').on('click', function(e) {
-        var heater = $(e.target).parent().attr('id');
-        notifyServer('temper', { Name: heater, Value: 0 });
-    });
+    $('.on-btn').on('click', heaterOn);
 
     //  update the temp when the user changes it's value by clicking the "on" button
     $('.tempr > input').on('change', function(e) {
-        $(e.target).parent().find('.on-btn').click();
+        updateTemperature($(e.target).parent());
     });
 
     //  canvas click listener (the canvas is essentially a big button) ;)
@@ -231,11 +208,6 @@ var attachBtnEvents = function() {
                         notifyServer('interrupt', val.toLowerCase());
                     else
                         notifyServer('macro', val.toLowerCase());
-                    // 'STOP': ['M112'], 
-                    // 'EJECT': ['G92 E0', 'G1 F2000 E-200', 'M84'], 
-                    // 'LOAD_FILAMENT': ['G92 E0', 'G1 F2000 E200', 'M84'], 
-                    // 'DROP BED': '',
-                    // };
                 } else
                     sendConsoleMsg(val);
             }
@@ -249,6 +221,56 @@ var attachBtnEvents = function() {
     $('#init').on('click', function(evt) {
         if($(this).is(':visible'))
             checkConn();
+    });
+};
+
+var heaterOn = function(e) {
+        var offBtn = $($(this).parent()).children('.off-btn');
+        $(offBtn)
+            .removeClass('active')
+            .on('click', heaterOff);
+
+        $(this)
+            .addClass('active')
+            .off('click');
+        updateTemperature($(e.target).parent().parent());
+
+
+        // inp     = $(heater).find('input');
+
+        // if(inp != undefined && inp != null) {
+        //     if($(inp).val().length > 0) {
+        //         var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
+        //         notifyServer('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
+        //     } else
+        //         console.log('invalid temperature');
+        // } else
+        //     console.log('temperature was not dispatched properly');
+};
+
+var heaterOff = function(e) {
+        var onBtn = $($(this).parent()).children('.on-btn');
+        $(onBtn)
+            .removeClass('active')
+            .on('click', heaterOn);
+
+        $(this)
+            .addClass('active')
+            .off('click');
+
+        notifyServer('temper', { 
+            Name: $(e.target).parent().parent().attr('id'), 
+            Value: 0 
+        });
+};
+
+var updateTemperature = function(heater) {
+    console.log('updating temp to: ');
+    console.log(parseInt($(heater).find('input').val()));
+
+    notifyServer('temper', { 
+        Name: $(heater).attr('id'), 
+        Value: parseInt($(heater).find('input').val())
     });
 };
 

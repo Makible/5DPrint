@@ -85,16 +85,20 @@
             <section id="temperature">
                 <label for="extruder1">extruder 1</label>
                 <div id="extruder1" class="tempr">
-                    <div class="off-btn">off</div>
-                    <div class="on-btn">on</div>
+                    <div class="switch-wrapper">
+                        <div class="off-btn active">off</div>
+                        <div class="on-btn">on</div>
+                    </div>
                     <input type="number" min="0" max="260" class="intemp" value="220" />
                     <div class="actual">0&deg;<span class="deg">C</span></div>
                 </div>
 
                 <label for="hotbed">hot bed</label>
                 <div id="hotbed" class="tempr">
-                    <div class="off-btn">off</div>
-                    <div class="on-btn">on</div>
+                    <div class="switch-wrapper">
+                        <div class="off-btn active">off</div>
+                        <div class="on-btn">on</div>
+                    </div>
                     <input type="number" min="0" max="145" class="intemp" value="100" />
                     <div class="actual">0&deg;<span class="deg">C</span></div>
                 </div>
