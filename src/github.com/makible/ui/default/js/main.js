@@ -234,18 +234,6 @@ var heaterOn = function(e) {
             .addClass('active')
             .off('click');
         updateTemperature($(e.target).parent().parent());
-
-
-        // inp     = $(heater).find('input');
-
-        // if(inp != undefined && inp != null) {
-        //     if($(inp).val().length > 0) {
-        //         var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-        //         notifyServer('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-        //     } else
-        //         console.log('invalid temperature');
-        // } else
-        //     console.log('temperature was not dispatched properly');
 };
 
 var heaterOff = function(e) {
@@ -265,9 +253,6 @@ var heaterOff = function(e) {
 };
 
 var updateTemperature = function(heater) {
-    console.log('updating temp to: ');
-    console.log(parseInt($(heater).find('input').val()));
-
     notifyServer('temper', { 
         Name: $(heater).attr('id'), 
         Value: parseInt($(heater).find('input').val())
@@ -739,6 +724,7 @@ var updateTempDisplay = function(msg) {
                 val = he.substring(2, he.length);
                 $('#extruder1').find('.actual').html(val + span);
 
+
                 val = hb.substring(2, hb.length);
                 $('#hotbed').find('.actual').html(val + span);
 
@@ -763,49 +749,57 @@ var sendConsoleMsg = function(cmd) {
 
 //  send the file to the app server to be processed / printed
 var shipFile = function(evt) {
-    var action  = 'load',
-        fname   = document.getElementById('floader').files[0].name,
-        content = evt.target.result;
+    if(document.getElementById('floader').files[0] != undefined) {
+        var action  = 'load',
+            fname   = document.getElementById('floader').files[0].name,
+            content = evt.target.result;
 
-    //  TODO
-    //  check to see if ...files[0].name caused an error 
-    //  and handle appropriately
-
-    var cmds = content.split('\n');
-    paths = new Array();
-    paths.push({ x: 0, y: 0 });
-
-    //  loop through the file, getting each 'G1' line and loading the
-    //  x / y coords into the paths array, ignoring the commented rows
-    for(var i = 0; i < cmds.length; i++) {
-        if(cmds[i] && cmds[i] != undefined
-            && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
-            && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
-
-            var move, mx, my;
-            move = cmds[i].split(' ');
-
-            for(var j = 0; j < move.length; j++) {
-                if(move[j].indexOf('X') > -1)
-                    mx = millimeterToPixel(move[j].substring(1));
-
-                if(move[j].indexOf('Y') > -1)
-                    my = millimeterToPixel(move[j].substring(1));
-            }
-
-            paths.push({ x: my, y: mx });
-        }
-    }
-
-    //   if for some reason the file doesn't pan out right, reset paths
-    if(paths.length == 1) 
+        var cmds = content.split('\n');
         paths = new Array();
+        paths.push({ x: 0, y: 0 });
 
-    resetAndDrawPaths();
+        //  loop through the file, getting each 'G1' line and loading the
+        //  x / y coords into the paths array, ignoring the commented rows
+        for(var i = 0; i < cmds.length; i++) {
+            if(cmds[i] && cmds[i] != undefined
+                && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
+                && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
 
-    //  send the file to the server and cleanup
-    notifyServer(action, { Name: fname, Data: content });
-    $('#floader').remove();
+                var move, mx, my;
+                move = cmds[i].split(' ');
+
+                for(var j = 0; j < move.length; j++) {
+                    if(move[j].indexOf('X') > -1)
+                        mx = millimeterToPixel(move[j].substring(1));
+
+                    if(move[j].indexOf('Y') > -1)
+                        my = millimeterToPixel(move[j].substring(1));
+                }
+
+                paths.push({ x: my, y: mx });
+            }
+        }
+
+        //   if for some reason the file doesn't pan out right, reset paths
+        if(paths.length == 1) 
+            paths = new Array();
+
+        resetAndDrawPaths();
+
+        //  send the file to the server and cleanup
+        notifyServer(action, { Name: fname, Data: content });
+        $('#floader').remove();
+    } else {
+        //  notify user
+        var msg = "We're sorry, but there seems to be an error when trying to load the file to print. Please reload it and try again.";
+        window.alert(msg);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+
+            });
+    }
 };
 
 //  used for debugging
