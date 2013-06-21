@@ -168,9 +168,10 @@ section,
 #over-msg {
     position: relative;
     margin: 25% auto;
-    width: 320px;
+    width: 240px;
     height: 68px;
     border-radius: 8px;
+    background-color: #333;
     color: #fff;
 }
 
@@ -179,7 +180,6 @@ section,
     display: inline-block;
     width: 28px;
     height: 4px;
-    /*background-color: rgba(0, 82, 156, 0.5);*/
     background-color: #da4b39;
     border-radius: 4px;
     -webkit-animation:  loading 3.5s infinite ease;
@@ -191,7 +191,7 @@ section,
 
 .init-msg {
     display: inline-block;
-    margin-left: 14px;
+    margin: 0 auto;
     line-height: 4.3em;
     text-transform: uppercase;
 }
@@ -228,6 +228,8 @@ section,
 .prog-current {
     text-transform: uppercase;
 }
+
+.prog-est { display: none; }
 
 
 /* NAVIGATION */
@@ -431,7 +433,7 @@ nav {
 .tempr {
     position: relative;
     width: 380px;
-    height: 54px;
+    height: 42px;
     margin-top: -1px;
     margin-bottom: 24px;
     border: 2px solid #444;
@@ -444,16 +446,18 @@ nav {
     display: inline-block;
     float: left;
     margin: 0 auto;
-    width: 94px;
-    height: 54px;
     vertical-align: top;
     text-align: center;
     font-size: 1.5em;
 }
 
-.tempr div {
-    line-height: 2.2em;
+.tempr input,
+.tempr .actual { 
+    width: 94px;
+    height: 100%;
 }
+
+.tempr div { line-height: 1.8em; }
 
 .intemp {
     border: 0;
@@ -469,24 +473,53 @@ nav {
     color: #fff;
 }
 
-.tempr input,
-.tempr .off-btn,
-.tempr .on-btn {
+.tempr input {    
+    background-color: #fbf9f8;
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#f7f7f7), to(#e7e7e7));
+    background-image: -webkit-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -moz-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -ms-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -o-linear-gradient(top, #f7f7f7, #e7e7e7); 
     cursor: pointer;
 }
 
-.tempr .off-btn:hover,
-.tempr .on-btn:hover {
-    box-shadow: inset -3px 0px 12px -8px rgba(0, 0, 0, 0.8); 
+.switch-wrapper {
+    position: relative;
+    width: 187px;
+    height: 95%;
+    background-color: #777;
+    color: #fff;
+    border-right: 1px solid #444;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    padding: 1px 1px 1px 1px;
 }
 
-.tempr .off-btn:active,
-.tempr .on-btn:active {
-    box-shadow: inset -4px 0px 12px -8px rgba(0, 0, 0, 0.8); 
+.switch-wrapper div {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    width: 92px;
+    height: 100%;
+    font-size: 1.2em;
+    line-height: 1.3em;
 }
 
-.tempr .off-btn, .tempr .on-btn { border-right: 1px solid rgba(200,200,200, 0.4); }
-
+.switch-wrapper div.active {
+    margin-top: 0.5px;
+    height: 92%;
+    background-color: #fbf9f8;
+    border-radius: 4px;
+    border: 1px solid rgba(100, 100, 100, 0.6);
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.4);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(#f7f7f7), to(#e7e7e7));
+    background-image: -webkit-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -moz-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -ms-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    background-image: -o-linear-gradient(top, #f7f7f7, #e7e7e7); 
+    color: #6a6a6a;
+    cursor: default;
+}
 
 /* HOME ACTIONS */
 .toggle-wrapper {

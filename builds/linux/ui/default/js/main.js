@@ -22,6 +22,7 @@ $(document).ready(function() {
     socket.onclose      = onClose;
     // socket.onopen       = ...
 
+    natch = ['STOP', 'EJECT', 'LOAD', 'DROP BED'];
 
     //  attach button events and connection checker
     attachBtnEvents();
@@ -31,13 +32,6 @@ $(document).ready(function() {
     // fakeDevice();
     // showDbg();
     // $('#init').slideUp(1000);
-
-    natch = {
-        'STOP': ['M112'], 
-        'EJECT': ['G92 E0', 'G1 F2000 E-200', 'M84'], 
-        'LOAD_FILAMENT': ['G92 E0', 'G1 F2000 E200', 'M84'], 
-        // 'DROP BED': '',
-    };
 });
 
 var manageDevConnection = function(msg) {
@@ -109,7 +103,7 @@ var attachBtnEvents = function() {
 
     //  motors off button
     $('#mo').on('click', function(e) {
-        notifyServer('motley', 'motorsoff');
+        notifyServer('macro', 'motorsoff');
     });
 
     //  plus function for Z and E
@@ -124,31 +118,11 @@ var attachBtnEvents = function() {
         notifyServer('move', { Axis: axis.toUpperCase(), Distance: -5, Speed: -1 });
     });
 
-    //  power on / set the temperature for the heating elements
-    $('.tempr > .on-btn').on('click', function(e) {
-        var heater, inp;
-        heater  = $(e.target).parent();
-        inp     = $(heater).find('input');
-
-        if(inp != undefined && inp != null) {
-            if($(inp).val().length > 0) {
-                var tmp = (parseInt($(inp).val()) > parseInt($(inp).attr('max'))) ? $(inp).attr('max') : $(inp).val();
-                notifyServer('temper', { Name: $(heater).attr('id'), Value: parseInt(tmp) });
-            } else
-                console.log('invalid temperature');
-        } else
-            console.log('temperature was not dispatched properly');
-    });
-
-    //  "turn off" the heating elements by setting their temp to zero
-    $('.tempr > .off-btn').on('click', function(e) {
-        var heater = $(e.target).parent().attr('id');
-        notifyServer('temper', { Name: heater, Value: 0 });
-    });
+    $('.on-btn').on('click', heaterOn);
 
     //  update the temp when the user changes it's value by clicking the "on" button
     $('.tempr > input').on('change', function(e) {
-        $(e.target).parent().find('.on-btn').click();
+        updateTemperature($(e.target).parent());
     });
 
     //  canvas click listener (the canvas is essentially a big button) ;)
@@ -225,17 +199,20 @@ var attachBtnEvents = function() {
     $('#console > input').on('blur', function(e) {
         $(this).addClass('ghost').val('enter manual commands here');
     });
-    $('#console > input').on('change', function(e) {
-        if($(this).val() != '' || $(this).val().length > 2) {
-            var val = $(this).val().replace(/\s/g, '_');
-            if(natch[val] != undefined && natch[val] != undefined) {
-                $(natch[val]).each(function() {
-                    sendConsoleMsg(this);
-                });
-            } else
-                sendConsoleMsg($(this).val());
+    $('#console > input').on('keydown', function(e) {
+        if(e.keyCode == 13) {
+            if($(this).val() != '' || $(this).val().length > 2) {
+                var val  = $(this).val().toUpperCase();
+                if(natch.indexOf(val) >= 0) {
+                    if(val == 'STOP') 
+                        notifyServer('interrupt', val.toLowerCase());
+                    else
+                        notifyServer('macro', val.toLowerCase());
+                } else
+                    sendConsoleMsg(val);
+            }
+            $(this).blur();
         }
-        $(this).blur();
     });
 
     //  fall back for forcing the UI to have the App server check for an
@@ -244,6 +221,41 @@ var attachBtnEvents = function() {
     $('#init').on('click', function(evt) {
         if($(this).is(':visible'))
             checkConn();
+    });
+};
+
+var heaterOn = function(e) {
+        var offBtn = $($(this).parent()).children('.off-btn');
+        $(offBtn)
+            .removeClass('active')
+            .on('click', heaterOff);
+
+        $(this)
+            .addClass('active')
+            .off('click');
+        updateTemperature($(e.target).parent().parent());
+};
+
+var heaterOff = function(e) {
+        var onBtn = $($(this).parent()).children('.on-btn');
+        $(onBtn)
+            .removeClass('active')
+            .on('click', heaterOn);
+
+        $(this)
+            .addClass('active')
+            .off('click');
+
+        notifyServer('temper', { 
+            Name: $(e.target).parent().parent().attr('id'), 
+            Value: 0 
+        });
+};
+
+var updateTemperature = function(heater) {
+    notifyServer('temper', { 
+        Name: $(heater).attr('id'), 
+        Value: parseInt($(heater).find('input').val())
     });
 };
 
@@ -305,6 +317,8 @@ var resume = function() {
     
     $('#start').off('click');
     $('#start').on('click', start);
+
+    initPrintUI();
 }
 
 var pause = function() {
@@ -312,6 +326,17 @@ var pause = function() {
 
     $('#start').off('click');
     $('#start').on('click', resume);
+
+    // hide print UI
+    if(shaderDown) {
+        $('#over-msg').fadeOut(100);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+            });
+        shaderDown = 0;
+    }
 };
 
 var homer = function(btn) {
@@ -699,6 +724,7 @@ var updateTempDisplay = function(msg) {
                 val = he.substring(2, he.length);
                 $('#extruder1').find('.actual').html(val + span);
 
+
                 val = hb.substring(2, hb.length);
                 $('#hotbed').find('.actual').html(val + span);
 
@@ -711,7 +737,9 @@ var updateTempDisplay = function(msg) {
 
 //  send messages to the app server
 var notifyServer = function(action, body) {
-    var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: JSON.stringify(body) });
+    var b = (typeof body == 'string') ? JSON.stringify(body).replace(/\"/g, '') : JSON.stringify(body);
+    var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: b });
+
     socket.send(msg);
 };
 
@@ -721,49 +749,57 @@ var sendConsoleMsg = function(cmd) {
 
 //  send the file to the app server to be processed / printed
 var shipFile = function(evt) {
-    var action  = 'load',
-        fname   = document.getElementById('floader').files[0].name,
-        content = evt.target.result;
+    if(document.getElementById('floader').files[0] != undefined) {
+        var action  = 'load',
+            fname   = document.getElementById('floader').files[0].name,
+            content = evt.target.result;
 
-    //  TODO
-    //  check to see if ...files[0].name caused an error 
-    //  and handle appropriately
-
-    var cmds = content.split('\n');
-    paths = new Array();
-    paths.push({ x: 0, y: 0 });
-
-    //  loop through the file, getting each 'G1' line and loading the
-    //  x / y coords into the paths array, ignoring the commented rows
-    for(var i = 0; i < cmds.length; i++) {
-        if(cmds[i] && cmds[i] != undefined
-            && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
-            && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
-
-            var move, mx, my;
-            move = cmds[i].split(' ');
-
-            for(var j = 0; j < move.length; j++) {
-                if(move[j].indexOf('X') > -1)
-                    mx = millimeterToPixel(move[j].substring(1));
-
-                if(move[j].indexOf('Y') > -1)
-                    my = millimeterToPixel(move[j].substring(1));
-            }
-
-            paths.push({ x: my, y: mx });
-        }
-    }
-
-    //   if for some reason the file doesn't pan out right, reset paths
-    if(paths.length == 1) 
+        var cmds = content.split('\n');
         paths = new Array();
+        paths.push({ x: 0, y: 0 });
 
-    resetAndDrawPaths();
+        //  loop through the file, getting each 'G1' line and loading the
+        //  x / y coords into the paths array, ignoring the commented rows
+        for(var i = 0; i < cmds.length; i++) {
+            if(cmds[i] && cmds[i] != undefined
+                && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
+                && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
 
-    //  send the file to the server and cleanup
-    notifyServer(action, { Name: fname, Data: content });
-    $('#floader').remove();
+                var move, mx, my;
+                move = cmds[i].split(' ');
+
+                for(var j = 0; j < move.length; j++) {
+                    if(move[j].indexOf('X') > -1)
+                        mx = millimeterToPixel(move[j].substring(1));
+
+                    if(move[j].indexOf('Y') > -1)
+                        my = millimeterToPixel(move[j].substring(1));
+                }
+
+                paths.push({ x: my, y: mx });
+            }
+        }
+
+        //   if for some reason the file doesn't pan out right, reset paths
+        if(paths.length == 1) 
+            paths = new Array();
+
+        resetAndDrawPaths();
+
+        //  send the file to the server and cleanup
+        notifyServer(action, { Name: fname, Data: content });
+        $('#floader').remove();
+    } else {
+        //  notify user
+        var msg = "We're sorry, but there seems to be an error when trying to load the file to print. Please reload it and try again.";
+        window.alert(msg);
+        $('#init')
+            .css('z-index', '799')
+            .slideUp(1000, function() {
+                $('#init').css('z-index', '-1');
+
+            });
+    }
 };
 
 //  used for debugging
