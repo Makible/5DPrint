@@ -56,10 +56,10 @@ ph.x     = 0;
 ph.y     = 0;
 
 var canvasClickHandler = function(e) {
-    if((e.offsetX == ph.x && e.offsetY == ph.y)
-        || e.offsetX < 0 || e.offsetX > h
-        || e.offsetY < 0 || e.offsetY > w) 
-        return;  //  don't need to do anything
+    if((e.offsetX == ph.y && e.offsetY == ph.x)
+        || e.offsetX < 0 || e.offsetX > w
+        || e.offsetY < 0 || e.offsetY > h) 
+            return;  //  don't need to do anything
 
     $(phLayer.canvas).off('click');
 
