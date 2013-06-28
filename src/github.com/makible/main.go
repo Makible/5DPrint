@@ -21,12 +21,12 @@ var (
 	defServPort = ":8080"
 	uiDir       = "/ui/"
 	estop       = false
-	// openBrowser = true
-	// dbg         = false
+	openBrowser = true
+	dbg         = false
 
 	//  === [ DEBUGGING USE ]
-	openBrowser = false
-	dbg         = true
+	// openBrowser = false
+	// dbg         = true
 
 	devc, clientc         chan *Message
 	devices               map[string]*Device

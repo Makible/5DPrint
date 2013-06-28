@@ -109,7 +109,8 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 		}
 
 		if !found {
-			return "", fmt.Errorf("__COM device not found")
+			// return "", fmt.Errorf("__COM device not found")
+			return "", nil
 		}
 	} else if runtime.GOOS == "linux" {
 		devName = "/dev/ttyACM0"
