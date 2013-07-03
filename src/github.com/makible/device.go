@@ -34,6 +34,10 @@ type Device struct {
 	EstRunTime     time.Time
 }
 
+type pref struct {
+    Estep int `json: ",string"`
+}
+
 type position struct {
 	X  int
 	Y  int
@@ -113,7 +117,24 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 			return "", nil
 		}
 	} else if runtime.GOOS == "linux" {
-		devName = "/dev/ttyACM0"
+		info, err := ioutil.ReadDir("config/")
+		if err != nil {
+			return "", fmt.Errorf("unable to get ttyACM info from 'config/': %v\n", err)
+		}
+
+		found := false
+		for _, f := range info {
+			if strings.HasPrefix(f.Name(), "__ttyACM") {
+				devName = strings.Trim(f.Name(), "__")
+				found = true
+			}
+		}
+
+		if !found {
+			return "", fmt.Errorf("__ttyACM device not found")
+		} else {
+            devName = "/dev/"+devName
+        }
 	} else {
 		devName = "/dev/tty.usbmodem001" //	default to OS X
 	}
@@ -302,6 +323,8 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 			cmd += " " + mvr.Axis + "0"
 		}
 
+        fmt.Printf("%v\n", cmd)
+
 		cmd += dev.LineTerminator
 
 		resp, err := dev.LobCommand(cmd)
@@ -348,7 +371,7 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 		//	M608	-- Show firmware version
 
 		resp := ""
-		cmds := []string{"M105", "M114", "M115", "M119", "M503", "M603", "M608"}
+		cmds := [...]string{"M105", "M114", "M115", "M119", "M503", "M603", "M608"}
 
 		if strings.Contains(params, "full") {
 			resp = "--FULL STATS\n"
@@ -436,14 +459,40 @@ func (dev *Device) Do(action string, params string) (*Message, error) {
 			return responseMsg(dev.Name, action, response), nil
 		}
 
+    case "pref": 
+		var p pref 
+		if err := json.Unmarshal([]byte(params), &p); err != nil {
+			return nil, err
+		}
+        cmd := "M92 E" + strconv.Itoa(p.Estep) + dev.LineTerminator
+        response, err := dev.LobCommand(cmd)
+        if err != nil {
+            return nil, err
+        }
+        if len(response) > 0 {
+            cmd = "M500" + dev.LineTerminator
+            resp, err := dev.LobCommand(cmd)
+            if err != nil {
+                return nil, err
+            }
+            response += resp
+        }
+
+        return responseMsg(dev.Name, action, response), nil
+        
+
 	//  manual gcode entered by user
 	//  via "interactive console"
 	case "console":
 		cmd := params + dev.LineTerminator
+
+        fmt.Printf("%v\n", cmd)
 		resp, err := dev.LobCommand(cmd)
 		if err != nil {
 			return nil, err
 		}
+
+        fmt.Printf("%v\n", resp)
 		return responseMsg(dev.Name, action, resp), nil
 
 	default:
@@ -458,6 +507,7 @@ func (dev *Device) LobCommand(cmd string) (string, error) {
 }
 
 func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
+    fmt.Printf("%v\n", cmd)
 	//  if so, then lob to the device
 	n, err := (*dev).Write([]byte(cmd))
 	if err != nil {
@@ -492,15 +542,18 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 		}
 
 		response += resp
+        
 
+        fmt.Printf("%v\n", response)
 		if strings.Contains(response, "ok "+goseq) {
 			return response, nil
 		}
 
 		//	for now, dump out on the resend requests
 		if strings.HasPrefix(response, "rs ") {
+            fmt.Printf("%v\n", cmd)
+            fmt.Printf("%v\n", response)
 			return response, errors.New("invalid gcode")
-
 		}
 	}
 
