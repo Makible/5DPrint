@@ -80,6 +80,8 @@ func initDeviceListener() {
 		deviceListenerRunning = true
 
 		dn, err := getAttachedDevices(&devices)
+        //log.Println("dn:",dn)
+        //log.Println("err:",err)
 		if err != nil {
 			if !strings.HasSuffix(err.Error(), NSF) && !strings.HasSuffix(err.Error(), DNC) {
 				if strings.HasSuffix(err.Error(), RM) {
