@@ -109,8 +109,7 @@ func getAttachedDevices(existing *map[string]*Device) (string, error) {
 		}
 
 		if !found {
-			// return "", fmt.Errorf("__COM device not found")
-			return "", nil
+			return "", fmt.Errorf("__COM device not found")
 		}
 	} else if runtime.GOOS == "linux" {
 		devName = "/dev/ttyACM0"
@@ -499,6 +498,7 @@ func lobCommand(dev *io.ReadWriteCloser, cmd string) (string, error) {
 
 		//	for now, dump out on the resend requests
 		if strings.HasPrefix(response, "rs ") {
+			fmt.Printf("resend requested: %s\n", response)
 			return response, errors.New("invalid gcode")
 
 		}

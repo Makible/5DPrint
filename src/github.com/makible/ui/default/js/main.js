@@ -122,7 +122,15 @@ var attachBtnEvents = function() {
 
     //  update the temp when the user changes it's value by clicking the "on" button
     $('.tempr > input').on('change', function(e) {
-        updateTemperature($(e.target).parent());
+        var p = $(e.target).parent(),
+            a = $(p).find('.switch-wrapper > .active');
+            console.log(a);
+        if($(a).hasClass('off-btn')) {
+            heaterOn(e);
+        }
+            
+        
+        updateTemperature(p);
     });
 
     //  canvas click listener (the canvas is essentially a big button) ;)
@@ -225,12 +233,18 @@ var attachBtnEvents = function() {
 };
 
 var heaterOn = function(e) {
-        var offBtn = $($(this).parent()).children('.off-btn');
+        var offBtn = $($(this).parent()).children('.off-btn'),
+            onBtn = $($(this).parent()).children('.on-btn');
+        if(e.target.tagName == 'INPUT') {
+            offBtn = $($(e.target).parent()).find('.switch-wrapper > .off-btn');
+            onBtn = $($(e.target).parent()).find('.switch-wrapper > .on-btn');
+        }
+
         $(offBtn)
             .removeClass('active')
             .on('click', heaterOff);
 
-        $(this)
+        $(onBtn)
             .addClass('active')
             .off('click');
         updateTemperature($(e.target).parent().parent());

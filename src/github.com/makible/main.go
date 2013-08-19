@@ -22,11 +22,11 @@ var (
 	uiDir       = "/ui/"
 	estop       = false
 	openBrowser = true
-	dbg         = false
+	//dbg         = false
 
 	//  === [ DEBUGGING USE ]
-	// openBrowser = false
-	// dbg         = true
+	//openBrowser = false
+	dbg = true
 
 	devc, clientc         chan *Message
 	devices               map[string]*Device
@@ -37,7 +37,7 @@ var (
 
 func main() {
 	log.Println("5DPrint starting...")
-	runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(4)
 
 	devices = make(map[string]*Device)
 	devc, clientc = make(chan *Message), make(chan *Message)
