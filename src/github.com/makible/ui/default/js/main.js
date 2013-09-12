@@ -12,6 +12,14 @@ var dbg = 0,
     natch,
     socketAddr  = 'ws://';
 
+function Pref(estep, tTemp, hTemp) {
+    this.estep = estep; 
+    this.tTemp = tTemp;
+    this.hTemp = hTemp;
+}
+var prefDefault = new Pref(0);
+var prefCurrent;
+
 $(document).ready(function() {
     //  display init message
     $('#init').show();
@@ -44,7 +52,6 @@ var manageDevConnection = function(msg) {
     //  inform user initializing and start the stat timer
     if(msg.Body == 'attached') {
         deviceName  = msg.DeviceName;
-
         $('.init-msg').html('initializing device...');
         $('#device').html(deviceName);
 
@@ -219,7 +226,7 @@ var attachBtnEvents = function() {
                 } else
                     sendConsoleMsg(val);
             }
-            $(this).blur();
+            $(this).focus();
         }
     });
 
@@ -449,6 +456,74 @@ var menus = function(btn) {
         break;
 
     case 'prefs':
+
+        // bring down overlay
+        $("#init")
+        .css('z-index', '899')
+        .css('cursor', 'auto')
+        .css('background-color', 'rgba(0, 0, 0, 0.4)')
+        .slideDown(1000, function() {
+            $('#pref').fadeIn(100);
+            //shaderDown = !0;
+        });
+
+        // attach listeners to estep slider
+        var display = $("#estep-display"),
+            slider = $("#estep-slider");
+
+        // handle estep slider
+        display.html(prefCurrent.estep);
+        slider.val(prefCurrent.estep);
+
+        slider.on('change', function(e) {
+            display.html(slider.val());
+        });
+
+        // handle set and reset buttons
+        $(".pref-element > .set").each(function() {
+            $(this).on('click', function() {
+                var par = $(this).parent();
+                prefCurrent[par.attr('id')] = par.find("input").val();
+                sendPref();
+            });
+        });
+
+        $(".pref-element > .reset").each(function() {
+            $(this).on('click', function() {
+                var k = $(this).parent().attr('id');
+                prefCurrent[k] = prefDefault[k];
+                display.html(prefCurrent[k]); // note: this may not be generic
+                $(this).siblings("input").val(prefCurrent[k]);
+                sendPref();
+            });
+        });
+
+        // attach btn listeners to pref-pane
+        $("#cancel").on('click', function(e) {
+            // reset buttons to pref-default & close overlay
+            closeOverlay();
+        });
+
+        $("#reset").on('click', function(e) {
+            // reset changes & update pref-current to pref-default
+            $(".pref-element").each(function() {
+                var k = $(this).attr('id');
+                prefCurrent[k] = prefDefault[k];
+                display.html(prefCurrent[k]); // note: this may not be generic
+                $(this).find("input").val(prefCurrent[k]);
+            });
+            sendPref();
+        });
+
+        $("#apply").on('click', function(e) {
+            // save changes & update pref-current
+            $(".pref-element > input").each(function() {
+                prefCurrent[$(this).parent().attr('id')] = $(this).val();
+            });
+            sendPref();
+        });
+
+
         break;
     
     case 'exit':
@@ -463,6 +538,23 @@ var menus = function(btn) {
     }
 };
 
+var sendPref = function() {
+    console.log("estep: " +prefCurrent.estep);
+    notifyServer("pref", { Estep: parseInt(prefCurrent.estep) });
+}
+
+var closeOverlay = function() {
+    if (printUIActive) {
+        $('#over-msg').hide();
+        $('#pref').fadeOut(100);
+        $('#init') 
+        .css('z-index', '799')
+        .slideUp(1000, function() {
+            $('#init').css('z-index', '-1');
+        });
+    }
+};
+
 var getStats = function(full) {
     notifyServer('status', (full) ? 'full' : '');
 };
@@ -471,6 +563,18 @@ var checkConn = function() {
     notifyServer('connection', '');
     window.clearInterval(connTimer);
 };
+
+var parseEStep = function(msg) {
+    var string = msg.split('\n');
+    for (var i=0; i<string.length; i++) {
+        var words = string[i].split(" "); 
+        if (words[0] == "Steps") {
+            var w = string[i+1].split(" ");
+            return w[w.length-1].substr(1);
+        }
+    }
+    return null;
+}
 
 var updateUIStatus = function(msg) {
     if(msg.Body == 'job in progress') {
@@ -484,8 +588,9 @@ var updateUIStatus = function(msg) {
 
     //  do this seperately from all the other data
     updateTempDisplay(msg);
-
+    
     if(msg.Body.indexOf('--FULL STATS') > -1) {
+        console.log(msg.Body);
         var stats, output;
 
         stats = msg.Body.substring(msg.Body.indexOf('--FULL STATS') + 12);
@@ -493,10 +598,19 @@ var updateUIStatus = function(msg) {
 
         $(output).append(stats.replace(/\n/g, '<br />'));
         $(output).animate({ scrollTop: $(output)[0].scrollHeight }, 800);
+
+        // set default pref settings
+        if (parseEStep(msg.Body) != null) {
+            var estep = parseEStep(msg.Body);
+            prefDefault = new Pref(estep);
+            prefCurrent = new Pref(prefDefault.estep); 
+        }
     }
 
     //  display the status of a running job
     if(msg.Body.indexOf('--JOB STAT REPORT') > -1) {
+        console.log("JOB: " + msg.Body);
+
         var data, cmd, dr, ln, nl, cd, et;
         data = msg.Body.split('\n');
 
@@ -672,7 +786,7 @@ var updateUIStatus = function(msg) {
         $('#init')
             .css('z-index', '799')
             .slideUp(1000, function() {
-                $('#init').css('z-index', '-1');
+                $('#init').css('z-index', '-1').off('click');
             });
         shaderDown = 0;
     }
@@ -897,6 +1011,10 @@ var onMsg = function(e) {
             manageDevConnection(msg);
         }
 
+        break;
+
+    case 'pref':
+        console.log("got response");
         break;
 
     default:
