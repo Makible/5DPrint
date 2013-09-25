@@ -12,13 +12,54 @@ import (
 	"syscall"
 )
 
-func init() {
+//
+// 	On Mac OS-X, a device file is created automatically which
+// 	incorperates the serial number, eg. /dev/tty.usbmodem1234
+//	If a device is currently connected with the same serial,
+//	the device file will just increment, ignoring the serial
+//	eg. /dev/tty.usbmodem5 ... /dev/tty.usbmodem6
 
+func GetDevFileNames() (dfnames []string, err error) {
+	dfnames = make([]string, 0)
+	err = nil
+
+	//
+	//	if this one is not attached then the others
+	//	definitely won't be, so we can just return
+	defDFN := TTYPREFIX + DFSERIALPREFIX
+	if _, err = os.Stat(defDFN); err != nil {
+		return
+	}
+	dfnames = append(dfnames, defDFN)
+
+	//	TODO ::
+	//	the code below will be commented out for now since not
+	//	too many users will have more than 1 MakiBox at this moment
+	//	need to look into adding in near future
+
+	//	if the other is attached, we could potentially have
+	//	more available, so lets loop up to ARB_MAX and check
+	// for i := 1; i <= ARB_MAX; i++ {
+	// 	//	sadly if tty.usbmodem1 - n isn't attached that
+	// 	//	doesn't necessarily mean another isn't due to the
+	// 	//	way OS X enumerates the devices
+	// 	dfn := TTYPREFIX + strings.Itoa(i)
+	// 	if _, err = os.Stat(dfn); err != nil {
+	// 		if !os.IsNotExist(err) {
+	// 			logger.Error("GetDevFileNames: ", err)
+	// 			os.Exit(2)
+	// 		}
+	// 		continue
+	// 	}
+
+	// 	//	TODO ::
+	// 	//	check to see if it's a MakiBox A6 device
+
+	// 	dfnames = append(dfnames, dfn)
+	// }
+
+	return
 }
-
-// func ListDevices() string {
-
-// }
 
 func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 	f, err := os.OpenFile(name, syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_NONBLOCK, 0666)
@@ -90,4 +131,13 @@ func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 	}
 
 	return f, nil
+}
+
+func Ping(dname string) bool {
+	_, err := os.Stat(dname)
+	if err != nil {
+		return false
+	}
+
+	return true
 }

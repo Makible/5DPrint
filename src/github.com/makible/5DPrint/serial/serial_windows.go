@@ -73,6 +73,10 @@ func getProcAddr(lib syscall.Handle, name string) uintptr {
 	return addr
 }
 
+func ListDevFileName() (dfnames []string, err error) {
+	return
+}
+
 func ListDevices() string {
 	//  TODO
 

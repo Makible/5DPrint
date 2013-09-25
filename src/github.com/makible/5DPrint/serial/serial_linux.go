@@ -15,14 +15,9 @@ import (
 //  TODO
 //  switch from fmt to log for output
 
-func init() {
-
+func ListDevFileName() (dfnames []string, err error) {
+	return
 }
-
-//  TODO
-// func ListDevices() string {
-
-// }
 
 func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 	f, err := os.OpenFile(name, syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_NONBLOCK, 0666)
