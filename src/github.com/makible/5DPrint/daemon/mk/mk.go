@@ -9,7 +9,7 @@ type StdMovement struct {
 type MultiMovement struct {
 	Axis     string
 	Distance string
-	Speed    string
+	Speed    int `json: ", string"`
 }
 
 type Position struct {
@@ -17,4 +17,9 @@ type Position struct {
 	Y  int
 	Z  int
 	E1 int
+}
+
+type Tool struct {
+	Name  string
+	Value int `json: ", string"`
 }

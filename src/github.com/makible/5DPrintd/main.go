@@ -13,7 +13,7 @@ var (
 	//	flags
 	debug  = flag.Bool("dbg", false, "Set this in order to print all device output and any other debug to console")
 	help   = flag.Bool("help", false, "Display usage")
-	obstop = flag.Bool("ui", false, "Set this to true in order to use the default browser instead of CEFClient")
+	obstop = flag.Bool("ui", true, "Set this to false to prevent the default browser from being launched")
 )
 
 //	TODO ::

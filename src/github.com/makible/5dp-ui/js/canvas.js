@@ -69,7 +69,7 @@ var canvasClickHandler = function(e) {
 
     //  send coords to device
     var dist = pixelToMillimeter(osy) + ',' + pixelToMillimeter(osx);
-    notifyServer('action.move', { Axis: 'X,Y', Distance: dist, Speed: -1 });
+    notifyServer('action.multi-move', { Axis: 'X,Y', Distance: dist, Speed: -1 });
 
     // setup projected point indicator
     pp = new Indicator();

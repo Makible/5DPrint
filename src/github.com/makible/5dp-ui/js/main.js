@@ -122,7 +122,7 @@ var attachBtnEvents = function() {
     $('.tempr > input').on('change', function(e) {
         var p = $(e.target).parent(),
             a = $(p).find('.switch-wrapper > .active');
-            console.log(a);
+            // console.log(a);
         if($(a).hasClass('off-btn')) {
             heaterOn(e);
         }
@@ -256,14 +256,14 @@ var heaterOff = function(e) {
         .addClass('active')
         .off('click');
 
-    notifyServer('temper', { 
+    notifyServer('action.set-temp', { 
         Name: $(e.target).parent().parent().attr('id'), 
         Value: 0 
     });
 };
 
 var updateTemperature = function(heater) {
-    notifyServer('temper', { 
+    notifyServer('action.set-temp', { 
         Name: $(heater).attr('id'), 
         Value: parseInt($(heater).find('input').val())
     });

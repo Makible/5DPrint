@@ -221,10 +221,11 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			Action:     action.NOTIFY,
 			Body:       resp,
 		}
-
 	case action.MMOVE:
 		var mvr mk.MultiMovement
 		if err := json.Unmarshal([]byte(msg.Body), &mvr); err != nil {
+			fmt.Println(msg.Body)
+
 			logger.Error("DigestMsg > action.MMOVE: ", err)
 			outMsg = &comm.Message{
 				DeviceName: msg.DeviceName,
@@ -308,7 +309,7 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			outMsg = &comm.Message{
 				DeviceName: msg.DeviceName,
 				Action:     action.NOTIFY,
-				Body:       "Error occurred while processing move cmd: " + err.Error(),
+				Body:       "Error occurred while processing  cmd: " + err.Error(),
 			}
 			return
 		}
@@ -318,6 +319,58 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			Action:     action.NOTIFY,
 			Body:       resp,
 		}
+	case action.TEMP:
+		var t mk.Tool
+		if err := json.Unmarshal([]byte(msg.Body), &t); err != nil {
+			logger.Error("DigestMsg > action.TEMP: ", err)
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.NOTIFY,
+				Body:       "Error parsing Tool data",
+			}
+			return
+		}
+
+		d := devices[msg.DeviceName]
+		if d == nil {
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.DISCONNECTED,
+				Body:       "",
+			}
+			return
+		}
+
+		resp, err := manageTemp(d, &t)
+		if err != nil {
+			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
+				closeDevice(d.Name)
+				outMsg = &comm.Message{
+					DeviceName: msg.DeviceName,
+					Action:     action.DISCONNECTED,
+					Body:       "",
+				}
+				return
+			}
+
+			logger.Error("DigestMsg > manageTemp: ", err)
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.NOTIFY,
+				Body:       "Error occurred while updating temperature: " + err.Error(),
+			}
+			return
+		}
+
+		outMsg = &comm.Message{
+			DeviceName: d.Name,
+			// Action:		action.TEMP,
+			Action: action.NOTIFY,
+			Body:   resp,
+		}
+	// case action.:
+	// case action.:
+
 	case action.CONSOLE:
 		d := devices[msg.DeviceName]
 		if d == nil {
@@ -370,7 +423,7 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 
 func getStats(dev *Device, full bool) (resp string, err error) {
 	if !full {
-		cmd := mba6.TEMP + dev.LineTerminator
+		cmd := mba6.GET_TEMP + dev.LineTerminator
 		resp, err = lobCommand(&dev.IODevice, cmd)
 		if err != nil {
 			return
@@ -380,7 +433,7 @@ func getStats(dev *Device, full bool) (resp string, err error) {
 		//	prefix for UI
 		resp = "--FULL STATS\n"
 		cmds := []string{
-			mba6.TEMP,
+			mba6.GET_TEMP,
 			mba6.POSITION,
 			mba6.CAPABILITIES,
 			mba6.ENDSTOP_STATE,
@@ -479,9 +532,32 @@ func multiMove(dev *Device, mvr *mk.MultiMovement) (resp string, err error) {
 
 func stdMove(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
 	cmd := mba6.MOVE + " "
-	cmd += mvr.Axis + strconv.Itoa(mvr.Distance) + dev.LineTerminator
-	reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).SetInt(int64(mvr.Distance))
 
+	if mvr.Axis == "E" {
+		mvr.Axis = "E1"
+	}
+
+	pos := reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).Int()
+
+	if pos <= 0 && mvr.Distance <= 0 {
+		resp = "nothing really needs to happen here"
+		return
+	}
+
+	pos += int64(mvr.Distance)
+	reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).SetInt(pos)
+	cmd += mvr.Axis + strconv.Itoa(int(pos)) + dev.LineTerminator
+
+	return lobCommand(&dev.IODevice, cmd)
+}
+
+func manageTemp(dev *Device, tool *mk.Tool) (resp string, err error) {
+	cmd := mba6.SET_BDTEMP
+	if strings.HasPrefix(tool.Name, "extruder") {
+		cmd = mba6.SET_EXTEMP
+	}
+
+	cmd += strconv.Itoa(tool.Value) + dev.LineTerminator
 	return lobCommand(&dev.IODevice, cmd)
 }
 

@@ -12,7 +12,9 @@ const (
 	SET_POS = "G92"
 
 	//  MCodes
-	TEMP          = "M105"
+	GET_TEMP      = "M105"
+	SET_BDTEMP    = "M140 S"
+	SET_EXTEMP    = "M104 S"
 	POSITION      = "M114"
 	CAPABILITIES  = "M115"
 	ENDSTOP_STATE = "M119"

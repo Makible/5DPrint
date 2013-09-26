@@ -11,5 +11,8 @@ const (
 	HOME         = "action.home"
 	MMOVE        = "action.multi-move"
 	SMOVE        = "action.std-move"
+	TEMP         = "action.set-temp"
+	SFILE        = "action.save-file"
+	DFILE        = "action.delete-file"
 	CONSOLE      = "action.console"
 )
