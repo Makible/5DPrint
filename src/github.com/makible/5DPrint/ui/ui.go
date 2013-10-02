@@ -140,7 +140,7 @@ func InitUIServer() {
 			logger.Notify("The default browser should have opened. If not, please open a new window and visit " + url)
 		} else {
 			if !ob {
-				logger.Warn("ui flag set to false. You should be using the CEFClient.")
+				logger.Warn("ui flag set to false. I'm assuming you know what you're doing")
 			} else {
 				logger.Warn("Unable to open the default browser. Please open a new window and visit " + url)
 			}
@@ -223,12 +223,24 @@ func decodeIncoming(dec *json.Decoder) error {
 		return nil
 	}
 
+	if msg.Action == action.RUN_JOB {
+		//	need a way to get messages from the device
+		//	back to the UI, so...
+		go func() {
+			jqInfo := device.GetJobInfoChannel()
+			for msg := range jqInfo {
+				wsOut <- msg
+				if msg.Action == action.COMPLETE_JOB || msg.Action == action.DISCONNECTED || msg.Action == action.ERROR {
+					return
+				}
+			}
+		}()
+	}
+
 	outMsg := device.DigestMsg(&msg)
 	if outMsg.Action != action.EMPTY {
 		wsOut <- outMsg
 	}
 
-	decodeIncoming(dec)
-
-	return nil
+	return decodeIncoming(dec)
 }

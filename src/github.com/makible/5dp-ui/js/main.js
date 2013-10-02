@@ -10,7 +10,7 @@ var dbg = 0,
     deviceName,
     handlesMouseDown,
     natch,
-    socketAddr  = 'ws://';
+    socketAddr;
 
 function Pref(estep, tTemp, hTemp) {
     this.estep = estep; 
@@ -23,19 +23,11 @@ var prefCurrent;
 $(document).ready(function() {
     //  display init message
     $('#init').show();
-
-    socketAddr          += document.URL.substring(7) + "5dp-ui";
-    socket              = new WebSocket(socketAddr);
-    socket.onmessage    = onMsg;
-    socket.onclose      = onClose;
-    socket.onerror      = function(e) { console.log(e); };
-    // socket.onopen       = ...
+    
+    initSocket();
+    attachBtnEvents();
 
     natch = ['STOP', 'EJECT', 'LOAD', 'DROP BED'];
-
-    //  attach button events and connection checker
-    attachBtnEvents();
-    connTimer = setInterval(checkConn, 500);
 
     //  ===[ DEBUG HELPERS ]
     // fakeDevice();
@@ -101,7 +93,7 @@ var attachBtnEvents = function() {
 
     //  motors off button
     $('#mo').on('click', function(e) {
-        notifyServer('macro', 'motorsoff');
+        notifyServer('action.motors-off', '');
     });
 
     //  plus function for Z and E
@@ -131,24 +123,25 @@ var attachBtnEvents = function() {
         updateTemperature(p);
     });
 
-    //  canvas click listener (the canvas is essentially a big button) ;)
-    $(phLayer.canvas).on('click', canvasClickHandler);
+    //
+    //  canvas click listener (the canvas is, essentially, a button)
+    //  and add the "indicator ring" for the mouse pointer on the canvas 
+    $(phLayer.canvas)
+        .on('click', canvasClickHandler)
+        .on('mousemove', function(e) {
+            if(ct == undefined) {
+                ct = new Indicator();
+                ct.color = 'rgba(222, 222, 222, 0.4)';
+            }
 
-    //  ghosting indicator ring for clicker
-    $(phLayer.canvas).on('mousemove', function(e) {
-        if(ct == undefined) {
-            ct = new Indicator();
-            ct.color = 'rgba(222, 222, 222, 0.4)';
-        }
-
-        ct.x = e.offsetX - POINTERVISUALOFFSET;
-        ct.y = e.offsetY - POINTERVISUALOFFSET;
-        redrawIndicators();
-    });
-    $(phLayer.canvas).on('mouseout', function(e) {
-        ct = undefined;
-        redrawIndicators();
-    });
+            ct.x = e.offsetX - POINTERVISUALOFFSET;
+            ct.y = e.offsetY - POINTERVISUALOFFSET;
+            redrawIndicators();
+        })
+        .on('mouseout', function(e) {
+            ct = undefined;
+            redrawIndicators();
+        });
 
     //  TODO
     //  show ghosting indicator similar to when clicking in the grid
@@ -159,6 +152,7 @@ var attachBtnEvents = function() {
     ylb = $('#y').position().left;
     yrb = ylb + $('#y').width();
 
+    attachMovers();
     $('#x > .handle').draggable({ 
         axis: 'y', 
         containment: [0, xtb, 0, xbb],
@@ -168,6 +162,7 @@ var attachBtnEvents = function() {
             redrawIndicators();
         }
     });
+
     $('#y > .handle').draggable({ 
         axis: 'x', 
         containment: [ylb, 0, yrb, 0],
@@ -178,46 +173,30 @@ var attachBtnEvents = function() {
         }
     });
 
-    //  TODO
-    //  handle this a bit better so that if the user overshoots the
-    //  "bounds" / containment, it will strill trigger the mouseup
-    $('.slider > .handle').on('mouseup', function(e) {
-        handlesMouseDown = undefined;
-
-        var dist = pixelToMillimeter(ph.y) + ',' + pixelToMillimeter(ph.x);
-        notifyServer('action.multi-move', { Axis: 'X,Y', Distance: dist, Speed: -1 });
-    });
-
-    $(document).on('mouseup', function(e) {
-        if(handlesMouseDown && handlesMouseDown != undefined) {
-            $(handlesMouseDown).trigger('mouseup');
-            handlesMouseDown = undefined;
-        }
-    });
-
     $('#console > .wrapper > .handle').on('click', openConsole);
-    $('#console > input').on('click', function(e) {
-        $(this).val('').removeClass('ghost');
-        openConsole(e);
-    });
-    $('#console > input').on('blur', function(e) {
-        $(this).addClass('ghost').val('enter manual commands here');
-    });
-    $('#console > input').on('keydown', function(e) {
-        if(e.keyCode == 13) {
-            if($(this).val() != '' || $(this).val().length > 2) {
-                var val  = $(this).val().toUpperCase();
-                if(natch.indexOf(val) >= 0) {
-                    if(val == 'STOP') 
-                        notifyServer('interrupt', val.toLowerCase());
-                    else
-                        notifyServer('macro', val.toLowerCase());
-                } else
-                    sendConsoleMsg(val);
+    $('#console > input')
+        .on('click', function(e) {
+            $(this).val('').removeClass('ghost');
+            openConsole(e);
+        })
+        .on('blur', function(e) {
+            $(this).addClass('ghost').val('enter manual commands here');
+        })
+        .on('keydown', function(e) {
+            if(e.keyCode == 13) {
+                if($(this).val() != '' || $(this).val().length > 2) {
+                    var val  = $(this).val().toUpperCase();
+                    if(natch.indexOf(val) >= 0) {
+                        if(val == 'STOP') 
+                            notifyServer('action.emergency-stop', val.toLowerCase());
+                        else
+                            notifyServer('action.macro', val.toLowerCase());
+                    } else
+                        sendConsoleMsg(val);
+                }
+                $(this).focus();
             }
-            $(this).focus();
-        }
-    });
+        });
 
     //  fall back for forcing the UI to have the App server check for an
     //  attached device. Right now, on some refreshes it won't update
@@ -229,8 +208,8 @@ var attachBtnEvents = function() {
 };
 
 var heaterOn = function(e) {
-    var offBtn = $($(this).parent()).children('.off-btn'),
-        onBtn = $($(this).parent()).children('.on-btn');
+    var offBtn  = $($(this).parent()).children('.off-btn'),
+        onBtn   = $($(this).parent()).children('.on-btn');
     if(e.target.tagName == 'INPUT') {
         offBtn = $($(e.target).parent()).find('.switch-wrapper > .off-btn');
         onBtn = $($(e.target).parent()).find('.switch-wrapper > .on-btn');
@@ -259,6 +238,44 @@ var heaterOff = function(e) {
     notifyServer('action.set-temp', { 
         Name: $(e.target).parent().parent().attr('id'), 
         Value: 0 
+    });
+};
+
+var slideListener = function(e) {
+    if(!$(e.target).hasClass('slider')) { return; }
+    if($(this).attr('id') == 'y') {
+        e.offsetY = ph.y + POINTERVISUALOFFSET;
+    } else {
+        e.offsetX = ph.x + POINTERVISUALOFFSET;
+    }
+
+    canvasClickHandler(e);
+};
+
+var detachMovers = function() {
+    $(phLayer).off('click');
+    $('.slider').off('click');
+    $('.slider > .handle').off('mouseup');
+};
+
+var attachMovers = function() {
+    $(phLayer).on('click', canvasClickHandler);
+    $('.slider').on('click', slideListener);
+    $('.slider > .handle').on('mouseup', function(e) {
+        detachMovers();
+        handlesMouseDown = undefined;
+
+        var dist = pixelToMillimeter(ph.y) + ',' + pixelToMillimeter(ph.x);
+        notifyServer('action.multi-move', { Axis: 'X,Y', Distance: dist, Speed: -1 });
+
+        attachMovers();
+    });
+
+    $(document).on('mouseup', function(e) {
+        if(handlesMouseDown && handlesMouseDown != undefined) {
+            $(handlesMouseDown).trigger('mouseup');
+            handlesMouseDown = undefined;
+        }
     });
 };
 
@@ -294,7 +311,7 @@ var start = function() {
 
     if($('#file').html() != '') {
         window.clearInterval(statTimer);    //  stop the UI stat request
-        notifyServer('job', 'start');
+        notifyServer('action.run-job', '');
         initPrintUI();
     }else {
         var inp = $('<input id="floader" type="file" accept=".gcode" class="fi" />');
@@ -329,7 +346,7 @@ var resume = function() {
     $('#start').on('click', start);
 
     initPrintUI();
-}
+};
 
 var pause = function() {
     notifyServer('interrupt', 'pause');
@@ -530,7 +547,7 @@ var menus = function(btn) {
 var sendPref = function() {
     console.log("estep: " +prefCurrent.estep);
     notifyServer("pref", { Estep: parseInt(prefCurrent.estep) });
-}
+};
 
 var closeOverlay = function() {
     if (printUIActive) {
@@ -841,9 +858,21 @@ var updateTempDisplay = function(msg) {
                 val = he.substring(2, he.length);
                 $('#extruder1').find('.actual').html(val + span);
 
-
                 val = hb.substring(2, hb.length);
                 $('#hotbed').find('.actual').html(val + span);
+
+                if(msg.Body.indexOf('--FULL STATS') > -1) {
+                    if(stats.split(' ')[idx + 1].indexOf('D0%') == -1) {
+                        $('#extruder1 > .switch-wrapper > .on-btn').click();
+                    } else {
+                        $('#extruder1 > .switch-wrapper > .off-btn').click();
+                    }
+                    if(stats.split(' ')[idx + 3].indexOf('D0%') == -1) {
+                        $('#hotbed > .switch-wrapper > .on-btn').click();
+                    } else {
+                        $('#hotbed > .switch-wrapper > .off-btn').click();
+                    }
+                }
 
                 if(dbg) 
                     console.log('[DBG] RAW: ' + stats);
@@ -857,7 +886,8 @@ var notifyServer = function(action, body) {
     var b = (typeof body == 'string') ? JSON.stringify(body).replace(/\"/g, '') : JSON.stringify(body);
     var msg = JSON.stringify({ DeviceName: deviceName, Action: action, Body: b });
 
-    socket.send(msg);
+    if(socket != undefined && socket.readyState)
+        socket.send(msg);
 };
 
 var sendConsoleMsg = function(cmd) {
@@ -867,7 +897,7 @@ var sendConsoleMsg = function(cmd) {
 //  send the file to the app server to be processed / printed
 var shipFile = function(evt) {
     if(document.getElementById('floader').files[0] != undefined) {
-        var action  = 'load',
+        var action  = 'action.load-file',
             fname   = document.getElementById('floader').files[0].name,
             content = evt.target.result;
 
@@ -919,17 +949,6 @@ var shipFile = function(evt) {
     }
 };
 
-//  used for debugging
-var fakeDevice = function() {
-    window.clearInterval(connTimer);
-    manageDevConnection({ Device: 'foo', Body: 'attached' });
-    window.clearInterval(statTimer);
-
-    //  TODO
-    //  set a nice little timer and then feed in a fake
-    //  full stat message to display
-};
-
 var openConsole = function(e) {
     var console = $('#console > .wrapper');
     $(console).animate({ bottom: '+=302px' }, 800);
@@ -959,10 +978,45 @@ var closeConsole = function(e) {
 };
 
 var notify = function(data) {
-    console.log(data);
+    var scroll  = false,
+        output  = $('#console > .wrapper > .output'),
+        el      = $(output)[0];
+
+    scroll = (el.scrollHeight - el.scrollTop === el.clientHeight)
+    data = data.replace(/\n/g, '<br>');
+    $(output).append(data + '<br>');
+    if(scroll) $(output).scrollTop($(output)[0].scrollHeight);
+};
+
+var initSocket = function() {
+    socketAddr = 'ws://' + document.URL.substring(7) + "5dp-ui";
+    socket              = new WebSocket(socketAddr);
+    socket.onmessage    = onMsg;
+    socket.onclose      = onClose;
+    socket.onerror      = onErr;
+    socket.onopen       = onOpen;
 };
 
 //  ===[ SOCKET HANDLERS ]
+
+var onOpen = function(e) {
+    $('.init-msg').html('waiting for device...');
+    connTimer = setInterval(checkConn, 500);
+};
+
+var onErr = function(e) {
+    //  TODO ::
+
+
+    // console.log('FOOOOOOOOOOOOOOOOOOO');
+    // console.log(e);
+    window.clearInterval(statTimer);
+    window.clearInterval(connTimer);
+    if(socket == undefined) {
+        window.setTimeout(initSocket, 800);
+    }
+};
+
 var onMsg = function(e) {
     if(dbg) console.log(e);
 
@@ -990,48 +1044,6 @@ var onMsg = function(e) {
         updateUIStatus(msg);
         break;
 
-    // case 'job':
-    //     if(msg.Body == "complete") {
-    //         $('#over-msg').fadeOut(100);
-    //         $('#init')
-    //             .css('z-index', '799')
-    //             .slideUp(1000, function() {
-    //                 $('#init').css('z-index', '-1');
-    //             });
-                
-    //         $('#file').html('');
-    //         statTimer = setInterval(getStats, 1500);
-    //         printUIActive = 0;
-    //     }
-    //     break;
-
-    // case 'status':
-    //     updateUIStatus(msg);
-    //     break;
-
-    // case 'connection':
-    //     manageDevConnection(msg);
-    //     break;
-
-    // case 'console':
-    //     var output = $('#console > .wrapper > .output');
-    //     $(output).append(msg.Body.replace(/\n/g, '<br />'));
-    //     $(output).animate({ scrollTop: $(output)[0].scrollHeight }, 800);
-    //     break;
-
-    // case 'error':
-    //     $('#console > .wrapper > .output').append('[WARN] 5DPrint serv responded with error: ' + msg.Body)
-    //     if(msg.Body.indexOf('invalid device name') > -1) {
-    //         msg.Body = 'detached';
-    //         manageDevConnection(msg);
-    //     }
-
-    //     break;
-
-    // case 'pref':
-    //     console.log("got response");
-    //     break;
-
     default:
         // console.log("[WARN] doesn't appear to be a valid action");
         if(dbg)
@@ -1041,11 +1053,12 @@ var onMsg = function(e) {
 };
 
 var onClose = function(e) {
+    socket = undefined;
     window.clearInterval(statTimer);
 
     $('#device').html('');
     if(!exited)
-        $('.init-msg').html('server offline');
+        $('.init-msg').html('waiting for server...');
     else
         $('.init-msg').html('see ya next time!');
 
@@ -1058,7 +1071,5 @@ var onClose = function(e) {
             shaderDown = !0;
         });
     $('#progress').fadeOut(100);
-    connTimer = setInterval(checkConn, 500);
-
-    console.log('[WARN] socket connection closed and stat timer killed');
+    window.setTimeout(initSocket, 800);
 };

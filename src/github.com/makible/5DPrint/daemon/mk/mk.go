@@ -23,3 +23,8 @@ type Tool struct {
 	Name  string
 	Value int `json: ", string"`
 }
+
+type Job struct {
+	Name string
+	Data string
+}

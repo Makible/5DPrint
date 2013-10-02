@@ -99,22 +99,10 @@ textarea {
     100% { -webkit-transform: translate(0px, 10px); }
 }
 
-@-moz-keyframes loading {
-    0% { -moz-transform: translate(0px, 20px); }
-    50% { -moz-transform: translate(210px, 20px); }
-    100% { -moz-transform: translate(0px, 20px); }
-}
-
-@-ms-keyframes loading {
-    0% { -ms-transform: translate(0px, 20px); }
-    50% { -ms-transform: translate(210px, 20px); }
-    100% { -ms-transform: translate(0px, 20px); }
-}
-
-@-o-keyframes loading {
-    0% { -o-transform: translate(0px, 20px); }
-    50% { -o-transform: translate(210px, 20px); }
-    100% { -o-transform: translate(0px, 20px); }
+@keyframes loading {
+    0% { -webkit-transform: translate(0px, 10px); }
+    50% { -webkit-transform: translate(210px, 10px); }
+    100% { -webkit-transform: translate(0px, 10px); }
 }
 
 input::-webkit-outer-spin-button,
@@ -183,9 +171,6 @@ section,
     background-color: #da4b39;
     border-radius: 4px;
     -webkit-animation:  loading 3.5s infinite ease;
-    -moz-animation:     loading 3.5s infinite ease;
-    -ms-animation:      loading 3.5s infinite ease;
-    -o-animation:       loading 3.5s infinite ease;
     animation:          loading 3.5s infinite ease;
 }
 
@@ -713,20 +698,21 @@ nav {
 .slider {
     position: absolute;
     background-color: rgba(0, 82, 156, 0.5);
+    cursor: pointer;
 }
 
 #x {
     top: 212px;
-    left: 58px;
+    left: 56px;
     height: 415px;
-    width: 4px;
+    width: 6px;
 }
 
 #y {
-    top: 164px;
+    top: 160px;
     left: 108px;
     width: 567px;
-    height: 4px;
+    height: 6px;
 }
 
 .handle {
@@ -750,7 +736,7 @@ nav {
 }
 
 #y .handle {
-    top: -24px;
+    top: -22px;
     left: -18px;
     width: 32px;
     height: 58px;

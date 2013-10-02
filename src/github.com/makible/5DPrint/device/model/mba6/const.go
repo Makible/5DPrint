@@ -12,13 +12,32 @@ const (
 	SET_POS = "G92"
 
 	//  MCodes
-	GET_TEMP      = "M105"
-	SET_BDTEMP    = "M140 S"
-	SET_EXTEMP    = "M104 S"
-	POSITION      = "M114"
-	CAPABILITIES  = "M115"
-	ENDSTOP_STATE = "M119"
-	MEM_SETTINGS  = "M503"
-	FREE_RAM      = "M603"
-	FMWARE_INFO   = "M608"
+	GET_TEMP        = "M105"
+	SET_BDTEMP      = "M140 S"
+	SET_EXTEMP      = "M104 S"
+	POSITION        = "M114"
+	CAPABILITIES    = "M115"
+	ENDSTOP_STATE   = "M119"
+	MEM_SETTINGS    = "M503"
+	FREE_RAM        = "M603"
+	FMWARE_INFO     = "M608"
+	MOTORS_OFF      = "M84"
+	SET_WAIT_BDTEMP = "M190"
+	SET_WAIT_EXTEMP = "M109"
+)
+
+//	rs Responses
+const (
+	CS_OOR  = "(checksum out of range)"
+	CS_INV  = "(incorrect checksum - should be "
+	CMD_OOR = "(command code out of range)"
+	CMD_MSS = "(command code missing)"
+)
+
+//	custom macros
+const (
+	DROP_BED       = ""
+	LOAD_FILAMENT  = ""
+	EJECT_FILAMENT = ""
+	STOP           = ""
 )

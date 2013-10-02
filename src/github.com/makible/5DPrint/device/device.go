@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/makible/5DPrint/comm"
+	"github.com/makible/5DPrint/device/model/mba6"
 	"github.com/makible/5DPrint/daemon/action"
 	"github.com/makible/5DPrint/daemon/logger"
 	"github.com/makible/5DPrint/daemon/mk"
-	"github.com/makible/5DPrint/device/model/mba6"
 	"github.com/makible/5DPrint/serial"
 	"io"
 	"os"
@@ -19,17 +19,24 @@ import (
 )
 
 type Device struct {
-	Name           string
-	IdInfo         string
-	LineTerminator string
-	ECount         string
-	Baud           int
-	Pos            mk.Position
-	IODevice       io.ReadWriteCloser
+    Name            string
+    IdInfo          string
+    LineTerminator  string
+    ECount          string
+    Baud            int
+    JobItem 		mk.Job
+    Pos             mk.Position
+    IODevice        io.ReadWriteCloser
 }
 
 var (
-	devices = make(map[string]*Device)
+	devices 	= make(map[string]*Device)
+	jqPaused 	= false
+	jqStop 		= false
+	jqEStop 	= false
+	prevIdx 	= -1
+
+	jqInfo chan *comm.Message
 )
 
 func InitDeviceListener() {
@@ -49,20 +56,18 @@ func InitDeviceListener() {
 		for _, dfn := range dfns {
 			if devices[dfn] == nil {
 				//	generate a device and append to map
-				d, err := GetDeviceByDFN(dfn)
+				d, err := initDevice(dfn)
 				if err != nil {
-					logger.Error("InitDeviceListener > GetDeviceByDFN: ", err)
+					logger.Error("InitDeviceListener > initDevice: ", err)
 					os.Exit(2)
 				} else {
 					devices[dfn] = d
 				}
 			} else {
-				//
+				//	
 				//	check if the device is still attached
 				//	and clean up if not
-				if !serial.Ping(dfn) {
-					closeDevice(dfn)
-				}
+				if !serial.Ping(dfn) { closeDevice(dfn) }
 			}
 		}
 	}
@@ -71,20 +76,18 @@ func InitDeviceListener() {
 	InitDeviceListener()
 }
 
-func GetDeviceByDFN(dfn string) (dev *Device, err error) {
+func initDevice(dfn string) (dev *Device, err error) {
 	d, err := serial.OpenPort(dfn, DEFBAUD)
-	if err != nil {
-		return
-	}
+	if err != nil { return }
 
-	//
-	pos := mk.Position{X: 0, Y: 0, Z: 0, E1: 0}
-	dev = &Device{
-		Name:           dfn,
+	//	
+	pos := mk.Position { X: 0, Y: 0, Z: 0, E1: 0, }
+	dev = &Device {
+		Name: 			dfn,
 		LineTerminator: mba6.LINETERMINATOR,
-		Baud:           DEFBAUD,
-		Pos:            pos,
-		IODevice:       d,
+		Baud: 			DEFBAUD,
+		Pos: 			pos,
+		IODevice:		d,
 	}
 
 	return
@@ -96,6 +99,10 @@ func ListAttachedDevices() {
 		fmt.Println(dn)
 	}
 	fmt.Println()
+}
+
+func GetDeviceByName(name string) *Device {
+	return devices[name]
 }
 
 func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
@@ -111,10 +118,10 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 				break
 			}
 
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: dn,
-				Action:     action.CONNECTED,
-				Body:       ATTACHED,
+				Action: 	action.CONNECTED,
+				Body:		ATTACHED,
 			}
 
 			//
@@ -123,261 +130,419 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			//	rather than just one device
 		} else {
 
-			//
+			//	
 			//	no devices are attached
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: "",
-				Action:     action.NO_DEVICES,
-				Body:       NO_DEVICES,
+				Action:		action.NO_DEVICES,
+				Body:		NO_DEVICES,
 			}
 		}
 	case action.STATS:
 		full := false
-		if msg.Body == "full" {
-			full = true
-		}
+		if msg.Body == "full" { full = true }
 
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		resp, err := getStats(d, full)
+		resp, err := d.GetStats(full)
 		if err != nil {
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
-			logger.Error("DigestMsg > getStats: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > d.GetStats: ", err)
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while getting stats: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while getting stats: " + err.Error(),
 			}
-			return
+			return 
 		}
 
-		outMsg = &comm.Message{
+		outMsg = &comm.Message {
 			DeviceName: d.Name,
-			Action:     action.STATS,
-			Body:       resp,
+			Action:		action.STATS,
+			Body:	 	resp,
 		}
 	case action.HOME:
 		var mvr mk.StdMovement
 		if err := json.Unmarshal([]byte(msg.Body), &mvr); err != nil {
-			logger.Error("DigestMsg > action.HOME: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > action.HOME: ", err)	
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error parsing Movement data",
+				Action: 	action.ERROR,
+				Body:		"Error parsing Movement data",
 			}
-			return
+			return 
 		}
 
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		resp, err := homeDevice(d, &mvr)
-		if err != nil {
+		resp, err := d.HomeDevice(&mvr)
+		if err != nil { 
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
 			logger.Error("DigestMsg > action.HOME: ", err)
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while processing home cmd: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while processing home cmd: " + err.Error(),
 			}
-			return
+			return 
 		}
 
-		outMsg = &comm.Message{
+		outMsg = &comm.Message {
 			DeviceName: d.Name,
-			Action:     action.NOTIFY,
-			Body:       resp,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
 		}
 	case action.MMOVE:
 		var mvr mk.MultiMovement
 		if err := json.Unmarshal([]byte(msg.Body), &mvr); err != nil {
 			fmt.Println(msg.Body)
 
-			logger.Error("DigestMsg > action.MMOVE: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > action.MMOVE: ", err)	
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error parsing Movement data",
+				Action: 	action.ERROR,
+				Body:		"Error parsing Movement data",
 			}
-			return
+			return 
 		}
 
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		resp, err := multiMove(d, &mvr)
+		resp, err := d.MultiMove(&mvr)
 		if err != nil {
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
 			logger.Error("DigestMsg > action.MMOVE: ", err)
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while processing move cmd: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while processing move cmd: " + err.Error(),
 			}
-			return
+			return 
 		}
 
-		outMsg = &comm.Message{
+		outMsg = &comm.Message {
 			DeviceName: d.Name,
-			Action:     action.NOTIFY,
-			Body:       resp,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
 		}
 	case action.SMOVE:
 		var mvr mk.StdMovement
 		if err := json.Unmarshal([]byte(msg.Body), &mvr); err != nil {
-			logger.Error("DigestMsg > action.SMOVE: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > action.SMOVE: ", err)	
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error parsing Movement data",
+				Action: 	action.ERROR,
+				Body:		"Error parsing Movement data",
 			}
-			return
+			return 
 		}
 
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		resp, err := stdMove(d, &mvr)
+		resp, err := d.StdMove(&mvr)
 		if err != nil {
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
 			logger.Error("DigestMsg > action.SMOVE: ", err)
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while processing  cmd: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while processing  cmd: " + err.Error(),
 			}
-			return
+			return 
 		}
 
-		outMsg = &comm.Message{
+		outMsg = &comm.Message {
 			DeviceName: d.Name,
-			Action:     action.NOTIFY,
-			Body:       resp,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
 		}
 	case action.TEMP:
 		var t mk.Tool
 		if err := json.Unmarshal([]byte(msg.Body), &t); err != nil {
-			logger.Error("DigestMsg > action.TEMP: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > action.TEMP: ", err)	
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error parsing Tool data",
+				Action: 	action.ERROR,
+				Body:		"Error parsing Tool data",
 			}
-			return
+			return 
 		}
 
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		resp, err := manageTemp(d, &t)
+		resp, err := d.ManageTemp(&t)
 		if err != nil {
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
-			logger.Error("DigestMsg > manageTemp: ", err)
-			outMsg = &comm.Message{
+			logger.Error("DigestMsg > d.ManageTemp: ", err)
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while updating temperature: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while updating temperature: " + err.Error(),
+			}
+			return 
+		}
+
+		outMsg = &comm.Message {
+			DeviceName: d.Name,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
+		}
+	case action.MOFF:
+		d := devices[msg.DeviceName]
+		if d == nil {
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
 
-		outMsg = &comm.Message{
-			DeviceName: d.Name,
-			// Action:		action.TEMP,
-			Action: action.NOTIFY,
-			Body:   resp,
+		cmd := mba6.MOTORS_OFF + d.LineTerminator
+		resp, err := lobCommand(&d.IODevice, cmd)
+		if err != nil {
+			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
+				closeDevice(d.Name)
+				outMsg = &comm.Message {
+					DeviceName: msg.DeviceName,
+					Action: 	action.DISCONNECTED,
+					Body:		"",
+				}
+				return
+			}
+
+			logger.Error("DigestMsg > action.MOFF: ", err)
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while turning motors off: " + err.Error(),
+			}
+			return 
 		}
-	// case action.:
-	// case action.:
+
+		outMsg = &comm.Message {
+			DeviceName: d.Name,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
+		}
+	case action.LOAD_FILE:
+		var job mk.Job
+		if err := json.Unmarshal([]byte(msg.Body), &job); err != nil {
+			logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body:		"Error parsing file",
+			}
+			return  
+		}
+
+		d := devices[msg.DeviceName]
+		if d == nil {
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.DISCONNECTED,
+				Body:		"",
+			}
+			return
+		}
+
+		//	see if the data dir exists and notify if unable to create
+		if _, err := os.Stat("data/"); err != nil {
+			if os.IsNotExist(err) {
+				if err := os.Mkdir("data", 0777); err != nil {
+					logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+					outMsg = &comm.Message {
+						DeviceName: msg.DeviceName,
+						Action: 	action.ERROR,
+						Body:		"Error while attempting to create data dir, " + err.Error(),
+					}
+					return  
+				}
+			}
+		}
+
+		//	get data file name and check if exists
+		dfn	:= "data/" + job.Name
+		info, err := os.Stat(dfn)
+		if err != nil && !os.IsNotExist(err) {
+			logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body:		"Error while attempting to check data dir, " + err.Error(),
+			}
+			return
+		}
+
+		//	remove old file if left over for whatever reason
+		if info != nil { 
+			if err = os.Remove(dfn); err != nil {
+				logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+				outMsg = &comm.Message {
+					DeviceName: msg.DeviceName,
+					Action: 	action.ERROR,
+					Body:		"Error while attempting to remove old file, " + err.Error(),
+				}
+				return
+			}
+		}
+
+		//	create data file and write it to disk
+		df, err := os.Create(dfn)
+		if err != nil {
+			logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body:		"Error while attempting to create file in data dir, " + err.Error(),
+			}
+			return
+		}
+
+		if _, err := df.Write([]byte(job.Data)); err != nil {
+			logger.Error("DigestMsg > action.LOAD_FILE: ", err)	
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body:		"Error while attempting to write file to data dir, " + err.Error(),
+			}
+			return
+		}
+
+		d.JobItem = job
+		outMsg = &comm.Message {
+			DeviceName: d.Name,
+			Action: 	action.NOTIFY,
+			Body: 		"file written",
+		}
+	case action.RUN_JOB:
+		d := GetDeviceByName(msg.DeviceName)
+		if d == nil {
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.DISCONNECTED,
+				Body:		"",
+			}
+			jqInfo <-outMsg
+			return
+		}
+
+		if len(d.JobItem.Name) < 1 {
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR,
+				Body: 		"Missing file to process",
+			}
+			jqInfo <-outMsg
+			return
+		}
+
+		prevIdx = -1 	//	reset prevIdx
+		go d.RunJobCmdAtIndex(0)
+		outMsg = &comm.Message {
+			DeviceName: d.Name,
+			Action:		action.NOTIFY,
+			Body:	 	"Job Running",
+		}
+	case action.PAUSE_JOB:
+	case action.RESUME_JOB:
+	case action.STOP_JOB:
+	case action.EMERGENCY:
+ 	case action.MACRO:
 
 	case action.CONSOLE:
 		d := devices[msg.DeviceName]
 		if d == nil {
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.DISCONNECTED,
-				Body:       "",
+				Action: 	action.DISCONNECTED,
+				Body:		"",
 			}
 			return
 		}
@@ -387,79 +552,74 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 		if err != nil {
 			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
 				closeDevice(d.Name)
-				outMsg = &comm.Message{
+				outMsg = &comm.Message {
 					DeviceName: msg.DeviceName,
-					Action:     action.DISCONNECTED,
-					Body:       "",
+					Action: 	action.DISCONNECTED,
+					Body:		"",
 				}
 				return
 			}
 
 			logger.Error("DigestMsg > action.CONSOLE: ", err)
-			outMsg = &comm.Message{
+			outMsg = &comm.Message {
 				DeviceName: msg.DeviceName,
-				Action:     action.NOTIFY,
-				Body:       "Error occurred while processing console cmd: " + err.Error(),
+				Action: 	action.ERROR,
+				Body: 		"Error occurred while processing console cmd: " + err.Error(),
 			}
 			return
 		}
 
-		outMsg = &comm.Message{
+		outMsg = &comm.Message {
 			DeviceName: d.Name,
-			Action:     action.NOTIFY,
-			Body:       resp,
+			Action:		action.NOTIFY,
+			Body:	 	resp,
 		}
 	default:
-		logger.Notify("DigestMsg: Invalid Action")
-		outMsg = &comm.Message{
+		logger.Notify("DigestMsg: Invalid Action - " + msg.Action)
+		outMsg = &comm.Message {
 			DeviceName: "",
-			Action:     action.NOTIFY,
-			Body:       "Invalid Action Provided",
+			Action: 	action.ERROR,
+			Body:		"Invalid Action Provided",
 		}
 	}
 
-	return
+	return 
 }
 
-func getStats(dev *Device, full bool) (resp string, err error) {
+func (dev *Device) GetStats(full bool) (resp string, err error) {
 	if !full {
 		cmd := mba6.GET_TEMP + dev.LineTerminator
 		resp, err = lobCommand(&dev.IODevice, cmd)
-		if err != nil {
-			return
-		}
+		if err != nil { return }
 
 	} else {
 		//	prefix for UI
 		resp = "--FULL STATS\n"
-		cmds := []string{
-			mba6.GET_TEMP,
-			mba6.POSITION,
-			mba6.CAPABILITIES,
-			mba6.ENDSTOP_STATE,
-			mba6.MEM_SETTINGS,
-			mba6.FREE_RAM,
+		cmds := []string { 
+			mba6.GET_TEMP, 
+			mba6.POSITION, 
+			mba6.CAPABILITIES, 
+			mba6.ENDSTOP_STATE, 
+			mba6.MEM_SETTINGS, 
+			mba6.FREE_RAM, 
 			mba6.FMWARE_INFO,
 		}
 
 		for _, base := range cmds {
 			cmd := base + dev.LineTerminator
-			r := ""
+			r 	:= ""
 
 			r, err = lobCommand(&dev.IODevice, cmd)
-			if err != nil {
-				resp = ""
-				return
-			}
+			if err != nil { resp = ""; return }
 
-			resp += r
+			resp += r			
 		}
 	}
 
-	return
+	return 
 }
 
-func homeDevice(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
+func (dev *Device) HomeDevice(mvr *mk.StdMovement) (resp string, err error) {
 	//	build out the cmd
 	cmd := mba6.HOME
 	if mvr.Axis != "ALL" {
@@ -468,31 +628,23 @@ func homeDevice(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
 	cmd += dev.LineTerminator
 
 	resp, err = lobCommand(&dev.IODevice, cmd)
-	if err != nil {
-		resp = ""
-		return
-	}
-
+	if err != nil { resp = ""; return }
+	
 	//	set the position of E to 0 on the device
 	if mvr.Axis == "ALL" || mvr.Axis == "E" {
 		cmd = mba6.SET_POS + " E0" + dev.LineTerminator
 		r, e := lobCommand(&dev.IODevice, cmd)
-		if e != nil {
-			resp = ""
-			return
-		}
+		if e != nil { resp = ""; return }
 
 		resp += r
-	}
+	}	
 
 	//	reset position to 0
 	if mvr.Axis == "ALL" {
-		dev.Pos = mk.Position{X: 0, Y: 0, Z: 0, E1: 0}
+		dev.Pos = mk.Position { X: 0, Y: 0, Z: 0, E1: 0, }
 	} else {
 		axis := mvr.Axis
-		if axis == "E" {
-			axis = "E1"
-		}
+		if axis == "E" { axis = "E1" }
 
 		reflect.ValueOf(&dev.Pos).Elem().FieldByName(axis).SetInt(0)
 	}
@@ -500,26 +652,20 @@ func homeDevice(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
 	return
 }
 
-func multiMove(dev *Device, mvr *mk.MultiMovement) (resp string, err error) {
+func (dev *Device) MultiMove(mvr *mk.MultiMovement) (resp string, err error) {
 	//
 	//	should be just X and Y since it was sent via
 	//	the action.MOVE rather than action.CONSOLE
-	cmd := mba6.MOVE + " "
+	cmd  := mba6.MOVE + " "
 	axis := strings.Split(mvr.Axis, ",")
 	dist := strings.Split(mvr.Distance, ",")
 
 	var xval, yval int
 	xval, err = strconv.Atoi(dist[0])
-	if err != nil {
-		resp = ""
-		return
-	}
+	if err != nil { resp = ""; return }
 
 	yval, err = strconv.Atoi(dist[1])
-	if err != nil {
-		resp = ""
-		return
-	}
+	if err != nil { resp = ""; return }
 
 	dev.Pos.X = xval
 	dev.Pos.Y = yval
@@ -530,18 +676,19 @@ func multiMove(dev *Device, mvr *mk.MultiMovement) (resp string, err error) {
 	return lobCommand(&dev.IODevice, cmd)
 }
 
-func stdMove(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
+func (dev *Device) StdMove(mvr *mk.StdMovement) (resp string, err error) {
 	cmd := mba6.MOVE + " "
 
-	if mvr.Axis == "E" {
-		mvr.Axis = "E1"
+	if mvr.Axis == "E" { 
+		mvr.Axis = "E1" 
+	} else {
+
 	}
 
-	pos := reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).Int()
-
-	if pos <= 0 && mvr.Distance <= 0 {
+	pos := reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).Int() 
+	if pos <= 0 && mvr.Distance <= 0 && mvr.Axis != "E1" { 
 		resp = "nothing really needs to happen here"
-		return
+		return 
 	}
 
 	pos += int64(mvr.Distance)
@@ -551,38 +698,112 @@ func stdMove(dev *Device, mvr *mk.StdMovement) (resp string, err error) {
 	return lobCommand(&dev.IODevice, cmd)
 }
 
-func manageTemp(dev *Device, tool *mk.Tool) (resp string, err error) {
+func (dev *Device) ManageTemp(tool *mk.Tool) (resp string, err error) {
 	cmd := mba6.SET_BDTEMP
-	if strings.HasPrefix(tool.Name, "extruder") {
-		cmd = mba6.SET_EXTEMP
-	}
+	if strings.HasPrefix(tool.Name, "extruder") { cmd = mba6.SET_EXTEMP }
 
 	cmd += strconv.Itoa(tool.Value) + dev.LineTerminator
 	return lobCommand(&dev.IODevice, cmd)
+}
+
+func GetJobInfoChannel() (chan *comm.Message) {
+	if jqInfo == nil { jqInfo = make(chan *comm.Message) }
+	return jqInfo
+}
+
+func (dev *Device) RunJobCmdAtIndex(idx int) {
+	prevIdx = idx
+	if jqPaused { 
+		//	
+		//	send msg to UI informing stop has been triggered
+		return
+	}
+
+	if jqStop || jqEStop {
+		//	just stop
+		return
+	}
+
+	data := strings.Split(dev.JobItem.Data, "\n")
+	cmd  := data[idx]
+
+	//	ignore commands starting with a `;` character
+	if !strings.HasPrefix(cmd, ";") && len(cmd) > 1 {
+		resp, err := lobCommand(&dev.IODevice, cmd + dev.LineTerminator)
+		if err != nil {
+			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
+				closeDevice(dev.Name)
+				outMsg := &comm.Message {
+					DeviceName: dev.Name,
+					Action: 	action.DISCONNECTED,
+					Body:		"",
+				}
+				jqInfo <-outMsg
+				return
+			}
+
+			logger.Debug("device returned an error: " + err.Error())
+		}
+
+		//
+		//	need to wait for the hot bed / extruder to get to temp
+		if cmd == mba6.SET_WAIT_BDTEMP || cmd == mba6.SET_WAIT_EXTEMP {
+			//	
+			//	TODO ::
+			//	below code is just to check and see what the device returns
+			for i := 0; i < 10000; i++ {
+				r, e := listenToDevice(dev.IODevice, cmd + dev.LineTerminator, "")
+				if e != nil { logger.Error(e) }
+
+				logger.Debug(r)
+			}
+			//
+		}
+
+		jqInfo <- &comm.Message {
+			DeviceName: dev.Name,
+			Action: 	action.NOTIFY,
+			Body:		resp,
+		}
+	}
+
+	idx++
+	if idx < len(data) {
+		dev.RunJobCmdAtIndex(idx)
+	} else {
+		//
+		if err := os.Remove("data/" + dev.JobItem.Name); err != nil {
+			logger.Error("RunJobCmdAtIndex: ", err)
+		}
+
+		jqInfo <- &comm.Message {
+			DeviceName: dev.Name,
+			Action: 	action.COMPLETE_JOB,
+			Body:		strconv.Itoa(idx) + " lines processed",
+		}
+	}
 }
 
 func lobCommand(dev *io.ReadWriteCloser, cmd string) (resp string, err error) {
 	resp = ""
 
 	n, err := (*dev).Write([]byte(cmd))
-	if err != nil {
-		return
-	}
+	if err != nil { return }
 
 	if n < 1 {
 		err = errors.New("unable to write to device")
-		return
+		return 
 	}
 
-	return listenToDevice(dev, cmd, "")
+	return dev.ListenToDevice(cmd, "")
 }
 
-func listenToDevice(dev *io.ReadWriteCloser, cmd string, pr string) (resp string, err error) {
+func (dev *io.ReadWriteCloser) ListenToDevice(cmd string, pr string) (resp string, err error) {
 	resp = pr
 
 	buf := make([]byte, 255)
 	n, err := (*dev).Read(buf)
-	if err != nil {
+	if err != nil { 
 		resp = ""
 		return
 	}
@@ -593,14 +814,27 @@ func listenToDevice(dev *io.ReadWriteCloser, cmd string, pr string) (resp string
 	}
 
 	tmp := string(buf[:n])
-	if strings.HasPrefix(tmp, "rs ") {
-		return lobCommand(dev, cmd)
-	}
+	if strings.HasPrefix(tmp, "rs") {
+		em := ""
 
-	if strings.Contains(tmp, "ok") {
-		resp += tmp
+		switch {
+		case strings.Contains(tmp, mba6.CS_OOR):
+			em = "provided checksum is out of range"
+		case strings.Contains(tmp, mba6.CS_INV):
+			em = "invalid checksum submitted to device"
+		case strings.Contains(tmp, mba6.CMD_OOR):
+			em = "cmd provided is out of range -- " + cmd
+		case strings.Contains(tmp, mba6.CMD_MSS):
+			em = "cmd provided is missing the code -- " + cmd
+		default:
+			em = tmp
+		}
+		err = errors.New("lobCommand: " + em)
 		return
 	}
+
+	resp += tmp
+	if strings.Contains(tmp, "ok") { return }
 
 	return listenToDevice(dev, cmd, resp)
 }

@@ -61,7 +61,8 @@ var canvasClickHandler = function(e) {
         || e.offsetY < 0 || e.offsetY > h) 
             return;  //  don't need to do anything
 
-    $(phLayer.canvas).off('click');
+    detachMovers();
+    // $(phLayer.canvas).off('click');
 
     var osx, osy;
     osx = e.offsetX - POINTERVISUALOFFSET;
@@ -93,7 +94,8 @@ var movePrintHead = function(offsetX, offsetY) {
         if(ph.x == offsetX && ph.y == offsetY) {
             window.clearInterval(i);
             pp = undefined;
-            $(phLayer.canvas).on('click', canvasClickHandler);
+            attachMovers();
+            // $(phLayer.canvas).on('click', canvasClickHandler);
             return;
         }
 

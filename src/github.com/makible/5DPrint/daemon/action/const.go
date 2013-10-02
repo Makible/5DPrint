@@ -2,6 +2,7 @@ package action
 
 const (
 	EMPTY        = "action.empty"
+	ERROR        = "action.error"
 	NOTIFY       = "action.notify"
 	CONN         = "action.connection"
 	CONNECTED    = "action.connected"
@@ -11,8 +12,17 @@ const (
 	HOME         = "action.home"
 	MMOVE        = "action.multi-move"
 	SMOVE        = "action.std-move"
+	MOFF         = "action.motors-off"
 	TEMP         = "action.set-temp"
 	SFILE        = "action.save-file"
 	DFILE        = "action.delete-file"
 	CONSOLE      = "action.console"
+	LOAD_FILE    = "action.load-file"
+	RUN_JOB      = "action.run-job"
+	PAUSE_JOB    = "action.pause-job"
+	RESUME_JOB   = "action.resume-job"
+	STOP_JOB     = "action.stop-job"
+	COMPLETE_JOB = "action.complete-job"
+	EMERGENCY    = "action.emergency-stop"
+	MACRO        = "action.macro"
 )
