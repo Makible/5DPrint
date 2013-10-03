@@ -1,5 +1,7 @@
 package mk
 
+import "time"
+
 type StdMovement struct {
 	Axis     string
 	Distance int `json: ", string"`
@@ -25,6 +27,8 @@ type Tool struct {
 }
 
 type Job struct {
-	Name string
-	Data string
+	Name      string
+	Data      string
+	StartTime time.Time
+	RunTime   time.Duration
 }

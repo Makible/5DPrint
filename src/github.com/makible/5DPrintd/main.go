@@ -3,10 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/makible/5DPrint/daemon"
+	"github.com/makible/5DPrint/device"
 	"github.com/makible/5DPrint/ui"
 	"runtime"
-	"time"
 )
 
 var (
@@ -32,11 +31,10 @@ func main() {
 	runtime.GOMAXPROCS(4) //	errrm...
 	// runtime.GOMAXPROCS(2)	//	errrm...
 
-	daemon.SetDebugFlag(*debug)
+	go device.InitDeviceListener()
+
 	ui.SetOBFlag(*obstop)
+	ui.InitUIServer()
 
-	daemon.Go()
-
-	_ = time.Now().String()
 	fmt.Println("WOW... how'd we get here?!")
 }

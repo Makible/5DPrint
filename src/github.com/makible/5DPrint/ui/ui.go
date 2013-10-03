@@ -3,10 +3,10 @@ package ui
 import (
 	"code.google.com/p/go.net/websocket"
 	"encoding/json"
+	"github.com/makible/5DPrint/action"
 	"github.com/makible/5DPrint/comm"
-	"github.com/makible/5DPrint/daemon/action"
-	"github.com/makible/5DPrint/daemon/logger"
 	"github.com/makible/5DPrint/device"
+	"github.com/makible/5DPrint/logger"
 	"html/template"
 	"io"
 	"net"

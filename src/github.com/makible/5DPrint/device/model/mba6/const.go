@@ -22,8 +22,8 @@ const (
 	FREE_RAM        = "M603"
 	FMWARE_INFO     = "M608"
 	MOTORS_OFF      = "M84"
-	SET_WAIT_BDTEMP = "M190"
-	SET_WAIT_EXTEMP = "M109"
+	SET_WAIT_BDTEMP = "M190 S"
+	SET_WAIT_EXTEMP = "M109 S"
 )
 
 //	rs Responses

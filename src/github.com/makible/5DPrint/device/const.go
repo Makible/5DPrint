@@ -8,7 +8,9 @@ const (
 )
 
 const (
-	DEFBAUD = 115200
-	NSF     = "no such file or directory"
-	DNC     = "device not configured"
+	DEFBAUD  = 115200
+	NSF      = "no such file or directory"
+	DNC      = "device not configured"
+	HEISS    = "// *** Hot-end heater does not appear to be responding"
+	DEVLIMIT = 100
 )
