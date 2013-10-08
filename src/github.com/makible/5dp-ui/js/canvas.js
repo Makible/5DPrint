@@ -62,7 +62,6 @@ var canvasClickHandler = function(e) {
             return;  //  don't need to do anything
 
     detachMovers();
-    // $(phLayer.canvas).off('click');
 
     var osx, osy;
     osx = e.offsetX - POINTERVISUALOFFSET;
@@ -95,7 +94,6 @@ var movePrintHead = function(offsetX, offsetY) {
             window.clearInterval(i);
             pp = undefined;
             attachMovers();
-            // $(phLayer.canvas).on('click', canvasClickHandler);
             return;
         }
 
@@ -124,12 +122,12 @@ var displayGrid = function() {
     var inc = millimeterToPixel(5);
 
     bgLayer.ctx.strokeStyle = '#555';
-    for(var x = 0; x <= w; x+=inc) {
+    for(var x = inc; x <= w; x+=inc) {
         bgLayer.ctx.moveTo(x, 0);
         bgLayer.ctx.lineTo(x, h);
     }
 
-    for(var y = 0; y <= h; y+=inc) {
+    for(var y = inc; y <= (h - inc); y+=inc) {
         bgLayer.ctx.moveTo(0, y);
         bgLayer.ctx.lineTo(w, y);
     }

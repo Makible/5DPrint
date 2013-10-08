@@ -75,7 +75,7 @@ func InitDeviceListener() {
 			}
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(800 * time.Millisecond)
 	}
 	// InitDeviceListener()
 }
@@ -550,7 +550,42 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 	case action.STOP_JOB:
 	case action.EMERGENCY:
 	case action.MACRO:
+		d := devices[msg.DeviceName]
+		if d == nil {
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.DISCONNECTED,
+				Body:       "",
+			}
+			return
+		}
 
+		resp, err := d.ProcessMacro(msg.Body)
+		if err != nil {
+			if os.IsNotExist(err) || strings.HasSuffix(err.Error(), DNC) {
+				closeDevice(d.Name)
+				outMsg = &comm.Message{
+					DeviceName: msg.DeviceName,
+					Action:     action.DISCONNECTED,
+					Body:       "",
+				}
+				return
+			}
+
+			logger.Error("DigestMsg > action.MACRO: ", err)
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.ERROR,
+				Body:       "Error occurred while processing macro cmd: " + err.Error(),
+			}
+			return
+		}
+
+		outMsg = &comm.Message{
+			DeviceName: d.Name,
+			Action:     action.NOTIFY,
+			Body:       resp,
+		}
 	case action.CONSOLE:
 		d := devices[msg.DeviceName]
 		if d == nil {
@@ -713,10 +748,11 @@ func (dev *Device) MultiMove(mvr *mk.MultiMovement) (resp string, err error) {
 func (dev *Device) StdMove(mvr *mk.StdMovement) (resp string, err error) {
 	cmd := mba6.MOVE + " "
 
+	//	go ahead and force the axis to be capitalized
+	//	just in case this wasn't done in the UI
+	mvr.Axis = strings.ToUpper(mvr.Axis)
 	if mvr.Axis == "E" {
 		mvr.Axis = "E1"
-	} else {
-
 	}
 
 	pos := reflect.ValueOf(&dev.Pos).Elem().FieldByName(mvr.Axis).Int()
@@ -740,6 +776,50 @@ func (dev *Device) ManageTemp(tool *mk.Tool) (resp string, err error) {
 
 	cmd += strconv.Itoa(tool.Value) + dev.LineTerminator
 	return dev.LobCommand(cmd)
+}
+
+func (dev *Device) ProcessMacro(macro string) (resp string, err error) {
+	var cmds *[]string
+
+	switch strings.ToLower(macro) {
+	case "drop bed":
+		cmds = &mba6.DropBed
+	case "raise bed":
+		cmds = &mba6.RaiseBed
+	case "load":
+		cmds = &mba6.LoadFilament
+	case "eject":
+		cmds = &mba6.EjectFilament
+	default:
+		err = errors.New("invalid macro -- " + macro)
+		return
+	}
+
+	tmp := ""
+	resp = ""
+	for _, cmd := range *cmds {
+		tmp, err = dev.LobCommand(cmd)
+		if err != nil {
+			resp = ""
+			return
+		}
+		resp += tmp
+	}
+
+	if macro == "drop bed" {
+		dev.Pos.Z = 80
+	}
+	if macro == "raise bed" {
+		dev.Pos.Z = 0
+	}
+	if macro == "eject" {
+		dev.Pos.E1 = 200
+	}
+	if macro == "load" {
+		dev.Pos.E1 = 0
+	}
+
+	return
 }
 
 func GetJobInfoChannel() chan *comm.Message {
@@ -847,9 +927,9 @@ func (dev *Device) ListenToDevice(cmd string, pr string) (resp string, err error
 
 	//
 	//	figure out what else the device is trying to tell us
-	if !strings.HasPrefix(tmp, "rs") || !strings.HasPrefix(tmp, HEISS) || !strings.Contains(resp, "ok") {
-		logger.Debug(tmp)
-	}
+	// if !strings.HasPrefix(tmp, "rs") || !strings.HasPrefix(tmp, HEISS) || !strings.Contains(resp, "ok") {
+	// 	logger.Debug(tmp)
+	// }
 
 	if strings.HasPrefix(tmp, "rs") {
 		em := ""

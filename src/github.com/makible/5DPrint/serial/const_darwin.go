@@ -2,6 +2,7 @@
 package serial
 
 const (
-	TTYPREFIX      = "/dev/tty.usbmodem"
+	DEV_DIR        = "/dev"
+	TTYPREFIX      = "/tty.usbmodem"
 	DFSERIALPREFIX = "001"
 )

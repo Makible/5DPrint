@@ -33,11 +33,3 @@ const (
 	CMD_OOR = "(command code out of range)"
 	CMD_MSS = "(command code missing)"
 )
-
-//	custom macros
-const (
-	DROP_BED       = ""
-	LOAD_FILAMENT  = ""
-	EJECT_FILAMENT = ""
-	STOP           = ""
-)
