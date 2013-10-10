@@ -25,14 +25,6 @@ func GetDevFileNames() (dfnames []string, err error) {
 	dfnames = make([]string, 0)
 	err = nil
 
-	// if this one is not attached then the others
-	// definitely won't be, so we can just return
-	// defDFN := TTYPREFIX + DFSERIALPREFIX
-	// if _, err = os.Stat(defDFN); err != nil {
-	// 	return
-	// }
-	// dfnames = append(dfnames, defDFN)
-
 	dir, err := ioutil.ReadDir(DEV_DIR)
 	if err != nil {
 		fmt.Println(err)

@@ -3,6 +3,7 @@
 var dbg = 1,
     ZEDIST = 5,
     DEFSPEED = -1,
+    prevTemp = 0,
     socket,
     naturals,
     mouseDownHandler,
@@ -78,6 +79,35 @@ var attachBtnHandlers = function() {
             $(evt.target).val('').focus();
         }
     });
+
+    $('#tools > .wrapper > .power-wrapper > div').on('click', powerToggleClickHandler);
+    $('#tools > .wrapper > .req').on('keydown', function(evt) {
+        //  check if the user hit enter
+        if(evt.keyCode == 13) {
+            ($(evt.target).html()).replace(/\<br\>/g, '');
+            $(evt.target).blur();
+        }
+    }).on('blur', function(evt) { 
+        var temp = parseInt($(evt.target).html()),
+            max  = parseInt($(evt.target).attr('data-max'));
+
+        //  text in there that should be
+        if(isNaN(temp) || temp < 0 || temp > max) {
+            $(evt.target).html(prevTemp);
+            return;
+        }
+
+        var onSwitch = $(evt.target).parent().find('.power-wrapper > .on');
+        if(!$(onSwitch).hasClass('selected')) {
+            $(onSwitch).click();
+            return;
+        }
+
+        notifyServer('action.set-temp', { 
+            Name:   $(evt.target).parent().attr('id').toUpperCase(),
+            Value:  temp }
+        );
+    }).on('click', function(evt) { prevTemp = parseInt($(evt.target).html()); });
 };
 
 var detachBtnHandlers = function() {
@@ -160,19 +190,7 @@ var stgClickHandler = function(evt) {
 };
 
 var paClickHandler = function(evt) {
-    var action = $(evt.target).html();
-
-    if(action == 'print') {
-        if(activeDev.JobRunning) return;
-
-        //  run print
-        $(evt.target).html('stop');
-    } else {
-        if(!activeDev.JobRunning) return;
-        //  stop print
-
-        $(evt.target).html('print');
-    }
+    console.log(evt.target);
 };
 
 var devsClickHandler = function(evt) {
@@ -233,6 +251,32 @@ var consoleNavClickHandler = function(evt) {
     //  scroll to top of list
     if($(evt.target).hasClass('up'))
         $(output).animate({ scrollTop: 0 }, 800);
+};
+
+var powerToggleClickHandler = function(evt) {
+    if($(evt.target).hasClass('selected')) return;
+
+    var p = $(evt.target).parent()
+
+    //  updated the ui
+    $(p).find('.selected').removeClass('selected');
+    $(evt.target).addClass('selected');
+
+    //
+    //  default to off but if the evt is via the 'on'
+    //  button, get the temp and send it to the device.
+    //  if evt is the 'off' button, then update the 
+    //  .req value to 0
+    var temp = 0;
+    if($(evt.target).hasClass('on')) 
+        parseInt($(p).parent().find('.req').html());
+    else 
+        $(p).parent().find('.req').html(0);
+
+    notifyServer('action.set-temp', { 
+        Name:   $(p).parent().attr('id').toUpperCase(),
+        Value:  temp }
+    );
 };
 
 //  ======================

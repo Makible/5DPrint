@@ -36,32 +36,55 @@ type Timeouts struct {
 	WriteTotalTimeoutConstant   uint32
 }
 
+const KEY_READ uintptr = 0x20019
+const HKEY_LOCAL_MACHINE uintptr = 0x80000002
+
+const ERR_SUCCESS = "The operation completed successfully."
+const SERCOMM_KEY_STR = "HARDWARE\\DEVICEMAP\\SERIALCOMM"
+
 var (
-	nSetCommState,
-	nSetCommTimeouts,
-	nSetCommMask,
-	nSetupComm,
-	nGetOverlappedResult,
-	nCreateEvent,
-	nResetEvent,
-	nWaitCommEvent uintptr
+	nSetCommState        uintptr
+	nSetCommTimeouts     uintptr
+	nSetCommMask         uintptr
+	nSetupComm           uintptr
+	nGetOverlappedResult uintptr
+	nCreateEvent         uintptr
+	nResetEvent          uintptr
+	nWaitCommEvent       uintptr
+
+	regOpenKeyEx    uintptr
+	regCloseKey     uintptr
+	regEnumValue    uintptr
+	regQueryInfoKey uintptr
 )
 
 func init() {
-	k32, err := syscall.LoadLibrary("kernel32.dll")
+	libkernel32, err := syscall.LoadLibrary("kernel32.dll")
 	if err != nil {
 		panic(fmt.Sprintf("[ERROR] LoadLibrary %v", err))
 	}
-	defer syscall.FreeLibrary(k32)
+	defer syscall.FreeLibrary(libkernel32)
 
-	nSetCommState = getProcAddr(k32, "SetCommState")
-	nSetCommTimeouts = getProcAddr(k32, "SetCommTimeouts")
-	nSetCommMask = getProcAddr(k32, "SetCommMask")
-	nSetupComm = getProcAddr(k32, "SetupComm")
-	nGetOverlappedResult = getProcAddr(k32, "GetOverlappedResult")
-	nCreateEvent = getProcAddr(k32, "CreateEventW")
-	nResetEvent = getProcAddr(k32, "ResetEvent")
-	nWaitCommEvent = getProcAddr(k32, "WaitCommEvent")
+	libadvapi32, err := syscall.LoadLibrary("advapi32.dll")
+	if err != nil {
+		panic(fmt.Sprintf("[ERROR] LoadLibrary %v", err))
+	}
+	defer syscall.FreeLibrary(libadvapi32)
+
+	nGetOverlappedResult = getProcAddr(libkernel32, "GetOverlappedResult")
+	nSetCommTimeouts = getProcAddr(libkernel32, "SetCommTimeouts")
+
+	nSetCommState = getProcAddr(libkernel32, "SetCommState")
+	nSetCommMask = getProcAddr(libkernel32, "SetCommMask")
+	nSetupComm = getProcAddr(libkernel32, "SetupComm")
+	nCreateEvent = getProcAddr(libkernel32, "CreateEventW")
+	nResetEvent = getProcAddr(libkernel32, "ResetEvent")
+	nWaitCommEvent = getProcAddr(libkernel32, "WaitCommEvent")
+
+	regOpenKeyEx = getProcAddr(libadvapi32, "RegOpenKeyExW")
+	regCloseKey = getProcAddr(libadvapi32, "RegCloseKey")
+	regEnumValue = getProcAddr(libadvapi32, "RegEnumValueW")
+	regQueryInfoKey = getProcAddr(libadvapi32, "RegQueryInfoKeyW")
 }
 
 func getProcAddr(lib syscall.Handle, name string) uintptr {
@@ -73,20 +96,30 @@ func getProcAddr(lib syscall.Handle, name string) uintptr {
 	return addr
 }
 
-func ListDevFileName() (dfnames []string, err error) {
+func GetDevFileNames() (dfnames []string, err error) {
+	cnt, err := getSerialDeviceCount()
+	if err != nil {
+		if err.Error() != ERR_SUCCESS {
+			fmt.Println(err)
+			os.Exit(2)
+		} else {
+			err = nil
+		}
+	}
+
+	for i := uint32(0); i < cnt; i++ {
+		data, err := getRegDataAtIndex(i)
+		if err != nil && err.Error() != ERR_SUCCESS {
+			if err.Error() != ERR_SUCCESS {
+				fmt.Println(err)
+				os.Exit(2)
+			} else {
+				err = nil
+			}
+		}
+		dfnames = append(dfnames, data)
+	}
 	return
-}
-
-func ListDevices() string {
-	//  TODO
-
-	//  WARN: for now we're defaulting to
-	//  COM3 because it appears to be ok
-	//  on Windows... need to actually
-	//  use proper list logic here
-	// return ""
-
-	return "COM3"
 }
 
 func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
@@ -145,6 +178,109 @@ func OpenPort(name string, baud int) (rwc io.ReadWriteCloser, err error) {
 	dev.wo = wo
 
 	return dev, nil
+}
+
+func Ping(dname string) bool {
+	return true
+}
+
+func getSerialCommKey() (key uintptr) {
+	//
+	//	WARNING ::
+	//	be sure to close the key when done using it
+
+	sck, err := syscall.UTF16PtrFromString(SERCOMM_KEY_STR)
+	if err != nil {
+		fmt.Println("unable to access registry to locate device(s): ", err)
+		os.Exit(2)
+	}
+
+	//	open registry key
+	cnt, _, err := syscall.Syscall6(regOpenKeyEx, 5,
+		HKEY_LOCAL_MACHINE,
+		uintptr(unsafe.Pointer(sck)),
+		uintptr(uint32(0)),
+		KEY_READ,
+		uintptr(unsafe.Pointer(&key)), 0)
+	if err != nil && err.Error() != ERR_SUCCESS {
+		fmt.Println("unable to access registry to locate device(s): ", err)
+		os.Exit(2)
+	}
+
+	_ = cnt
+	return
+}
+
+func getSerialDeviceCount() (valCnt uint32, err error) {
+	valCnt = 0
+	var (
+		sc  uintptr
+		msl uintptr
+		vc  uintptr
+		mvl uintptr
+	)
+
+	key := getSerialCommKey()
+	defer syscall.Syscall(regCloseKey, 1, uintptr(key), 0, 0)
+
+	cnt, _, err := syscall.Syscall15(regQueryInfoKey, 12,
+		key, uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)), uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(&sc)),
+		uintptr(unsafe.Pointer(&msl)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(&vc)),
+		uintptr(unsafe.Pointer(&mvl)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)), 0)
+	if err != nil && err.Error() != ERR_SUCCESS {
+		fmt.Println("unable to access the value count: ", err)
+		return
+	}
+	_ = cnt
+	valCnt = uint32(vc)
+	return
+}
+
+func getRegDataAtIndex(index uint32) (data string, err error) {
+	key := getSerialCommKey()
+	defer syscall.Syscall(regCloseKey, 1, uintptr(key), 0, 0)
+
+	magicNum := 64
+	regName := make([]byte, magicNum)
+	regData := make([]byte, magicNum)
+
+	cnt, _, err := syscall.Syscall9(regEnumValue, 8,
+		uintptr(key),
+		uintptr(index),
+		uintptr(unsafe.Pointer(&regName[0])),
+		uintptr(unsafe.Pointer(&magicNum)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(nil)),
+		uintptr(unsafe.Pointer(&regData[0])),
+		uintptr(unsafe.Pointer(&magicNum)), 0)
+	if err != nil && err.Error() != ERR_SUCCESS {
+		data = ""
+		fmt.Println("unable to access value at index: ", err)
+		return
+	}
+
+	//
+	//	you must pull the EnumValue name in order to
+	//	get the data, even if we don't want the name
+	_ = regName
+	_ = cnt
+
+	data = ""
+	for i := 0; i < len(regData); i++ {
+		if regData[i] != 0 {
+			data += string(regData[i])
+		}
+	}
+	return
 }
 
 func (dev *SerialDevice) Close() error {

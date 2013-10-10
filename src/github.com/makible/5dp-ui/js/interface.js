@@ -3,7 +3,7 @@
 var MAGICNUM = 3.78,
     POINTERVISUALOFFSET = 5,
     INDICATOR_COLOR = 'rgba(178, 18, 18, 0.8)',
-    IND_GHOST_COLOR = 'rgba(178, 18, 18, 0.4)';
+    IND_GHOST_COLOR = 'rgba(178, 18, 18, 0)';
 
 var devTpl;
 
@@ -309,6 +309,7 @@ var movePrintHead = function(offsetX, offsetY) {
     ph.x = offsetX;
     ph.y = offsetY;
     moveSliders(ph.x, ph.y);
+    attachMovers();
 
     //  WARNING ::
     //  The following code is very resource
@@ -393,11 +394,11 @@ var homeUI = function(axis) {
     if(axis == 'ALL')
         $('.not-homed').removeClass('not-homed');
 
-    if(axis == 'X') oy = ph.y;
-    if(axis == 'Y') ox = ph.x;
-
     $('#' + axis.toLowerCase() + '-home')
         .removeClass('not-homed');
+
+    if(axis == 'X') oy = ph.y;
+    if(axis == 'Y') ox = ph.x;
 
     movePrintHead(ox, oy);
 };
