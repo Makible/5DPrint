@@ -1,19 +1,21 @@
 'use strict';
 
-var dbg = 1,
+var dbg = 0,
     ZEDIST = 5,
     DEFSPEED = -1,
     prevTemp = 0,
+    pfPrepd = 0,
+    xTrim,
+    yTrim,
     socket,
     naturals,
     mouseDownHandler,
     connTimer,  //  timer to check for initial device attachment
     statTimer;  //  timer to request status updates
 
-
 var attachBtnHandlers = function() {
     $('#settings').on('click', stgClickHandler);
-    $('#print-action').on('click', paClickHandler);
+    $('#print-actions').on('click', paClickHandler);
     $('#devices').on('click', devsClickHandler);
     $(phLayer.canvas).on('click', canvasClickHandler)
         .on('mousemove', function(evt) {
@@ -98,10 +100,11 @@ var attachBtnHandlers = function() {
         }
 
         var onSwitch = $(evt.target).parent().find('.power-wrapper > .on');
-        if(!$(onSwitch).hasClass('selected')) {
+        if(!$(onSwitch).hasClass('selected') && temp > 0)
             $(onSwitch).click();
-            return;
-        }
+
+        if(!$(evt.target).parent().find('.power-wrapper > .off').hasClass('selected') && temp == 0) 
+            $(evt.target).parent().find('.power-wrapper > .off').click();
 
         notifyServer('action.set-temp', { 
             Name:   $(evt.target).parent().attr('id').toUpperCase(),
@@ -126,11 +129,11 @@ var attachSliderHandlers = function() {
     var xtb, xbb, ylb, yrb;
 
     //  x draggable limits
-    xtb = $('#x').position().top + 139;     //  value was found through trial and error
+    xtb = $('#x').position().top + xTrim;     //  value was found through trial and error
     xbb = xtb + $('#x').height();
 
     //  y draggable limits
-    ylb = $('#y').position().left + 182;    //  value was found through trial and error
+    ylb = $('#y').position().left + yTrim;    //  value was found through trial and error
     yrb = ylb + $('#y').width();
 
     $('#x > .handle').draggable({
@@ -190,7 +193,98 @@ var stgClickHandler = function(evt) {
 };
 
 var paClickHandler = function(evt) {
-    console.log(evt.target);
+    switch($(evt.target).attr('id')) {
+    case 'file-picker':
+        var inp = $('<input id="fl" type="file" accept=".gcode,.gc" class="fi" />');
+
+        $('body').append(inp);
+        $(inp).on('change', function(evt) {
+            var f = evt.target.files[0],
+                fr = new FileReader();
+
+            fr.readAsText(f, 'UTF-8');
+            // r.onloadstart = ...
+            // r.onprogress = ... <-- allows you to update a progress bar.
+            // r.onabort = ...
+            fr.onerror   = function(e) { console.log(e); };
+            fr.onloadend = function(e) { pfPrepd = !0; };
+            fr.onload    = function(evt) {
+                var action  = 'action.load-file',
+                    fname   = f.name,
+                    content = evt.target.result;
+
+                activeDev.JobFile = fname;
+                activeDev.JobContent = content;
+                activeDev.JobStatus = 'pending';
+
+                var cmds = content.split('\n');
+                paths = new Array();
+                paths.push({ x:0, y:0 });
+
+                //  loop through the file, getting each 'G1' line and loading the
+                //  x / y coords into the paths array, ignoring the commented rows
+                for(var i = 0; i < cmds.length; i++) {
+                    if(cmds[i] && cmds[i] != undefined
+                        && (cmds[i].indexOf(';') == -1 || cmds[i].indexOf(';') > 1) 
+                        && (cmds[i].indexOf('G1 X') > -1 || cmds[i].indexOf('G1 Y') > -1)) {
+
+                        var move, mx, my;
+                        move = cmds[i].split(' ');
+
+                        for(var j = 0; j < move.length; j++) {
+                            if(move[j].indexOf('X') > -1)
+                                mx = millimeterToPixel(move[j].substring(1));
+
+                            if(move[j].indexOf('Y') > -1)
+                                my = millimeterToPixel(move[j].substring(1));
+                        }
+
+                        paths.push({ x: my, y: mx });
+                    }
+                }
+
+                if(paths.length == 1)
+                    paths = new Array();
+
+                resetAndDrawPaths();
+                notifyServer(action, { Name: fname, Data: content });
+                $('#fl').remove();
+            };
+        });
+        $(inp).click();
+
+        //  clear out old object from canvas
+        paths = new Array();
+        resetAndDrawPaths();
+
+        break;
+    case 'print-pause':
+        if(!pfPrepd) {
+            $('#file-picker').click();
+            return;
+        }
+
+        if(activeDev.JobStatus != 'in-progess') {
+            activeDev.JobStatus = 'in-progess';
+            notifyServer('action.run-job', '');
+            initUIForPrinting();
+
+            //  update #print-pause click event
+        }
+
+        if($('#print-pause').hasClass('icon-pause')) {
+            //  push pause to printer
+        }
+
+        break;
+    case 'reset':
+        
+        break;
+    default:
+        //  
+        console.log('how the hell did we get here?!');
+        break;
+    }
 };
 
 var devsClickHandler = function(evt) {
@@ -291,7 +385,7 @@ var initSocket = function() {
 };
 
 var onSocketMsg = function(evt) {
-    // if(dbg) console.log(evt);
+    if(dbg) console.log(evt);
 
     var msg = JSON.parse(evt.data);
     switch(msg.Action) {
@@ -322,8 +416,8 @@ var onSocketClose = function(evt) {
     window.clearInterval(statTimer);
     window.clearInterval(connTimer);
 
-    //  TODO ::
-    //  update status display
+    if(activeDev && activeDev != undefined)
+        detachDevice({ DeviceName: activeDev.Name });
 
     socket = undefined;
     window.setTimeout(initSocket, 800);
@@ -339,7 +433,6 @@ var onSocketError = function(evt) {
 var onSocketOpen = function(evt) {
     //  TODO ::
     //  update status display
-
     connTimer = setInterval(checkConn, 500);   
 };
 
@@ -372,4 +465,17 @@ var notify = function(msg) {
 $(document).ready(function() {
     initSocket();
     displayGrid();
+
+    xTrim = $('#print-area').offset().top - 11;
+    yTrim = $('#print-area').offset().left - 11;
+});
+
+$(window).on('resize', function(evt) {
+    xTrim = $('#print-area').offset().top - 11;
+    yTrim = $('#print-area').offset().left - 11;
+
+    $('#x > .handle').draggable('destroy');
+    $('#y > .handle').draggable('destroy');
+
+    attachSliderHandlers();
 });

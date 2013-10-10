@@ -112,6 +112,8 @@ func GetDeviceByName(name string) *Device {
 }
 
 func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
+	logger.Debug("Digesting message: " + msg.String())
+
 	switch msg.Action {
 	case action.CONN:
 		if len(devices) > 0 {
@@ -770,7 +772,7 @@ func (dev *Device) StdMove(mvr *mk.StdMovement) (resp string, err error) {
 
 func (dev *Device) ManageTemp(tool *mk.Tool) (resp string, err error) {
 	cmd := mba6.SET_BDTEMP
-	if strings.HasPrefix(tool.Name, "extruder") {
+	if strings.HasPrefix(tool.Name, "E") {
 		cmd = mba6.SET_EXTEMP
 	}
 
@@ -927,9 +929,9 @@ func (dev *Device) ListenToDevice(cmd string, pr string) (resp string, err error
 
 	//
 	//	figure out what else the device is trying to tell us
-	// if !strings.HasPrefix(tmp, "rs") || !strings.HasPrefix(tmp, HEISS) || !strings.Contains(resp, "ok") {
-	// 	logger.Debug(tmp)
-	// }
+	if !strings.HasPrefix(tmp, "rs") || !strings.HasPrefix(tmp, HEISS) || !strings.Contains(resp, "ok") {
+		logger.Debug(tmp)
+	}
 
 	if strings.HasPrefix(tmp, "rs") {
 		em := ""

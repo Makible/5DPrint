@@ -7,6 +7,7 @@ function Device(name) {
     this.JobDuration    = '';
     this.JobStatus      = 'idle';
     this.JobFile        = '';
+    this.JobContent     = '';
     this.X              = 0;
     this.Y              = 0;
     this.Z              = 0;
@@ -59,8 +60,7 @@ var setAsActiveDevice = function(d) {
     attachBtnHandlers();
     attachSliderHandlers();
     attachMovers();
-    redrawIndicators();
-
+    
     initActiveDevUI(d.Name);
 
     //  debug

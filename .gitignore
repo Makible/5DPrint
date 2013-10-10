@@ -8,3 +8,4 @@ data/*
 .config/__*
 .gcode
 bin/
+logs

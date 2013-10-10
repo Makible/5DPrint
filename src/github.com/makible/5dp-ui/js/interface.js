@@ -147,9 +147,8 @@ var updateStatsUI = function(msg) {
 
         if(homedData && homedData != undefined) {
             for(var i = 0; i < homedData.length; i++) {
-                var axis = homedData[i].split(':'),
+                var axis = homedData[i].replace(/\s/g, '').split(':'),
                     hId  = '#' + axis[0].toLowerCase() + '-home';
-
                 if(axis[1] == '0' && !$(hId).hasClass('not-homed'))
                     $(hId).addClass('not-homed');
 
@@ -212,6 +211,15 @@ var removeDevsFromUI = function() {
         $('#z-home').addClass('not-homed');
 
     $('#devices-overlay > ul').html('');
+};
+
+var initUIForPrinting = function() {
+    //  switch icon to pause icon
+    //  remove most button listeners except 
+    //      for the temp control, stop/pause and 
+    //      device switching
+    //  
+    $('#print-pause').removeClass('icon-play').addClass('icon-pause');
 };
 
 //  ======================
@@ -308,7 +316,9 @@ var detachMovers = function() {
 var movePrintHead = function(offsetX, offsetY) {
     ph.x = offsetX;
     ph.y = offsetY;
+
     moveSliders(ph.x, ph.y);
+    redrawIndicators();
     attachMovers();
 
     //  WARNING ::
@@ -389,16 +399,19 @@ var redrawIndicators = function() {
 };
 
 var homeUI = function(axis) {
-    var ox = 0, 
-        oy = 0;
-    if(axis == 'ALL')
+    var ox = ph.x, 
+        oy = ph.y;
+
+    if(axis == 'ALL') {
+        ox = oy = 0;
         $('.not-homed').removeClass('not-homed');
+    }
 
     $('#' + axis.toLowerCase() + '-home')
         .removeClass('not-homed');
 
-    if(axis == 'X') oy = ph.y;
-    if(axis == 'Y') ox = ph.x;
+    if(axis == 'X') oy = 0;
+    if(axis == 'Y') ox = 0;
 
     movePrintHead(ox, oy);
 };
