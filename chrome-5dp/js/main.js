@@ -1,5 +1,21 @@
 'use strict';
 
+var hostInfo, os;
+
+//
+var reload = function() { chrome.runtime.reload(); },
+    setHostInfo = function(info) { 
+        console.log(info);
+        hostInfo = info;
+        os = info.os;
+    };
+
+chrome.runtime.onStartup.addListener(function(evt) {
+    console.log('foo');
+});
+
+
+
 var dbg = 0,
     ZEDIST = 5,
     DEFSPEED = -1,
@@ -278,12 +294,7 @@ var paClickHandler = function(evt) {
 
         break;
     case 'reset':
-        //  dump the file on the server
-        notifyServer('action.dump-job', '');
-        //  clear canvas
-        paths = new Array();
-        resetAndDrawPaths();
-
+        
         break;
     default:
         //  
@@ -398,7 +409,7 @@ var onSocketMsg = function(evt) {
         notify(msg.Body);
         break;
     case 'action.nodevs':
-        connTimer = setInterval(checkConn, 1500);
+        connTimer = setInterval(pollSerialDevices, 1500);
         break;
     case 'action.connected':
         attachDevice(msg);
@@ -438,12 +449,7 @@ var onSocketError = function(evt) {
 var onSocketOpen = function(evt) {
     //  TODO ::
     //  update status display
-    connTimer = setInterval(checkConn, 500);   
-};
-
-var checkConn = function() {
-    notifyServer('action.connection', '');
-    window.clearInterval(connTimer);
+    connTimer = setInterval(pollSerialDevices, 500);   
 };
 
 var getDeviceStats = function(full) {
@@ -468,8 +474,83 @@ var notify = function(msg) {
 
 //  start some ish
 $(document).ready(function() {
-    initSocket();
+    // var cId;
+
+    // var writeSerial=function(str) {
+      
+    // }
+    // // Convert string to ArrayBuffer
+    // var str2ab=function(str) {
+    //   var buf=new ArrayBuffer(str.length);
+    //   var bufView=new Uint8Array(buf);
+    //   for (var i=0; i<str.length; i++) {
+    //     bufView[i]=str.charCodeAt(i);
+    //   }
+    //   return buf;
+    // }
+
+    // var ab2str=function(buf) {
+    //     return String.fromCharCode.apply(null, new Uint8Array(buf));
+    // };
+
+    // var dataRead='';
+    // var onCharRead=function(readInfo) {
+    //     if (!cId) {
+    //       return;
+    //     }
+    //     if (readInfo && readInfo.bytesRead>0 && readInfo.data) {
+    //       var str=ab2str(readInfo.data);
+    //       if (str[readInfo.bytesRead-1]==='\n') {
+    //         dataRead+=str.substring(0, readInfo.bytesRead-1);
+    //         onLineRead(dataRead);
+    //         dataRead="";
+    //       } else {
+    //         dataRead+=str;
+    //       }
+    //     }
+    //   }
+
+
+    // var onGetPorts = function(ports) {
+    //     console.log(ports); 
+    //   // for (var i=0; i<ports.length; i++) {
+    //   //   console.log(ports[i]);
+    //   // }
+    // }
+
+    // var serClose = function(v) { console.log('closed'); }
+    // var serFlus = function(v) { console.log(v); }
+    // var wrote = function(v) { console.log(v); }
+
+    // var onOpen = function(connectionInfo) {
+    //     // The serial port has been opened. Save its id to use later.
+    //     cId = connectionInfo.connectionId;
+
+    //     // Do whatever you need to do with the opened port.
+    //     chrome.serial.write(cId, str2ab("G28\r\n"), wrote);
+    //     chrome.serial.read(cId, 128, onCharRead);
+
+    //     console.log(dataRead);
+
+    //     chrome.serial.flush(connectionId, serFlush);
+    //     chrome.serial.close(connectionId, serClose);
+    // }
+    
+    // chrome.serial.getPorts(onGetPorts);
+    // chrome.serial.open("/dev/tty.usbmodem001", {bitrate: 115200}, onOpen);
+
+
+
+    // initSocket();
+    // console.log();
+
+    chrome.runtime.getPlatformInfo(setHostInfo);
+
+    pollSerialDevices();
     displayGrid();
+
+    console.log(hostInfo);
+    console.log(os);
 
     xTrim = $('#print-area').offset().top - 11;
     yTrim = $('#print-area').offset().left - 11;
