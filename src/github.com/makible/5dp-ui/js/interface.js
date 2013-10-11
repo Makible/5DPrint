@@ -3,7 +3,7 @@
 var MAGICNUM = 3.78,
     POINTERVISUALOFFSET = 5,
     INDICATOR_COLOR = 'rgba(178, 18, 18, 0.8)',
-    IND_GHOST_COLOR = 'rgba(178, 18, 18, 0)';
+    IND_GHOST_COLOR = 'rgba(178, 18, 18, 0.4)';
 
 var devTpl;
 

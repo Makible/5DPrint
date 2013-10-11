@@ -421,7 +421,8 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			Body:       resp,
 		}
 	case action.LOAD_FILE:
-		var job mk.Job
+		job := &mk.Job { Status: mk.JOB_NIL }
+
 		if err := json.Unmarshal([]byte(msg.Body), &job); err != nil {
 			logger.Error("DigestMsg > action.LOAD_FILE: ", err)
 			outMsg = &comm.Message{
@@ -505,6 +506,7 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 			return
 		}
 
+		job.Status = mk.JOB_PENDING
 		d.JobItem = job
 		outMsg = &comm.Message{
 			DeviceName: d.Name,
@@ -550,6 +552,29 @@ func DigestMsg(msg *comm.Message) (outMsg *comm.Message) {
 	case action.PAUSE_JOB:
 	case action.RESUME_JOB:
 	case action.STOP_JOB:
+	case action.DUMP_JOB:
+		d := devices[msg.DeviceName]
+		if d == nil {
+			outMsg = &comm.Message{
+				DeviceName: msg.DeviceName,
+				Action:     action.DISCONNECTED,
+				Body:       "",
+			}
+			return
+		}
+
+		if d.JobItem.Status == mk.JOB_RUNNING {
+			outMsg = &comm.Message {
+				DeviceName: msg.DeviceName,
+				Action: 	action.ERROR
+			}
+		}
+		//	TODO ::
+		//	if job.Status == JOB_RUNNING send notify to UI
+
+
+		//	remove file
+		//	reset job status
 	case action.EMERGENCY:
 	case action.MACRO:
 		d := devices[msg.DeviceName]

@@ -29,6 +29,7 @@ type Tool struct {
 type Job struct {
 	Name      string
 	Data      string
+	Status    string
 	StartTime time.Time
 	RunTime   time.Duration
 }

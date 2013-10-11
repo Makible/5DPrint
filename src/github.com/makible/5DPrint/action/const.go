@@ -22,7 +22,8 @@ const (
 	PAUSE_JOB    = "action.pause-job"
 	RESUME_JOB   = "action.resume-job"
 	STOP_JOB     = "action.stop-job"
-	COMPLETE_JOB = "action.complete-job"
+	DUMP_JOB     = "action.dump-job"
+	JOB_COMPLETE = "action.job-complete"
 	EMERGENCY    = "action.emergency-stop"
 	MACRO        = "action.macro"
 )

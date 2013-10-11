@@ -278,7 +278,12 @@ var paClickHandler = function(evt) {
 
         break;
     case 'reset':
-        
+        //  dump the file on the server
+        notifyServer('action.dump-job', '');
+        //  clear canvas
+        paths = new Array();
+        resetAndDrawPaths();
+
         break;
     default:
         //  
