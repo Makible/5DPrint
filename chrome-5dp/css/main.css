@@ -118,6 +118,12 @@ nav,
     user-select: none;
 }
 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .btn { cursor: pointer; }
 .icon-celcius:after {
     margin-right: -18px; 
@@ -126,8 +132,7 @@ nav,
 
 nav {
     position: relative;
-    /*margin: 34px auto;*/
-    margin: 1% auto;
+    margin: 34px auto;
     width: 317px;
     height: 54px;
     border-radius: 8px;
@@ -340,12 +345,10 @@ nav #devices-overlay ul li div.dev-file {
 
 #print-area {
     position: relative;
-    /*margin: 60px auto;*/
-    margin: 0 auto;
+    margin: 64px auto;
     top: 38px;
-    min-width: 780px;
-    max-width: 800px;
-    height: 560px;
+    width: 768px;
+    height: 542px;
     border: 1px solid transparent;
     /*border: 1px solid #aaa;*/
 }
@@ -360,14 +363,14 @@ nav #devices-overlay ul li div.dev-file {
 
 #x {
     top: 40px;
-    left: 80px;
+    left: 56px;
     height: 415px;
     width: 4px;
 }
 
 #y {
-    top: 0px;
-    left: 119px;
+    top: -8px;
+    left: 102px;
     width: 567px;
     height: 4px;
 }
@@ -380,9 +383,7 @@ nav #devices-overlay ul li div.dev-file {
     color: #222;
     background-color: #bbb;
     border: 1px solid #333;
-    /*border-radius: 42px;*/
-    box-shadow: 
-        inset 0px 0px 1px rgba(0, 0, 0, 0.8),
+    box-shadow: inset 0px 0px 1px rgba(0, 0, 0, 0.8),
         1px 1px 3px rgba(0, 0, 0, 0.4);
     cursor: pointer;
 }
@@ -437,19 +438,6 @@ nav #devices-overlay ul li div.dev-file {
     z-index: 20;
 }
 
-/*
-#active-dev {
-    position: absolute;
-    top: -2px;
-    left: 168px;
-    width: 228px;
-    height: 0px;
-    border-radius: 4px 4px 0 0;
-    box-shadow: inset 0px -3px 3px rgba(45, 45, 45, 0.8);
-    display: none;
-}
-*/
-
 #active-dev {
     position: absolute;
     bottom: -28px;
@@ -470,7 +458,6 @@ nav #devices-overlay ul li div.dev-file {
     line-height: 1.4em;
     cursor: auto;
     z-index: 1;
-    /*display: none;*/
 }
 
 #active-dev.no-device { 
@@ -532,7 +519,7 @@ nav #devices-overlay ul li div.dev-file {
 #tools {
     position: absolute;
     top: 70px;
-    right: 14px;
+    right: 8px;
     width: 80px;
     text-transform: uppercase;
     text-align: center;
@@ -559,6 +546,26 @@ nav #devices-overlay ul li div.dev-file {
     width: 37px;
     height: 24px;
     display: inline-block; 
+}
+
+input.req {
+    display: inline-block;
+    margin-top: 1px;
+    margin-left: -4px;
+    width: 37px;
+    height: 24px;
+    border: 0;
+    font-size: 0.8em;
+    line-height: 2.6em;
+    text-align: center;
+}
+
+#tools .wrapper div.req.icon-celcius {
+    display: inline-block;
+    margin-left: -8px;
+    width: 0;
+    height: 0;
+    vertical-align: top;
 }
 
 #tools .wrapper .move-wrapper div:hover, 
@@ -608,12 +615,6 @@ nav #devices-overlay ul li div.dev-file {
     cursor: default;
 }
 
-.req {
-    font-size: 0.8em;
-    line-height: 2.6em;
-    cursor: pointer;
-}
-
 .act .deg { font-size: 0.8em; }
 .req .deg, .dev-temp .deg { font-size: 0.6em; }
 
@@ -636,7 +637,7 @@ nav #devices-overlay ul li div.dev-file {
 }
 
 #console-area { 
-    margin-top: 110px;
+    margin-top: 64px;
     box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.4); 
 }
 
@@ -666,7 +667,7 @@ nav #devices-overlay ul li div.dev-file {
 
 #console-area .wrapper .handle {
     margin-left: -4px;
-    width: 37px;
+    width: 39px;
     height: 28px;
     border: 0;
     border-left: 1px solid rgba(100, 100, 100, 0.4);
