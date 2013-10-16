@@ -26,6 +26,9 @@ function Commands() {
     this.SET_WAIT_BDTEMP = 'M190 S';
     this.SET_WAIT_EXTEMP = 'M109 S';
 
+    this.PAUSE  = 'M226 P1' + CMD_TERMINATOR;
+    this.RESUME = 'M226 P0' + CMD_TERMINATOR;
+
     this.GET_FSTATS = [ 
             this.GET_TEMP, 
             this.POSITION, 

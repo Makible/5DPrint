@@ -1,6 +1,17 @@
 @charset "UTF-8";
 
 @font-face {
+    font-family: 'Norwester';
+    src: url('/fonts/norwester.eot');
+    src: url('/fonts/norwester.eot?#iefix') format('embedded-opentype'),
+         url('/fonts/norwester.woff') format('woff'),
+         url('/fonts/norwester.ttf') format('truetype'),
+         url('/fonts/norwester.svg#norwester') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
     font-family: 'OpenSansLight';
     src: url('/fonts/OpenSans-Light-webfont.eot');
     src: url('/fonts/OpenSans-Light-webfont.eot?#iefix') format('embedded-opentype'),
@@ -123,9 +134,9 @@
 @font-face {
   font-family: '5dprint';
   src: url("/fonts/5dprint.eot?89084297");
-  src: url("../fonts/5dprint.eot?89084297#iefix") format('embedded-opentype'), 
+  src: url("/fonts/5dprint.eot?89084297#iefix") format('embedded-opentype'), 
        url("/fonts/5dprint.woff?89084297") format('woff'), 
-       url("../font/5dprint.ttf?89084297") format('truetype'), 
+       url("/font/5dprint.ttf?89084297") format('truetype'), 
        url("/fonts/5dprint.svg?89084297#5dprint") format('svg');
   font-weight: normal;
   font-style: normal;

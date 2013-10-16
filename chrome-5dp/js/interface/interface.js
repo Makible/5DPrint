@@ -1,35 +1,48 @@
 const ZEDIST = 5;
 const DEFSPEED = 2000;
 
-var devTpl, 
+var w,
+    h,
+    ph,
+    ct,
+    pp,
+    bgLayer,
+    hlLayer,
+    cLayer,
+    objLayer,
+    phLayer,
+    loadLayer,
+    paths,
+    devTpl, 
     xTrim, 
     yTrim,
     prevTemp = 0,
     pfPrepd = 0,
     socket,
     mouseDownHandler,
-    connTimer;  //  timer to check for initial device attachment
+    connTimer;
 
 function Indicator() {
     this.r = POINTER_OFFSET;
     this.x = 0;
     this.y = 0;
     this.color = '';
-    this.drawFill = function() {
-        phLayer.ctx.beginPath();
-        phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-        phLayer.ctx.strokeStyle = this.color;
-        phLayer.ctx.fillStyle = this.color;
-        phLayer.ctx.fill();
-    };
-
-    this.drawStroke = function() {
-        phLayer.ctx.beginPath();
-        phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-        phLayer.ctx.strokeStyle = this.color;
-        phLayer.ctx.stroke();
-    };
 }
+
+Indicator.prototype.drawFill = function() {
+    phLayer.ctx.beginPath();
+    phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+    phLayer.ctx.strokeStyle = this.color;
+    phLayer.ctx.fillStyle = this.color;
+    phLayer.ctx.fill();
+};
+
+Indicator.prototype.drawStroke = function() {
+    phLayer.ctx.beginPath();
+    phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+    phLayer.ctx.strokeStyle = this.color;
+    phLayer.ctx.stroke();
+};
 
 function Layer(c) {
     this.canvas = c;
@@ -37,8 +50,6 @@ function Layer(c) {
     this.w      = $(c).attr('width');
     this.h      = $(c).attr('height');
 }
-
-var bgLayer, hlLayer, cLayer, objLayer, phLayer, loadLayer, w, h, ph, ct, pp, paths;
 
 function uiInit() {
     //  grab device UI template
@@ -59,13 +70,17 @@ function uiInit() {
     pp      = undefined;
     paths   = new Array();
 
-    ph.color = INDICATOR_COLOR; 
+    ph.color = RED_INDICATOR; 
     ph.x     = 0;
     ph.y     = 0;
 
     $('body')[0].onkeydown = function(evt) {
-        if(evt.keyCode == 27 && $('#console-area > .output').is(':visible'))
-            collapseConsoleOutput();
+        if(evt.keyCode == 27) { 
+            if($('#console-area > .output').is(':visible'))
+                collapseConsoleOutput();
+            else
+                expandConsoleOutput();
+        }
     };
 }
 
@@ -354,13 +369,14 @@ var updateStatsUI = function(stats) {
 var updatePrintUI = function(pcmd) {
     if(pcmd.indexOf(cmd.MOVE) > -1) {
         if(pcmd.indexOf('Z') > -1) {
-            //  clear old
+            //  clear prev++ layer and prep
+            //  for prev layer plotting
             hlLayer.ctx.clearRect(0, 0, w, h);
             hlLayer.ctx.beginPath();
+            hlLayer.ctx.strokeStyle = RED_IND_GHOST;
             hlLayer.ctx.moveTo(paths[0].x, paths[0].y);
-            hlLayer.ctx.strokeStyle = IND_GHOST_COLOR;
 
-            //  plot new
+            //  plot prev
             for(var i = 1; i < paths.length; i++) {
                 hlLayer.ctx.lineTo(paths[i].x, paths[i].y);
                 hlLayer.ctx.moveTo(paths[i].x, paths[i].y);
@@ -370,6 +386,7 @@ var updatePrintUI = function(pcmd) {
             hlLayer.ctx.stroke();
             hlLayer.ctx.closePath();
 
+            //  reset "active" layer
             objLayer.ctx.closePath();
             objLayer.ctx.clearRect(0, 0, w, h);
             objLayer.ctx.beginPath();
@@ -379,20 +396,23 @@ var updatePrintUI = function(pcmd) {
 
         //  need to flip the X and Y here because of the way the
         //  physical printer is versus virtual via screen X / Y
-        var mx, my, _pcmd = pcmd.split(' ');
+        var mx, my, me, _pcmd = pcmd.split(' ');
         for(var i = 0; i < _pcmd.length; i++) {
             if(_pcmd[i].indexOf('X') > -1)
                 my = millimeterToPixel(_pcmd[i].substring(1));
 
             if(_pcmd[i].indexOf('Y') > -1)
                 mx = millimeterToPixel(_pcmd[i].substring(1));
+
+            if(_pcmd[i].indexOf('E') > -1)
+                me = millimeterToPixel(_pcmd[i].substring(1));
         }
 
-        paths.push({ x: mx, y: my });
+        paths.push({ x: mx, y: my, e: me });
         ph.x = mx, ph.y = my;
 
         //  only draw the new path here
-        objLayer.ctx.strokeStyle = INDICATOR_COLOR;
+        objLayer.ctx.strokeStyle = RED_INDICATOR;
         objLayer.ctx.lineTo(mx, my);
         objLayer.ctx.moveTo(mx, my);
         objLayer.ctx.stroke();
@@ -433,8 +453,40 @@ var updatePrintUI = function(pcmd) {
 };
 
 var resetPrintUI = function() {
-    //  
-    notify({ title: "TODO ::", message: "not done yet" });
+    $('#print-pause')
+        .removeClass('icon-pause')
+        .addClass('icon-play');
+    loadContentToUI(active.job.content);
+};
+
+var loadContentToUI = function(content) {
+    paths = new Array();
+    paths.push({ x:0, y:0 });
+
+    //  loop through the file, getting each 'G1' line and loading the
+    //  x / y coords into the paths array, ignoring the commented rows
+    for(var i = 0; i < content.length; i++) {
+        if(content[i] && content[i] != undefined
+            && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1) 
+            && (content[i].indexOf('G1 X') > -1 || content[i].indexOf('G1 Y') > -1)) {
+
+            var move, mx, my;
+            move = content[i].split(' ');
+
+            for(var j = 0; j < move.length; j++) {
+                if(move[j].indexOf('X') > -1)
+                    mx = millimeterToPixel(move[j].substring(1));
+
+                if(move[j].indexOf('Y') > -1)
+                    my = millimeterToPixel(move[j].substring(1));
+            }
+            paths.push({ x: my, y: mx });
+        }
+    }
+
+    if(paths.length == 1)
+        paths = new Array();
+    resetAndDrawPaths();
 };
 
 var detachBtnHandlers = function() {
@@ -443,6 +495,7 @@ var detachBtnHandlers = function() {
     $('#devices').off('click');
     $('#homing > div').off('click');
     $('#tools > .wrapper > .move-wrapper > div').off('click')
+    $('#tools > .wrapper > input').click('click').off('blur')[0].onkeydown = undefined;
     $('#console-area').off('click');
     $('#console-nav').off('click');
     $('#console-area > .wrapper > input').off('blur').off('focus').off('keydown');
@@ -456,27 +509,18 @@ var detachDeviceFromUI = function(device) {
     if(active.name == device) {
         //  update active display
         if($('#devices-overlay > ul > li').length > 0) {
-            // var item = $('#devices-overlay > ul > li:first');
-
-            // $(item).addClass('selected');
-            // setAsActiveDevice(devices[$(item).find('.dev-name').html()]);
+            var item = $('#devices-overlay > ul > li:first');
+            $(item).addClass('selected');
+            setAsActiveDevice(devices[$(item).find('.dev-name').html()]);
         } else {
             active = undefined;
             $('#active-dev')
                 .html('no device')
                 .addClass('no-device');
+            detachBtnHandlers();
+            detachMovers();
         }
     }
-
-};
-
-var initUIForPrinting = function() {
-    //  switch icon to pause icon
-    //  remove most button listeners except 
-    //      for the temp control, stop/pause and 
-    //      device switching
-    //  
-
 };
 
 //  =====================
@@ -527,37 +571,9 @@ var paClickHandler = function(evt) {
                 active.job.filename = fname;
                 active.job.content = content;
                 active.job.status = 'pending';
+                loadContentToUI(content);
 
-                paths = new Array();
-                paths.push({ x:0, y:0 });
-
-                //  loop through the file, getting each 'G1' line and loading the
-                //  x / y coords into the paths array, ignoring the commented rows
-                for(var i = 0; i < content.length; i++) {
-                    if(content[i] && content[i] != undefined
-                        && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1) 
-                        && (content[i].indexOf('G1 X') > -1 || content[i].indexOf('G1 Y') > -1)) {
-
-                        var move, mx, my;
-                        move = content[i].split(' ');
-
-                        for(var j = 0; j < move.length; j++) {
-                            if(move[j].indexOf('X') > -1)
-                                mx = millimeterToPixel(move[j].substring(1));
-
-                            if(move[j].indexOf('Y') > -1)
-                                my = millimeterToPixel(move[j].substring(1));
-                        }
-                        paths.push({ x: my, y: mx });
-                    }
-                }
-
-                if(paths.length == 1)
-                    paths = new Array();
-
-                resetAndDrawPaths();
                 $('#fl').remove();
-
                 notify({ title: "File Loaded", message: "File loaded and ready for printing" });
             };
         });
@@ -570,27 +586,76 @@ var paClickHandler = function(evt) {
         break;
     case 'print-pause':
         if(!active.job.filename || active.job.filename == '') {
-            $('#file-picker').click();
+            notify({ 
+                title: "No File",
+                message: "Please load a valid gcode file to print"
+            });
             return;
         }
 
-        if(active.job.status !== 'in-progess') {
-            active.job.status = 'running';
-            active.startPendingJob();
+        //  do it
+        if(active.job.status == 'pending') {
             $('#print-pause')
                 .removeClass('icon-play')
                 .addClass('icon-pause');
 
+            active.job.status = 'running';
+            active.startPendingJob();
+
             paths = new Array();
             resetAndDrawPaths();
-        } else {
-            //  push pause to printer
+            break;
+        } 
 
+        //  since we update active.job.status here
+        //  the print queue will see this and send
+        //  over the pause cmd and leave the queue
+        if(active.job.status == 'running') {
+            $('#print-pause')
+                .removeClass('icon-pause')
+                .addClass('icon-play');
+
+            active.job.status = 'paused';
+            break;
+        }
+
+        if(active.job.status == 'paused') {
+            $('#print-pause')
+                .removeClass('icon-play')
+                .addClass('icon-pause');
+            
+            active.job.status = 'running';
+            active.resume();
+            break;
         }
 
         break;
     case 'reset':
-        
+        //  TODO ::
+        //  should we display a warning notification 
+        //  here if active.job.status == running ??
+
+        if(active.job.status == 'running')
+            active.hardStop = !0;
+
+        // if(active.job.status == 'paused')
+        //     active.resume();
+
+        // notify({
+        //     title:   'WARNING',
+        //     message: 'Abandoning paused print will resume the old to clear out the print buffer'
+        // });
+
+        $('#print-pause')
+            .removeClass('icon-pause')
+            .removeClass('icon-play')
+            .addClass('icon-play');
+        active.job = new Job();
+        active.getFullStats();
+
+        paths = new Array();
+        resetAndDrawPaths();
+
         break;
     default:
         notify({ title: "Invalid Action", message: "To be honest, not sure how we got to this point: " + $(evt.target).attr('id') });
@@ -629,7 +694,7 @@ var canvasClickHandler = function(evt) {
     pp = new Indicator();
     pp.x = osx;
     pp.y = osy;
-    pp.color = IND_GHOST_COLOR;
+    pp.color = RED_IND_GHOST;
 
     movePrintHead(osx, osy);   
 };
@@ -765,7 +830,6 @@ var attachMovers = function() {
 
         var dist = pixelToMillimeter(ph.y) + ',' + pixelToMillimeter(ph.x);
         active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
-
         attachMovers();
     });
 
@@ -784,10 +848,8 @@ var detachMovers = function() {
     $('.slider').off('click');
     $('.slider > .handle').off('mouseup');
 
-    if($('.handle').is(':ui-draggable')) {
+    if($('.handle').is(':ui-draggable'))
         $('.handle:ui-draggable').draggable('destroy');
-        attachSliderHandlers();
-    }
 };
 
 var movePrintHead = function(offsetX, offsetY) {
@@ -852,16 +914,13 @@ var resetAndDrawPaths = function() {
     objLayer.ctx.closePath();
     objLayer.ctx.clearRect(0, 0, w, h);
     objLayer.ctx.beginPath();
+    objLayer.ctx.strokeStyle = RED_IND_GHOST;
 
     if(paths.length > 0) {
-        objLayer.ctx.strokeStyle = IND_GHOST_COLOR;
         objLayer.ctx.moveTo(paths[0].x, paths[0].y);
-
         for(var i = 1; i < paths.length; i++) {
-            var x = paths[i].x, 
-                y = paths[i].y;
-            objLayer.ctx.lineTo(x, y);
-            objLayer.ctx.moveTo(x, y);
+            objLayer.ctx.lineTo(paths[i].x, paths[i].y);
+            objLayer.ctx.moveTo(paths[i].x, paths[i].y);
         }
     }
     objLayer.ctx.stroke();

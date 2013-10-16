@@ -7,9 +7,11 @@ function Job() {
     this.status     = 'empty';
     this.filename   = '';
     this.content    = '';
-    this.starttime  = undefined;
-    this.endtime    = undefined;
-    this.pausedur   = undefined;
+    this.start      = undefined;
+    this.end        = undefined;
+    this.pause      = undefined;
+    this.pauseddur  = 0;
+    this.pausedidx  = -1;
 }
 
 function Device(name) {
@@ -29,7 +31,11 @@ Device.prototype.connect = function(callback) {
 };
 
 Device.prototype.onopen = function(info) {
-    notify({ title: "Device Attached", message: this.name + " has been attached" });
+    notify({ 
+        title: "Device Attached", 
+        message: this.name + " has been attached" 
+    });
+
     this.conn = info.connectionId;
     if(this.callbacks.connect)
         this.callbacks.connect();
@@ -251,52 +257,90 @@ Device.prototype.console = function(input, callback) {
 Device.prototype.startPendingJob = function() {
     window.clearInterval(this.statPollTimer);
     chrome.power.requestKeepAwake('system');
-    var msg = 'NOTE: during the print, your display may go'
-        + ' sleep (depending on your OS settings) but your system'
-        + ' will not. Once the print is complete, your system will'
-        + ' return to the normal settings';
-    notify({ title: "Starting Print", message: msg });
 
     var idx = 0,
-        _d = this;
+        _d = this,
+        msg = 'The warming process can take some time. Please be patient.'
+            + ' During the print, your display may go to sleep (depending'
+            + ' on your OS settings) though your system will not. Once'
+            + ' the print is complete, your system will resume using the'
+            + ' OS settings previously set.';
+    notify({ title: "Starting Print", message: msg });
 
-    _d.job.starttime = new Date().getTime();
-    var _process = function() {
-        if(_d.hardStop) return;
 
-        if(idx >= _d.job.connected.length) {
-            //  clean up after print
-            _d.job.endtime = new Date().getTime();
-            _d.job.status = 'complete';
+    _d.job.start = new Date().getTime();
+    runAtIdx(_d, idx);
+};
 
-            resetPrintUI();
+Device.prototype.resume = function() {
+    var _d = this;
+    _d.write(cmd.RESUME, function(w) {
+        notify({
+            title:   'Resuming Print',
+            message: 'Please wait. This may take a moment.'
+        });
 
-            //  TODO ::
-            //  notify time to complete
+        _d.job.pauseddur += (new Date().getTime()) - _d.job.paused;
+        runAtIdx(_d, _d.job.pausedidx);
+    });
+};
 
-            chrome.power.releaseKeepAwake();
-            notify({ title: "Completed Print", message: "your system is now at the normal power settings" });
-            return;
-        }
+var runAtIdx = function(device, idx) {
+    if(device.hardStop) {
+        device.hardStop = 0;
+        return;
+    }
 
-        var _cmd = _d.job.content[idx].trim();
-        idx++;
+    if(device.job.status == 'paused') {
+        device.job.pausedidx = idx;
+        device.job.paused = new Date().getTime();
 
-        if(_cmd.indexOf(';') != 0 && _cmd.length > 1) {
-            updatePrintUI(_cmd);
+        device.write(cmd.PAUSE, function(w) { if(w.bytesWritten < 0) device.destroy(); });
 
-            if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
-                _cmd += CMD_TERMINATOR
+        notify({ 
+            title: "Paused", 
+            message: "Click PLAY to continue or RESET to start fresh" 
+        });
+        return;
+    }
 
-            _d.write(_cmd, function(w) { if(w.bytesWritten < 0) _d.destroy(); });
-            _d.readall(function(data) {
-                updateConsoleOutput(data);
-                _process();
-            });
-        } else
-            _process();
-    };
-    _process();
+    if(idx >= device.job.content.length || 
+        device.job.content[idx] == undefined) {
+
+        //  clean up after print
+        device.job.end = new Date().getTime();
+        device.job.status = 'complete';
+        device.statPollTimer = window.setInterval(function() { device.getTemp(); }, 800);
+
+        resetPrintUI();
+
+        //  TODO ::
+        //  notify time to complete
+
+        chrome.power.releaseKeepAwake();
+        notify({ 
+            title: "Completed Print", 
+            message: "your system is now at the normal power settings" 
+        });
+        return;
+    }
+
+    var _cmd = device.job.content[idx].trim();
+    idx++;
+
+    if(_cmd.indexOf(';') == 0 || _cmd.length <= 1)
+        runAtIdx(device, idx);
+    else {
+        updatePrintUI(_cmd);
+        if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
+            _cmd += CMD_TERMINATOR
+
+        device.write(_cmd, function(w) { if(w.bytesWritten < 0) device.destroy(); });
+        device.readall(function(data) {
+            updateConsoleOutput(data);
+            runAtIdx(device, idx);
+        });
+    }
 };
 
 var pollSerialDevices = function() {
