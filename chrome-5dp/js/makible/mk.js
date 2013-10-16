@@ -1,7 +1,12 @@
 const CMD_TERMINATOR = '\r\n';
-
-var cmd = new Commands();
-var action = new Action();
+const NOTIFY_ICON = 'img/icon_128.png';
+const NATURALS = { 
+    'DROP':  'G1 Z80 F2000\r\n', 
+    'RAISE': 'G1 Z0 F2000\r\n', 
+    'LOAD':  'G92 E0\r\nG1 F2000 E250\r\nM84\r\n', 
+    'EJECT': 'G92 E0\r\nG1 F2000 E-250\r\nM84\r\n',
+    'MOFF':  'M84\r\n'
+};
 
 function Commands() {
     this.MOVE    = 'G1';
@@ -31,11 +36,6 @@ function Commands() {
             this.FMWARE_INFO 
         ];
 }
-    
-
-function Action() {
-    // this.MOVE = 'action.move';
-}
 
 //  rs Responses
 function Resends() {
@@ -44,3 +44,5 @@ function Resends() {
     this.CMD_OOR = '(command code out of range)'
     this.CMD_MSS = '(command code missing)'
 }
+
+var cmd = new Commands();

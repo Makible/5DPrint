@@ -1,6 +1,7 @@
-var hostInfo, os;
+var hostInfo, os, notifyId;
 
 var init = function(info) { 
+    notifyId = 0;
     hostInfo = info;
     config();
 
@@ -16,10 +17,13 @@ var config = function() {
     if(typeof window[hostInfo.os] === 'function')
         window[hostInfo.os]();
     else {
-        //
-        //  TODO ::
-        //  user chrome notification here
-        console.log('OS not supported: ' + hostInfo.os);
+        var opts = {
+            type: "basic",
+            title: "OS Support Issue",
+            message: "Unfortunately, your OS is not supported at this time.",
+            iconUrl: NOTIFY_ICON
+        };
+        chrome.notifications.create('oserr-' + (notifyId++), opts, function(info) { });
     }
 };
 

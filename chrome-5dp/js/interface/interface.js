@@ -1,13 +1,12 @@
 const ZEDIST = 5;
 const DEFSPEED = 2000;
 
-var devTpl, xTrim, yTrim,
+var devTpl, 
+    xTrim, 
+    yTrim,
     prevTemp = 0,
     pfPrepd = 0,
-    xTrim,
-    yTrim,
     socket,
-    naturals,
     mouseDownHandler,
     connTimer;  //  timer to check for initial device attachment
 
@@ -63,6 +62,11 @@ function uiInit() {
     ph.color = INDICATOR_COLOR; 
     ph.x     = 0;
     ph.y     = 0;
+
+    $('body')[0].onkeydown = function(evt) {
+        if(evt.keyCode == 27 && $('#console-area > .output').is(':visible'))
+            collapseConsoleOutput();
+    };
 }
 
 var displayGrid = function() {
@@ -82,8 +86,9 @@ var displayGrid = function() {
 };
 
 var setSlideTrimmers = function() {
-    xTrim = $('#print-area').offset().top - 11;
-    yTrim = $('#print-area').offset().left - 11;
+    var shim = 14;
+    xTrim = $('#print-area').offset().top - shim;
+    yTrim = $('#print-area').offset().left - shim;
 };
 
 var attachDeviceToInterface = function(device) {
@@ -91,7 +96,7 @@ var attachDeviceToInterface = function(device) {
 
     $(li).find('.dev-name').html(device.name);
     $(li).find('.dev-status').html(device.name);
-    $(li).find('.dev-temp').html('E:0 || B:0');
+    $(li).find('.dev-temp').html('E:0 / B:0');
     $(li).find('.dev-file').html('no print loaded');
 
     $('#devices-overlay > ul').append(li);
@@ -114,8 +119,8 @@ var setAsActiveDevice = function(device) {
     attachBtnHandlers();
     attachSliderHandlers();
     attachMovers();
-    //  detach old event listeners
-    //  and re-attach for new device
+
+    movePrintHead(0, 0);
 };
 
 var attachBtnHandlers = function() {
@@ -155,31 +160,11 @@ var attachBtnHandlers = function() {
 
     var inp = $('#console-area > .wrapper > input');
     $(inp).on('blur', function(evt) { 
-        $(inp).addClass('ghost')
-            .val('enter manual commands here'); 
+        $(inp).addClass('ghost').val(''); 
     }).on('focus', function(evt) { 
         $(evt.target).val('');
         if($(evt.target).hasClass('ghost'))
             $(evt.target).removeClass('ghost');
-    }).on('keydown', function(evt) {
-        if(evt.keyCode == 13) {
-            if($(evt.target).val() != '' || $(evt.target).val().length > 2) {
-                var val = $(evt.target).val().toUpperCase();
-                if(val == 'HELP') {
-                    //  list out macro options
-                    $(evt.target).focus();
-                    return
-                }
-
-                if(naturals[val] != undefined)
-                    active.macro(val);
-                else 
-                    pushConsoleMsg(val);
-                $('#console-nav > .down').click();
-            }
-
-            $(evt.target).val('').focus();
-        }
     });
 
     $('#tools > .wrapper > .power-wrapper > div').on('click', powerToggleClickHandler);
@@ -213,6 +198,16 @@ var attachBtnHandlers = function() {
 
     //  
     //  jQuery.on('keydown', ...) breaks the standard input func
+    $('#console-area > .wrapper > input')[0].onkeydown = function(evt) {
+        if(evt.keyCode == 13) {
+            if($(evt.target).val() != '' || $(evt.target).val().length > 2) {
+                active.console($(evt.target).val().toUpperCase());
+                $('#console-nav > .down').click();
+            }
+            $(evt.target).val('').focus();
+        }
+    };
+
     $('#tools > .wrapper > input.req')[0].onkeydown = function(evt) {
         if(evt.which == 13) {
             ($(evt.target).html()).replace(/\<br\>/g, '');
@@ -356,6 +351,92 @@ var updateStatsUI = function(stats) {
     }
 };
 
+var updatePrintUI = function(pcmd) {
+    if(pcmd.indexOf(cmd.MOVE) > -1) {
+        if(pcmd.indexOf('Z') > -1) {
+            //  clear old
+            hlLayer.ctx.clearRect(0, 0, w, h);
+            hlLayer.ctx.beginPath();
+            hlLayer.ctx.moveTo(paths[0].x, paths[0].y);
+            hlLayer.ctx.strokeStyle = IND_GHOST_COLOR;
+
+            //  plot new
+            for(var i = 1; i < paths.length; i++) {
+                hlLayer.ctx.lineTo(paths[i].x, paths[i].y);
+                hlLayer.ctx.moveTo(paths[i].x, paths[i].y);
+            }
+
+            //  draw
+            hlLayer.ctx.stroke();
+            hlLayer.ctx.closePath();
+
+            objLayer.ctx.closePath();
+            objLayer.ctx.clearRect(0, 0, w, h);
+            objLayer.ctx.beginPath();
+
+            paths = new Array();
+        }
+
+        //  need to flip the X and Y here because of the way the
+        //  physical printer is versus virtual via screen X / Y
+        var mx, my, _pcmd = pcmd.split(' ');
+        for(var i = 0; i < _pcmd.length; i++) {
+            if(_pcmd[i].indexOf('X') > -1)
+                my = millimeterToPixel(_pcmd[i].substring(1));
+
+            if(_pcmd[i].indexOf('Y') > -1)
+                mx = millimeterToPixel(_pcmd[i].substring(1));
+        }
+
+        paths.push({ x: mx, y: my });
+        ph.x = mx, ph.y = my;
+
+        //  only draw the new path here
+        objLayer.ctx.strokeStyle = INDICATOR_COLOR;
+        objLayer.ctx.lineTo(mx, my);
+        objLayer.ctx.moveTo(mx, my);
+        objLayer.ctx.stroke();
+
+        var yw, xh;
+        yw = mx - (Math.floor($('#y > .handle').width() / 2)) - Math.floor(POINTER_OFFSET / 2);
+        xh = my - (Math.floor($('#x > .handle').height() / 2)) - Math.floor(POINTER_OFFSET / 2);
+
+        $('#y > .handle').css('left', yw + 'px');
+        $('#x > .handle').css('top', xh + 'px');
+
+        redrawIndicators();
+
+        //  if devices contains a z movement
+        //  drop the current draw layer down one
+
+        //  else just draw to the current 
+        //
+    }
+
+    if(pcmd.indexOf(cmd.HOME) > -1)
+        homeDeviceUI('all');
+
+    if(pcmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
+        pcmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
+
+        var axis = (pcmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1) ? '#z' : '#e';
+
+        //  toggle the on switch
+        if(!$(axis + ' > .power-wrapper > .on').hasClass('selected')) {
+            $(axis + ' > .power-wrapper > .on').addClass('selected');
+            $(axis + ' > .power-wrapper > .off').removeClass('selected');
+        }
+
+        //  set the "requested" temp
+        $(axis + ' > input').val(pcmd.split(' ')[1].split('S')[1]);
+    }
+};
+
+var resetPrintUI = function() {
+    //  
+    notify({ title: "TODO ::", message: "not done yet" });
+};
+
 var detachBtnHandlers = function() {
     $('#settings').off('click');
     $('#print-action').off('click');
@@ -368,25 +449,25 @@ var detachBtnHandlers = function() {
     $(phLayer.canvas).off('click', canvasClickHandler).off('mouseout').off('mousemove');
 };
 
-var removeDevsFromUI = function() {
-    if($('nav > #settings-overlay').is(':visible'))
-        $('nav > #settings-overlay > .close').click();
+var detachDeviceFromUI = function(device) {
+    var selector = '#devices-overlay > ul > li > .dev-name:contains(\'' + device + '\')';
+    $(selector).parent().remove();
 
-    if($('nav > #devices-overlay').is(':visible'))
-        $('nav > #devices-overlay > .close').click();
+    if(active.name == device) {
+        //  update active display
+        if($('#devices-overlay > ul > li').length > 0) {
+            // var item = $('#devices-overlay > ul > li:first');
 
+            // $(item).addClass('selected');
+            // setAsActiveDevice(devices[$(item).find('.dev-name').html()]);
+        } else {
+            active = undefined;
+            $('#active-dev')
+                .html('no device')
+                .addClass('no-device');
+        }
+    }
 
-    if(!$('#active-dev').hasClass('no-device')) 
-        $('#active-dev').addClass('no-device').html('no device');
-
-    if(!$('#x-home').hasClass('not-homed')) 
-        $('#x-home').addClass('not-homed');
-    if(!$('#y-home').hasClass('not-homed')) 
-        $('#y-home').addClass('not-homed');
-    if(!$('#z-home').hasClass('not-homed')) 
-        $('#z-home').addClass('not-homed');
-
-    $('#devices-overlay > ul').html('');
 };
 
 var initUIForPrinting = function() {
@@ -395,7 +476,7 @@ var initUIForPrinting = function() {
     //      for the temp control, stop/pause and 
     //      device switching
     //  
-    $('#print-pause').removeClass('icon-play').addClass('icon-pause');
+
 };
 
 //  =====================
@@ -430,27 +511,16 @@ var paClickHandler = function(evt) {
 
         $('body').append(inp);
         $(inp).on('change', function(evt) {
-            console.log(evt.target.files);
             var f = evt.target.files[0],
                 fr = new FileReader();
 
             fr.readAsText(f, 'UTF-8');
-            fr.onloadend = function(e) { 
-                //  
-                //  TODO ::
-                //  chrome notification of pending ready
+            fr.onload = function(evt) { };
+            fr.onerror = function(err) {
+                notify({ title: "File Load Issue", message: "Error loading file. Please try again." });
             };
 
-            fr.onerror   = function(e) {
-                console.log(e);
-                //  
-                //  TODO ::
-                //  chrome notification of error
-            };
-
-            fr.onload    = function(evt) {
-                console.log(evt);
-
+            fr.onloadend = function(evt) {
                 var fname   = f.name,
                     content = evt.target.result.split('\n');
 
@@ -487,6 +557,8 @@ var paClickHandler = function(evt) {
 
                 resetAndDrawPaths();
                 $('#fl').remove();
+
+                notify({ title: "File Loaded", message: "File loaded and ready for printing" });
             };
         });
         $(inp).click();
@@ -503,14 +575,17 @@ var paClickHandler = function(evt) {
         }
 
         if(active.job.status !== 'in-progess') {
+            active.job.status = 'running';
             active.startPendingJob();
-            initUIForPrinting();
+            $('#print-pause')
+                .removeClass('icon-play')
+                .addClass('icon-pause');
 
-            //  update #print-pause click event
-        }
-
-        if($('#print-pause').hasClass('icon-pause')) {
+            paths = new Array();
+            resetAndDrawPaths();
+        } else {
             //  push pause to printer
+
         }
 
         break;
@@ -518,8 +593,7 @@ var paClickHandler = function(evt) {
         
         break;
     default:
-        //  
-        console.log('how the hell did we get here?!');
+        notify({ title: "Invalid Action", message: "To be honest, not sure how we got to this point: " + $(evt.target).attr('id') });
         break;
     }
 };
@@ -767,10 +841,10 @@ var movePrintHead = function(offsetX, offsetY) {
 var moveSliders = function(offsetX, offsetY) {
     var t, l;
 
-    t = ph.y - ($('#x > .handle').width() / 2) + POINTER_OFFSET;
+    t = ph.y - Math.floor($('#x > .handle').height() / 2) + Math.floor(POINTER_OFFSET / 2);
     $('#x > .handle').css('top', t+'px');
 
-    l = ph.x - ($('#y > .handle').height() / 2) + POINTER_OFFSET;
+    l = ph.x - Math.floor($('#y > .handle').width() / 2) + Math.floor(POINTER_OFFSET / 2);
     $('#y > .handle').css('left', l+'px');
 };
 
@@ -827,4 +901,10 @@ var pixelToMillimeter = function(p) {
 
 var millimeterToPixel = function(mm) {
     return (mm != 0) ? Math.floor(mm * MAGICNUM) : mm;
+};
+
+var notify = function(conf) {
+    conf['type'] = 'basic';
+    conf['iconUrl'] = NOTIFY_ICON;
+    chrome.notifications.create(conf.title.replace(/\s/g, '_') + (notifyId++), conf, function(info) { });
 };

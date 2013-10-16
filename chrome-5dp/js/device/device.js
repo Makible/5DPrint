@@ -4,9 +4,12 @@ const HEISS  = "// *** Hot-end heater does not appear to be responding";
 var devices, active, devicePollTimer, connTimer;
 
 function Job() {
-    this.status   = 'empty';
-    this.filename = '';
-    this.content  = '';
+    this.status     = 'empty';
+    this.filename   = '';
+    this.content    = '';
+    this.starttime  = undefined;
+    this.endtime    = undefined;
+    this.pausedur   = undefined;
 }
 
 function Device(name) {
@@ -16,6 +19,7 @@ function Device(name) {
     this.b              = 0;    //  bed temp
     this.job            = new Job();
     this.statPollTimer  = -1;
+    this.hardStop       = 0;
     this.callbacks      = {};
 }
 
@@ -25,11 +29,8 @@ Device.prototype.connect = function(callback) {
 };
 
 Device.prototype.onopen = function(info) {
+    notify({ title: "Device Attached", message: this.name + " has been attached" });
     this.conn = info.connectionId;
-    //  
-    //  TODO ::
-    //  chrome notification of device connection
-
     if(this.callbacks.connect)
         this.callbacks.connect();
 };
@@ -58,12 +59,8 @@ Device.prototype.readall = function(callback) {
         if(data.indexOf('rs') === 0)
             throw 'Device requested a resend';
 
-        if(data.indexOf(HEISS) > -1) {
-            //  
-            //  TODO ::
-            //  warn user of hot-end issue
-            //  via chrome notification
-        }
+        if(data.indexOf(HEISS) > -1) 
+            notify({ title: "WARNING", message: data });
 
         if(data.indexOf('ok') > -1) {
             callback(result);
@@ -94,19 +91,19 @@ Device.prototype.onwrite = function(info) {
         this.callbacks.write(info);
 };
 
-Device.prototype.close = function(callback) {
-    if(this.statPollTimer > -1) 
-        window.clearInterval(this.statPollTimer);
+Device.prototype.destroy = function(callback) {
+    var _device = this;
+    if(_device.statPollTimer > -1) 
+        window.clearInterval(_device.statPollTimer);
 
-    serial.flush(this.conn, function(info) { });
-    serial.close(this.conn, function(info) {
-        console.log(this.name + ' is now closed');
+    _device.hardStop = !0; //  force-stop any jobs for this device
+    detachDeviceFromUI(_device.name);
+    chrome.power.releaseKeepAwake();
 
-        delete devices[this.name];  //  remove device from list
-
-        //
-        //  TODO ::
-        //  chrome notification of closure
+    serial.flush(_device.conn, function(info) { });
+    serial.close(_device.conn, function(info) {
+        delete devices[_device.name];  //  remove device from list
+        notify({ title: "Device Detached", message: _device.name + " has been detached" });
     });
 };
 
@@ -125,24 +122,30 @@ Device.prototype.str2ab = function(str, callback) {
 };
 
 Device.prototype.getFullStats = function() {
-    var _d = this, result = '';
+    var _d     = this, 
+        result = '';
 
-    // 
     //  oh now... this won't cause any issues down the road /s
     var get = function(idx) {
-        _d.write(cmd.GET_FSTATS[idx], function() { });
-        _d.readall(function(data) {
-            result += data;
-            idx++;
-
-            if(idx < cmd.GET_FSTATS.length)
-                get(idx);
+        _d.write(cmd.GET_FSTATS[idx], function(w) {
+            if(w.bytesWritten < 0)
+                _d.destroy();
             else {
-                updateConsoleOutput(data);
-                _d.updateStats('--FULL STATS\n'+result);
-                _d.statPollTimer = window.setInterval(pollTemp, 800);
+                _d.readall(function(data) {
+                    result += data;
+                    idx++;
+
+                    if(idx < cmd.GET_FSTATS.length)
+                        get(idx);
+                    else {
+                        updateConsoleOutput(data);
+                        _d.updateStats('--FULL STATS\n'+result);
+                        _d.statPollTimer = window.setInterval(function() { _d.getTemp(); }, 800);
+                    }
+                });
             }
         });
+        
     };
     get(0);
 };
@@ -150,19 +153,25 @@ Device.prototype.getFullStats = function() {
 Device.prototype.getTemp = function() {
     var _d = this;
 
-    _d.write(cmd.GET_TEMP, function(writer) {});
-    _d.readall(function(data) { 
-        updateConsoleOutput(data);
-        _d.updateStats(data); 
+    _d.write(cmd.GET_TEMP, function(w) {
+        if(w.bytesWritten < 0)
+            _d.destroy();
+        else {
+            _d.readall(function(data) { 
+                updateConsoleOutput(data);
+                _d.updateStats(data); 
+            });
+        }
     });
 };
 
 Device.prototype.setTemp = function(temp) {
-    var _cmd = ((temp.Name == 'e') ? cmd.SET_EXTEMP : cmd.SET_BDTEMP) + temp.Value;
+    var _d   = this, 
+        _cmd = ((temp.Name == 'e') ? cmd.SET_EXTEMP : cmd.SET_BDTEMP) + temp.Value;
 
-    console.log(_cmd);
-    this.write(_cmd, function() { });
-    this.readall(updateConsoleOutput);
+    _d.write(_cmd, function(w) { 
+        (w.bytesWritten < 0) ? _d.destroy() : _d.readall(updateConsoleOutput);
+    });
 };
 
 Device.prototype.updateStats = function(stats) {
@@ -205,8 +214,13 @@ Device.prototype.sendMovement = function(mv) {
     } else 
         _cmd += ' ' + mv.Axis + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
 
-    this.write(_cmd, function() { });
-    this.readall(function(data) { updateConsoleOutput(data); });
+    var _d = this;
+    _d.write(_cmd, function(w) {
+        if(w.bytesWritten < 0)
+            _d.destroy();
+        else
+            _d.readall(updateConsoleOutput);
+    });
 };
 
 Device.prototype.home = function(axis) {
@@ -215,43 +229,74 @@ Device.prototype.home = function(axis) {
         _cmd += ' ' + axis.toUpperCase() + '0';
 
     _cmd += CMD_TERMINATOR;
-    this.write(_cmd, function() { });
-    this.readall(updateConsoleOutput);
+
+    var _d = this;
+    _d.write(_cmd, function(w) {
+        (w.bytesWritten < 0) ? _d.destroy() : _d.readall(updateConsoleOutput);
+    });
 };
 
-Device.prototype.manual = function(input, callback) {
-    if(input.indexOf(CMD_TERMINATOR) < 0)
-        input += CMD_TERMINATOR;
-    this.write(input, function() { });
-    this.readall(callback);
+Device.prototype.console = function(input, callback) {
+    var _cmd = (NATURALS[input] != undefined) ? NATURALS[input] : input;
+
+    if(_cmd.indexOf(CMD_TERMINATOR) < 0)
+        _cmd += CMD_TERMINATOR;
+
+    var _d = this;
+    _d.write(_cmd, function(w) { 
+        (w.bytesWritten < 0) ? _d.destroy() : _d.readall(updateConsoleOutput);
+    });
 };
 
 Device.prototype.startPendingJob = function() {
-    window.clearInterval(active.statPollTimer);
+    window.clearInterval(this.statPollTimer);
+    chrome.power.requestKeepAwake('system');
+    var msg = 'NOTE: during the print, your display may go'
+        + ' sleep (depending on your OS settings) but your system'
+        + ' will not. Once the print is complete, your system will'
+        + ' return to the normal settings';
+    notify({ title: "Starting Print", message: msg });
 
-    var idx = 0;
-    var _send = function() {
-        var _cmd = active.job.content[idx].trim();
+    var idx = 0,
+        _d = this;
+
+    _d.job.starttime = new Date().getTime();
+    var _process = function() {
+        if(_d.hardStop) return;
+
+        if(idx >= _d.job.connected.length) {
+            //  clean up after print
+            _d.job.endtime = new Date().getTime();
+            _d.job.status = 'complete';
+
+            resetPrintUI();
+
+            //  TODO ::
+            //  notify time to complete
+
+            chrome.power.releaseKeepAwake();
+            notify({ title: "Completed Print", message: "your system is now at the normal power settings" });
+            return;
+        }
+
+        var _cmd = _d.job.content[idx].trim();
         idx++;
 
-        // console.log('sending cmd: ' + _cmd);
         if(_cmd.indexOf(';') != 0 && _cmd.length > 1) {
-            active.write(_cmd + CMD_TERMINATOR, function() { });
-            active.readall(function(data) {
-                // console.log(data);
+            updatePrintUI(_cmd);
+
+            if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
+                _cmd += CMD_TERMINATOR
+
+            _d.write(_cmd, function(w) { if(w.bytesWritten < 0) _d.destroy(); });
+            _d.readall(function(data) {
                 updateConsoleOutput(data);
-
-                if(idx < active.job.content.length)
-                    _send();
-
-                //  TODO ::
-                //  update the UI with the movement
+                _process();
             });
         } else
-            _send();
-
+            _process();
     };
-    _send();
+    _process();
 };
 
 var pollSerialDevices = function() {
@@ -278,5 +323,3 @@ var pollSerialDevices = function() {
     };
     connTimer = window.setInterval(function() { serial.getPorts(get); }, 2000);
 };
-
-var pollTemp = function() { active.getTemp(); };

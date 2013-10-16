@@ -556,3 +556,23 @@ $(document).ready(function() {
     // yTrim = $('#print-area').offset().left - 11;
 });
 
+var removeDevsFromUI = function() {
+    if($('nav > #settings-overlay').is(':visible'))
+        $('nav > #settings-overlay > .close').click();
+
+    if($('nav > #devices-overlay').is(':visible'))
+        $('nav > #devices-overlay > .close').click();
+
+
+    if(!$('#active-dev').hasClass('no-device')) 
+        $('#active-dev').addClass('no-device').html('no device');
+
+    if(!$('#x-home').hasClass('not-homed')) 
+        $('#x-home').addClass('not-homed');
+    if(!$('#y-home').hasClass('not-homed')) 
+        $('#y-home').addClass('not-homed');
+    if(!$('#z-home').hasClass('not-homed')) 
+        $('#z-home').addClass('not-homed');
+
+    $('#devices-overlay > ul').html('');
+};
