@@ -14,11 +14,17 @@ function Job() {
     this.pausedidx  = -1;
 }
 
+function Position() {
+    this.z = 0;
+    this.e = 0;
+}
+
 function Device(name) {
     this.name           = name;
     this.conn           = -1;
     this.e              = 0;    //  extruder temp
     this.b              = 0;    //  bed temp
+    this.pos            = new Position();
     this.job            = new Job();
     this.statPollTimer  = -1;
     this.hardStop       = 0;
@@ -31,11 +37,6 @@ Device.prototype.connect = function(callback) {
 };
 
 Device.prototype.onopen = function(info) {
-    notify({ 
-        title: "Device Attached", 
-        message: this.name + " has been attached" 
-    });
-
     this.conn = info.connectionId;
     if(this.callbacks.connect)
         this.callbacks.connect();
@@ -181,12 +182,17 @@ Device.prototype.setTemp = function(temp) {
 };
 
 Device.prototype.updateStats = function(stats) {
-    var val, rows, temp;
+    var val, rows, temp, pos, pf = '-- C:';
     rows = stats.split('\n');
 
     for(var i = 0; i < rows.length; i++) {
         if(rows[i].indexOf('T:') > -1 && rows[i].indexOf('B:') > -1) {
             temp = rows[i].split(' ');
+            continue;
+        }
+
+        if(rows[i].indexOf(pf) > -1) {
+            pos = rows[i].substring(rows[i].indexOf(pf) + pf.length + 1).split(' ');
             continue;
         }
     }
@@ -205,6 +211,18 @@ Device.prototype.updateStats = function(stats) {
         }
     }
 
+    if(pos && pos != undefined) {
+        for(var i = 0; i < pos.length; i++) {
+            if(pos[i].indexOf(':') == -1) continue;
+
+            var c = pos[i].split(':'),
+                p = millimeterToPixel(c[1]);
+
+            if(c[0].toLowerCase() == 'e') this.pos.e = parseFloat(p);
+            if(c[0].toLowerCase() == 'z') this.pos.z = parseFloat(p);
+        }
+    }
+
     updateStatsUI(stats);
 };
 
@@ -218,7 +236,8 @@ Device.prototype.sendMovement = function(mv) {
         _cmd += ' ' + axes[1] + dists[1];
         _cmd += ' F' + mv.Speed + CMD_TERMINATOR;
     } else 
-        _cmd += ' ' + mv.Axis + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
+        _cmd += ' ' + ((mv.Axis == 'e') ? 'E1' : mv.Axis.toUpperCase()) 
+            + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
 
     var _d = this;
     _d.write(_cmd, function(w) {
@@ -231,8 +250,11 @@ Device.prototype.sendMovement = function(mv) {
 
 Device.prototype.home = function(axis) {
     var _cmd = cmd.HOME;
-    if(axis.toLowerCase() != 'all')
+    if(axis.toLowerCase() != 'all') {
         _cmd += ' ' + axis.toUpperCase() + '0';
+        this.pos.z = 0;
+        this.pos.e = 0;
+    }
 
     _cmd += CMD_TERMINATOR;
 
@@ -256,6 +278,7 @@ Device.prototype.console = function(input, callback) {
 
 Device.prototype.startPendingJob = function() {
     window.clearInterval(this.statPollTimer);
+    this.statPollTimer = -1;
     chrome.power.requestKeepAwake('system');
 
     var idx = 0,
@@ -296,7 +319,7 @@ var runAtIdx = function(device, idx) {
         device.job.paused = new Date().getTime();
 
         device.write(cmd.PAUSE, function(w) { if(w.bytesWritten < 0) device.destroy(); });
-
+        device.statPollTimer = window.setInterval(function() { _d.getTemp(); }, 800);
         notify({ 
             title: "Paused", 
             message: "Click PLAY to continue or RESET to start fresh" 
@@ -304,6 +327,11 @@ var runAtIdx = function(device, idx) {
         return;
     }
 
+    if(device.statPollTimer > -1) {
+        window.clearInterval(device.statPollTimer);
+        device.statPollTimer = -1;
+    }
+    
     if(idx >= device.job.content.length || 
         device.job.content[idx] == undefined) {
 
@@ -314,13 +342,19 @@ var runAtIdx = function(device, idx) {
 
         resetPrintUI();
 
-        //  TODO ::
-        //  notify time to complete
+        var diff, hh, mm;
+        diff = parseFloat(((active.job.end - active.job.start) / 3600000).toFixed(2));
+        hh = parseInt(diff);
+        mm = parseInt(parseFloat((diff -= hh).toFixed(2)) * 60);
+
+        msg = 'Print Time [hh:mm] ' + hh + ':' + mm
+            + '\n\nyour system has now returned to the'
+            + ' normal power settings'; 
 
         chrome.power.releaseKeepAwake();
         notify({ 
-            title: "Completed Print", 
-            message: "your system is now at the normal power settings" 
+            title: "Print Complete", 
+            message: msg
         });
         return;
     }
@@ -353,17 +387,33 @@ var pollSerialDevices = function() {
     //  pulls the list of devices according to the prefix
     //  and attempts to open and set the device if it is
     //  indeed a 5dprint compatable device (i.e. MakiBox A6)
-    var get = function(ports) {
-        for(var i=0; i < ports.length; i++) {
-            if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] === undefined) {
-                dev = new Device(ports[i]);
-                dev.connect(function() {
-                    devices[dev.name] = dev;
-                    attachDeviceToInterface(dev);
-                    dev.getFullStats();
-                });
-            }
-        }
-    };
-    connTimer = window.setInterval(function() { serial.getPorts(get); }, 2000);
+	connTimer = window.setInterval(function() { 
+		serial.getPorts(function(ports) {
+	        for(var i=0; i < ports.length; i++) {
+	            if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] == undefined) {
+	                var dev = new Device(ports[i]);
+	                dev.connect(function(d) {
+						//	check to see if this is a MakiBox
+	                    dev.write(cmd.FMWARE_INFO, function(w) { });
+	                    dev.readall(function(info) {
+                            console.log(info);
+	                        if(info.indexOf(MKB_FLAG) > -1) {
+	                            notify({ 
+	                                title: "Device Attached", 
+	                                message: dev.name + " has been attached" 
+	                            });
+
+	                            devices[dev.name] = dev;
+	                            attachDeviceToInterface(dev);
+	                            dev.getFullStats();
+	                        } else {
+	                            serial.flush(dev.conn, function(){});
+	                            serial.close(dev.conn, function(){});
+	                        }
+	                    });
+	                });
+	            }
+	        }
+    	});
+	}, 1200);
 };

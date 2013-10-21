@@ -1,0 +1,68 @@
+{
+  // Required
+  "manifest_version": 2,
+  "name": "My Extensions",
+  "version": "versionString",
+
+  // Recommended
+  "default_locale": "en",
+  "description": "A plain text description",
+  "icons": {...},
+
+  // Pick one (or none)
+  "browser_action": {...},
+  "page_action": {...},
+
+  // Optional
+  "author": ...,
+  "background": {
+    // Recommended
+    "persistent": false
+  },
+  "background_page": ...,
+  "chrome_url_overrides": {...},
+  "commands": {
+    "global": ...
+  },
+  "content_pack": ...,
+  "content_scripts": {...},
+  "content_security_policy": "policyString",
+  "converted_from_user_script": ...,
+  "current_locale": ...,
+  "devtools_page": ...,
+  "externally_connectable": {
+    "matches": ["*://*.example.com/*"]
+  },
+  "file_browser_handlers": [...],
+  "homepage_url": "http://path/to/homepage",
+  "import": ...,
+  "incognito": "spanning or split",
+  "input_components": ...,
+  "key": "publicKey",
+  "minimum_chrome_version": "versionString",
+  "nacl_modules": [...],
+  "oauth2": ...,
+  "offline_enabled": true,
+  "omnibox": {
+    "keyword": "aString"
+  },
+  "optional_permissions": ...,
+  "options_page": "aFile.html",
+  "page_actions": ...,
+  "permissions": [...],
+  "platforms": ...,
+  "plugins": [...],
+  "requirements": {...},
+  "sandbox": [...],
+  "script_badge": ...,
+  "short_name": "Short Name",
+  "signature": ...,
+  "spellcheck": ...,
+  "storage": {
+    "managed_schema": ...
+  },
+  "system_indicator": ...,
+  "tts_engine": ...,
+  "update_url": "http://path/to/updateInfo.xml",
+  "web_accessible_resources": [...]
+}

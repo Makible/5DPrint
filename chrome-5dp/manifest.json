@@ -1,8 +1,9 @@
 {
   "manifest_version": 2,
-  "name": "5dp",
-  "version": "0.1",
-  "minimum_chrome_version": "23",
+  "name": "5DPRINT",
+  "version": "0.1.1",
+  "description": "3D printing host software for the Makibox A6",
+  // "short_name": "5DPrint",
   "icons": {
     "16": "img/icon_16.png",
     "32": "img/icon_32.png",
@@ -12,8 +13,9 @@
     "512": "img/icon_512.png",
     "1024": "img/icon_1024.png"
   },
-  "app": {
-    "background": { "scripts": ["js/launch.js"] }
-  },
-  "permissions": ["serial", "notifications", "power"]
+  "author": "Makible Ltd.",
+  "minimum_chrome_version": "23",
+  "offline_enabled": true,
+  "permissions": ["serial", "notifications", "power"],
+  "app": { "background": { "scripts": ["js/launch.js"] } }
 }

@@ -395,20 +395,22 @@ nav #devices-overlay ul li div.dev-file {
     top: -12px;
     left: -22px;
     width: 37px;
-    height: 30px;
-    line-height: 1.9em;
+    height: 24px;
+    line-height: 2em;
+    font-size: .8em;
     text-align: left;
     padding-left: 20px;
-    background-position: 69px 73px;
+    background-position: 71px 71px;
 }
 
 #y .handle {
     top: -21px;
     left: -16px;
-    width: 30px;
+    width: 24px;
     height: 57px;
-    line-height: 3em;
-    background-position: -80px -38px;
+    line-height: 3.8em;
+    font-size: .8em;
+    background-position: -83px -36px;
 }
 
 #canvas-wrapper {
@@ -746,6 +748,7 @@ input.req {
 
 #console-area #console-nav div[class*=" icon-"]:after { margin: 0; }
 #console-area #console-nav div:active { color: #333; background-color: #4a8bf5; }
+input.fi { visibility: hidden; }
 
 /* ==========================================================================
    Helper classes

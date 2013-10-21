@@ -19,5 +19,5 @@ var cros = function() {
 };
 
 var linux = function() {
-    serialPrefix = '';
+    serialPrefix = 'ttyACM';
 };

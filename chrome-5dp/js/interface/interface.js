@@ -1,4 +1,4 @@
-const ZEDIST = 5;
+const ZEDIST = 3;
 const DEFSPEED = 2000;
 
 var w,
@@ -163,10 +163,10 @@ var attachBtnHandlers = function() {
     });
 
     $('#tools > .wrapper > .move-wrapper > div').on('click', function(evt) {
-        var mvr = { Axis: $(evt.target).attr('data-axis'), Distance: ZEDIST, Speed: DEFSPEED };
-        if($(evt.target).hasClass('minus')) 
-            mvr.Distance *= -1;
+        var mvr, axis = $(evt.target).attr('data-axis');
 
+        active.pos[axis] += (($(evt.target).hasClass('minus')) ? ZEDIST * -1 : ZEDIST);
+        mvr = { Axis: axis, Distance: active.pos[axis], Speed: DEFSPEED };
         active.sendMovement(mvr);
     });
 
@@ -222,14 +222,17 @@ var attachBtnHandlers = function() {
             $(evt.target).val('').focus();
         }
     };
-
-    $('#tools > .wrapper > input.req')[0].onkeydown = function(evt) {
+    
+    var okd = function(evt) {
         if(evt.which == 13) {
             ($(evt.target).html()).replace(/\<br\>/g, '');
             $(evt.target).blur();
             evt.preventDefault();
         }
     };
+    $('#tools > .wrapper > input.req')[0].onkeydown = okd;
+    $('#tools > .wrapper > input.req')[1].onkeydown = okd;
+    
 };
 
 var attachSliderHandlers = function() {
@@ -372,25 +375,25 @@ var updatePrintUI = function(pcmd) {
             //  clear prev++ layer and prep
             //  for prev layer plotting
             hlLayer.ctx.clearRect(0, 0, w, h);
+
+            //  reset path position
             hlLayer.ctx.beginPath();
-            hlLayer.ctx.strokeStyle = RED_IND_GHOST;
             hlLayer.ctx.moveTo(paths[0].x, paths[0].y);
 
-            //  plot prev
+            //  plot prev layer and draw
             for(var i = 1; i < paths.length; i++) {
+                hlLayer.ctx.strokeStyle = (paths[i].e != undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
                 hlLayer.ctx.lineTo(paths[i].x, paths[i].y);
+                hlLayer.ctx.closePath();
+                hlLayer.ctx.stroke();
+
+                hlLayer.ctx.beginPath();
                 hlLayer.ctx.moveTo(paths[i].x, paths[i].y);
             }
-
-            //  draw
-            hlLayer.ctx.stroke();
             hlLayer.ctx.closePath();
 
             //  reset "active" layer
-            objLayer.ctx.closePath();
             objLayer.ctx.clearRect(0, 0, w, h);
-            objLayer.ctx.beginPath();
-
             paths = new Array();
         }
 
@@ -412,10 +415,13 @@ var updatePrintUI = function(pcmd) {
         ph.x = mx, ph.y = my;
 
         //  only draw the new path here
-        objLayer.ctx.strokeStyle = RED_INDICATOR;
+        objLayer.ctx.strokeStyle = (me != undefined) ? RED_INDICATOR : BLU_INDICATOR;
         objLayer.ctx.lineTo(mx, my);
-        objLayer.ctx.moveTo(mx, my);
+        objLayer.ctx.closePath();
         objLayer.ctx.stroke();
+
+        objLayer.ctx.beginPath();
+        objLayer.ctx.moveTo(mx, my);
 
         var yw, xh;
         yw = mx - (Math.floor($('#y > .handle').width() / 2)) - Math.floor(POINTER_OFFSET / 2);
@@ -425,12 +431,6 @@ var updatePrintUI = function(pcmd) {
         $('#x > .handle').css('top', xh + 'px');
 
         redrawIndicators();
-
-        //  if devices contains a z movement
-        //  drop the current draw layer down one
-
-        //  else just draw to the current 
-        //
     }
 
     if(pcmd.indexOf(cmd.HOME) > -1)
@@ -461,7 +461,7 @@ var resetPrintUI = function() {
 
 var loadContentToUI = function(content) {
     paths = new Array();
-    paths.push({ x:0, y:0 });
+    paths.push({ x:0, y:0, e:0 });
 
     //  loop through the file, getting each 'G1' line and loading the
     //  x / y coords into the paths array, ignoring the commented rows
@@ -470,17 +470,18 @@ var loadContentToUI = function(content) {
             && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1) 
             && (content[i].indexOf('G1 X') > -1 || content[i].indexOf('G1 Y') > -1)) {
 
-            var move, mx, my;
-            move = content[i].split(' ');
-
+            var mx, my, me, move = content[i].split(' ');
             for(var j = 0; j < move.length; j++) {
                 if(move[j].indexOf('X') > -1)
                     mx = millimeterToPixel(move[j].substring(1));
 
                 if(move[j].indexOf('Y') > -1)
                     my = millimeterToPixel(move[j].substring(1));
+
+                if(move[j].indexOf('E') > -1)
+                    me = millimeterToPixel(move[j].substring(1));
             }
-            paths.push({ x: my, y: mx });
+            paths.push({ x: my, y: mx, e: me });
         }
     }
 
@@ -495,7 +496,8 @@ var detachBtnHandlers = function() {
     $('#devices').off('click');
     $('#homing > div').off('click');
     $('#tools > .wrapper > .move-wrapper > div').off('click')
-    $('#tools > .wrapper > input').click('click').off('blur')[0].onkeydown = undefined;
+    $('#tools > .wrapper > input').off('click').off('blur')[0].onkeydown = undefined;
+    $('#tools > .wrapper > .power-wrapper > div').off('click');
     $('#console-area').off('click');
     $('#console-nav').off('click');
     $('#console-area > .wrapper > input').off('blur').off('focus').off('keydown');
@@ -517,6 +519,10 @@ var detachDeviceFromUI = function(device) {
             $('#active-dev')
                 .html('no device')
                 .addClass('no-device');
+            $('#tools > .wrapper > input').val('0');
+            $('#tools > .wrapper > .act.temp').html('0');
+            $('#tools > .wrapper > .power-wrapper > div.selected').removeClass('selected');
+            $('#tools > .wrapper > .power-wrapper > div.off').addClass('selected');
             detachBtnHandlers();
             detachMovers();
         }
@@ -551,7 +557,7 @@ var stgClickHandler = function(evt) {
 var paClickHandler = function(evt) {
     switch($(evt.target).attr('id')) {
     case 'file-picker':
-        var inp = $('<input id="fl" type="file" accept=".gcode,.gc" class="fi" />');
+        var inp = ($('#fl').length > 0) ? $('#fl') : $('<input id="fl" type="file" accept=".gcode,.gc" class="fi" />');
 
         $('body').append(inp);
         $(inp).on('change', function(evt) {
@@ -577,6 +583,7 @@ var paClickHandler = function(evt) {
                 notify({ title: "File Loaded", message: "File loaded and ready for printing" });
             };
         });
+        $(evt.target).blur();
         $(inp).click();
 
         //  clear out old object from canvas
@@ -830,11 +837,9 @@ var attachMovers = function() {
 
         var dist = pixelToMillimeter(ph.y) + ',' + pixelToMillimeter(ph.x);
         active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+        attachSliderHandlers();
         attachMovers();
     });
-
-    $('#x > .handle').draggable('enable');
-    $('#y > .handle').draggable('enable');
 
     $(document).on('mouseup', function(e) {
         if(mouseDownHandler && mouseDownHandler != undefined) {
@@ -858,6 +863,7 @@ var movePrintHead = function(offsetX, offsetY) {
 
     moveSliders(ph.x, ph.y);
     redrawIndicators();
+    attachSliderHandlers();
     attachMovers();
 
     //  WARNING ::
@@ -911,19 +917,22 @@ var moveSliders = function(offsetX, offsetY) {
 };
 
 var resetAndDrawPaths = function() {
-    objLayer.ctx.closePath();
     objLayer.ctx.clearRect(0, 0, w, h);
-    objLayer.ctx.beginPath();
-    objLayer.ctx.strokeStyle = RED_IND_GHOST;
+    if(paths.length < 1) return;
 
-    if(paths.length > 0) {
-        objLayer.ctx.moveTo(paths[0].x, paths[0].y);
-        for(var i = 1; i < paths.length; i++) {
-            objLayer.ctx.lineTo(paths[i].x, paths[i].y);
-            objLayer.ctx.moveTo(paths[i].x, paths[i].y);
-        }
+    objLayer.ctx.beginPath();
+    objLayer.ctx.moveTo(paths[0].x, paths[0].y);
+
+    for(var i = 1; i < paths.length; i++) {
+        objLayer.ctx.strokeStyle = (paths[i].e != undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+        objLayer.ctx.lineTo(paths[i].x, paths[i].y);
+        objLayer.ctx.closePath();
+        objLayer.ctx.stroke();
+
+        objLayer.ctx.beginPath();
+        objLayer.ctx.moveTo(paths[i].x, paths[i].y);
     }
-    objLayer.ctx.stroke();
+    objLayer.ctx.closePath();
 };
 
 var redrawIndicators = function() {

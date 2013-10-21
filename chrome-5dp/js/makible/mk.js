@@ -1,5 +1,6 @@
 const CMD_TERMINATOR = '\r\n';
 const NOTIFY_ICON = 'img/icon_128.png';
+const MKB_FLAG ='MakiBox Firmware';
 const NATURALS = { 
     'DROP':  'G1 Z80 F2000\r\n', 
     'RAISE': 'G1 Z0 F2000\r\n', 
@@ -48,4 +49,5 @@ function Resends() {
     this.CMD_MSS = '(command code missing)'
 }
 
-var cmd = new Commands();
+var cmd = new Commands(),
+    rs  = new Resends();
