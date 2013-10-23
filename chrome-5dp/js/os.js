@@ -15,7 +15,7 @@ var win = function() {
 };
 
 var cros = function() {
-    serialPrefix = '';
+    serialPrefix = 'ttyACM';
 };
 
 var linux = function() {

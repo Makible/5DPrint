@@ -243,7 +243,7 @@ nav #settings-overlay .panel {
     position: relative;
     vertical-align: top;
     margin: 2px auto;
-    height: 296px;
+    height: 280px;
     display: inline-block;
 }
 
@@ -265,8 +265,36 @@ nav #settings-overlay .nav-left ul li.selected {
 }
 
 nav #settings-overlay .content-right { 
-    width: 340px;
+    width: 324px;
     border-left: 1px solid rgba(200, 200, 200, 0.6);
+    padding: 8px;
+}
+
+nav #settings-overlay .content-right div {
+    position: relative;
+    margin: 4px auto;
+    text-align: left;
+    text-transform: none;
+    line-height: 1.2em;
+}
+
+nav #settings-overlay .content-right div.author { 
+    font-weight: 700;
+    font-size: 1.8em;
+}
+
+nav #settings-overlay .content-right div.desc {
+    margin-top: 8px;
+    padding: 14px;
+}
+
+nav #settings-overlay .content-right div.ver {
+    margin-top: 24px;
+    margin-right: 10px;
+    vertical-align: bottom;
+    float: right;
+    font-style: italic;
+    font-size: .8em;
 }
 
 nav #settings-overlay .close,
@@ -749,6 +777,15 @@ input.req {
 #console-area #console-nav div[class*=" icon-"]:after { margin: 0; }
 #console-area #console-nav div:active { color: #333; background-color: #4a8bf5; }
 input.fi { visibility: hidden; }
+
+#progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 3px;
+    height: 0;
+    background-color: rgba(178, 18, 18, 0.8);
+}
 
 /* ==========================================================================
    Helper classes

@@ -1,9 +1,8 @@
 {
   "manifest_version": 2,
   "name": "5DPRINT",
-  "version": "0.1.1",
-  "description": "3D printing host software for the Makibox A6",
-  // "short_name": "5DPrint",
+  "version": "0.1.2",
+  "description": "5DPrint / fai·di·print / is tailor-made for the MakiBox A6 and modern 3D printing. The UI is designed for simplicity and letting the user get straight to printing. Devices are automatically detected and connected to. Moving the extruder around has never been easier with the interactive print area.",
   "icons": {
     "16": "img/icon_16.png",
     "32": "img/icon_32.png",
