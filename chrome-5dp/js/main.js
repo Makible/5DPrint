@@ -1,4 +1,4 @@
-var hostInfo, os, notifyId;
+var dbg, hostInfo, os, notifyId;
 
 var init = function(info) { 
     notifyId = 0;
@@ -11,6 +11,9 @@ var init = function(info) {
 
     devices = {};
     pollSerialDevices();
+
+    //  DEBUG
+    // dbg=!0;
 };
 
 var config = function() {

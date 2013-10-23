@@ -189,7 +189,10 @@ var attachBtnHandlers = function() {
 
         //  text in there that should be
         if(isNaN(temp) || temp < 0 || temp > max) {
-            $(evt.target).val(prevTemp);
+            if(!isNaN(prevTemp) && prevTemp > 0)
+                $(evt.target).val(prevTemp);
+            else
+                $(evt.target).removeAttr('value');
             return;
         }
 
@@ -223,16 +226,15 @@ var attachBtnHandlers = function() {
         }
     };
     
+    //
     var okd = function(evt) {
         if(evt.which == 13) {
-            ($(evt.target).html()).replace(/\<br\>/g, '');
             $(evt.target).blur();
             evt.preventDefault();
         }
     };
     $('#tools > .wrapper > input.req')[0].onkeydown = okd;
     $('#tools > .wrapper > input.req')[1].onkeydown = okd;
-    
 };
 
 var attachSliderHandlers = function() {
@@ -273,8 +275,6 @@ var updateStatsUI = function(stats) {
     //  update active dev UI temps
     $('#e > .act').html(active.ETemp);
     $('#z > .act').html(active.BTemp);
-
-    //
 
     //  update device list info
     $('#devices-overlay > ul > li').each(function() {
@@ -452,6 +452,10 @@ var updatePrintUI = function(pcmd) {
     }
 };
 
+var updateProgressBar = function(per) {
+    document.getElementById('progress').style.height = per.toString() + '%';
+};
+
 var resetPrintUI = function() {
     $('#print-pause')
         .removeClass('icon-pause')
@@ -547,9 +551,36 @@ var stgClickHandler = function(evt) {
         if($(evt.target).hasClass('selected')) return;
 
         $('#settings-overlay > div.nav-left > ul > li.selected').removeClass('selected');
+        $('#settings-overlay > .panel.content-right').html('');
         $(evt.target).addClass('selected');
 
         //  TODO ::
+        switch(evt.target.id) {
+            case "basic":
+                break;
+            case "advanced":
+                break;
+            case "profiles":
+                break;
+            case "about":
+                var m    = chrome.runtime.getManifest(),
+                    str  = '',
+                    key  = '5DPrint / fai·di·print /';
+                    desc = '<strong>' + key + '</strong>';
+
+                desc += m.description.substring(key.length);
+
+                str += '<div class="author">' + m.author + '</div>'; 
+                str += '<div class="desc">' + desc + '</div>'; 
+                str += '<div class="ver">v' + m.version + '</div>'; 
+
+                $('#settings-overlay > .panel.content-right').html(str);
+                break;
+            default:
+                //  shouldn't get here
+                console.log(evt.target.id);
+                break;
+        }
     });
     $('#settings-overlay > div.nav-left > ul > li:first').click();
 };
@@ -557,6 +588,11 @@ var stgClickHandler = function(evt) {
 var paClickHandler = function(evt) {
     switch($(evt.target).attr('id')) {
     case 'file-picker':
+        //  TODO ::
+        //  display dropdown that shows recent prints
+        //  and allow the user to select one of those files
+        //  or they can click "open" to select a new file
+
         var inp = ($('#fl').length > 0) ? $('#fl') : $('<input id="fl" type="file" accept=".gcode,.gc" class="fi" />');
 
         $('body').append(inp);
@@ -632,36 +668,29 @@ var paClickHandler = function(evt) {
                 .addClass('icon-pause');
             
             active.job.status = 'running';
-            active.resume();
+            active.resumeJob();
             break;
         }
 
         break;
     case 'reset':
-        //  TODO ::
-        //  should we display a warning notification 
-        //  here if active.job.status == running ??
-
         if(active.job.status == 'running')
             active.hardStop = !0;
 
-        // if(active.job.status == 'paused')
-        //     active.resume();
-
-        // notify({
-        //     title:   'WARNING',
-        //     message: 'Abandoning paused print will resume the old to clear out the print buffer'
-        // });
+        if(active.job.status == 'paused')
+            active.resetJob();
 
         $('#print-pause')
             .removeClass('icon-pause')
             .removeClass('icon-play')
             .addClass('icon-play');
         active.job = new Job();
-        active.getFullStats();
+        $('#progress').css('height', '0');
 
         paths = new Array();
-        resetAndDrawPaths();
+        
+        hlLayer.ctx.clearRect(0, 0, w, h);
+        objLayer.ctx.clearRect(0, 0, w, h);
 
         break;
     default:
@@ -746,9 +775,9 @@ var powerToggleClickHandler = function(evt) {
     //  .req value to 0
     var temp = 0;
     if($(evt.target).hasClass('on')) 
-        parseInt($(p).parent().find('.req').val());
+        temp = parseInt($(p).parent().find('.req').val());
     else 
-        $(p).parent().find('.req').val(0);
+        $(p).parent().find('.req').removeAttr('value');
 
     active.setTemp({ 
         Name:   $(p).parent().attr('id'),

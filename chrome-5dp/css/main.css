@@ -782,7 +782,7 @@ input.fi { visibility: hidden; }
     position: absolute;
     left: 0;
     bottom: 0;
-    width: 3px;
+    width: 4px;
     height: 0;
     background-color: rgba(178, 18, 18, 0.8);
 }
