@@ -29,6 +29,8 @@ function Indicator() {
     this.color = '';
 }
 
+function UI() {}
+
 Indicator.prototype.drawFill = function() {
     phLayer.ctx.beginPath();
     phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
@@ -51,7 +53,7 @@ function Layer(c) {
     this.h      = $(c).attr('height');
 }
 
-function uiInit() {
+UI.prototype.init = function() {
     //  grab device UI template
     devTpl = $('#devices-overlay > ul > li').clone();
     $('#devices-overlay > ul > li').remove();
@@ -82,6 +84,9 @@ function uiInit() {
                 expandConsoleOutput();
         }
     };
+
+    displayGrid();
+    setSlideTrimmers();
 }
 
 var displayGrid = function() {
@@ -109,8 +114,11 @@ var setSlideTrimmers = function() {
 var attachDeviceToInterface = function(device) {
     var li = $(devTpl).clone();
 
+    $(li).on('click', deviceSelected);
+
+    $(li).attr('data-dn', device.name);
     $(li).find('.dev-name').html(device.name);
-    $(li).find('.dev-status').html(device.name);
+    $(li).find('.dev-status').html(device.job.status);
     $(li).find('.dev-temp').html('E:0 / B:0');
     $(li).find('.dev-file').html('no print loaded');
 
@@ -120,6 +128,18 @@ var attachDeviceToInterface = function(device) {
         setAsActiveDevice(device);
         $(li).addClass('selected');
     }
+};
+
+var deviceSelected = function(evt) {
+    if($(evt.currentTarget).hasClass('selected')) return;
+
+    $(evt.currentTarget).parent().find('.selected').removeClass('selected');
+    $(evt.currentTarget).addClass('selected');
+
+    $('#devices-overlay > .close').click();
+
+    active = devices[$(evt.currentTarget).attr('data-dn')];
+    $('#active-dev').html(active.name);
 };
 
 var setAsActiveDevice = function(device) {
@@ -170,6 +190,46 @@ var attachBtnHandlers = function() {
         active.sendMovement(mvr);
     });
 
+    $('#tools > .wrapper > .temp').on('mouseenter', function(evt) {
+        var val = $(evt.currentTarget).find('.value');
+        if($(val).attr('data-req') && $(val).attr('data-req') > 0)
+            $(val).val($(val).attr('data-req'));
+    });
+
+    $('#tools > .wrapper > .temp > .value').on('blur', function(evt) {
+        var temp = parseInt($(evt.target).val()),
+            max  = parseInt($(evt.target).attr('max'));
+
+        //  text in there that should be
+        if(isNaN(temp) || temp < 0 || temp > max) {
+            if(!isNaN(prevTemp) && prevTemp > 0)
+                $(evt.target).val(prevTemp);
+            else
+                $(evt.target).removeAttr('value');
+            return;
+        }
+
+        var onSwitch = $(evt.target).parent().parent().find('.power-wrapper > .on'),
+            offSwitch = $(evt.target).parent().parent().find('.power-wrapper > .off');
+        if(!$(onSwitch).hasClass('selected') && temp > 0) {
+            $(offSwitch).removeClass('selected');
+            $(onSwitch).addClass('selected');
+        }
+
+        if(!$(offSwitch).hasClass('selected') && temp == 0) {
+            $(onSwitch).removeClass('selected');
+            $(offSwitch).addClass('selected');
+        }
+
+        active.setTemp({ 
+            Name:   $(evt.target).parent().parent().attr('id'),
+            Value:  temp 
+        });
+    }).on('click', function(evt) {
+        prevTemp = parseInt($(evt.target).val());
+        $(evt.target).val('');
+    });
+
     $('#console-area').on('click', consoleClickHandler);
     $('#console-nav').on('click', consoleNavClickHandler);
 
@@ -183,36 +243,6 @@ var attachBtnHandlers = function() {
     });
 
     $('#tools > .wrapper > .power-wrapper > div').on('click', powerToggleClickHandler);
-    $('#tools > .wrapper > input.req').on('blur', function(evt) {
-        var temp = parseInt($(evt.target).val()),
-            max  = parseInt($(evt.target).attr('max'));
-
-        //  text in there that should be
-        if(isNaN(temp) || temp < 0 || temp > max) {
-            if(!isNaN(prevTemp) && prevTemp > 0)
-                $(evt.target).val(prevTemp);
-            else
-                $(evt.target).removeAttr('value');
-            return;
-        }
-
-        var onSwitch = $(evt.target).parent().find('.power-wrapper > .on'),
-            offSwitch = $(evt.target).parent().find('.power-wrapper > .off');
-        if(!$(onSwitch).hasClass('selected') && temp > 0) {
-            $(offSwitch).removeClass('selected');
-            $(onSwitch).addClass('selected');
-        }
-
-        if(!$(offSwitch).hasClass('selected') && temp == 0) {
-            $(onSwitch).removeClass('selected');
-            $(offSwitch).addClass('selected');
-        }
-
-        active.setTemp({ 
-            Name:   $(evt.target).parent().attr('id'),
-            Value:  temp 
-        });
-    }).on('click', function(evt) { prevTemp = parseInt($(evt.target).val()); });
 
     //  
     //  jQuery.on('keydown', ...) breaks the standard input func
@@ -225,16 +255,16 @@ var attachBtnHandlers = function() {
             $(evt.target).val('').focus();
         }
     };
-    
-    //
+
     var okd = function(evt) {
         if(evt.which == 13) {
-            $(evt.target).blur();
             evt.preventDefault();
+            $(evt.target).blur();
         }
     };
-    $('#tools > .wrapper > input.req')[0].onkeydown = okd;
-    $('#tools > .wrapper > input.req')[1].onkeydown = okd;
+
+    $('#tools > .wrapper > .temp > .value')[0].onkeydown = okd;
+    $('#tools > .wrapper > .temp > .value')[1].onkeydown = okd;
 };
 
 var attachSliderHandlers = function() {
@@ -273,8 +303,8 @@ var updateStatsUI = function(stats) {
     updateConsoleOutput(stats);
 
     //  update active dev UI temps
-    $('#e > .act').html(active.ETemp);
-    $('#z > .act').html(active.BTemp);
+    $('#e > .temp > .actual').html(active.ETemp);
+    $('#z > .temp > .actual').html(active.BTemp);
 
     //  update device list info
     $('#devices-overlay > ul > li').each(function() {
@@ -453,7 +483,7 @@ var updatePrintUI = function(pcmd) {
 };
 
 var updateProgressBar = function(per) {
-    document.getElementById('progress').style.height = per.toString() + '%';
+    document.getElementById('progress').style.width = per.toString() + '%';
 };
 
 var resetPrintUI = function() {
@@ -499,8 +529,8 @@ var detachBtnHandlers = function() {
     $('#print-action').off('click');
     $('#devices').off('click');
     $('#homing > div').off('click');
-    $('#tools > .wrapper > .move-wrapper > div').off('click')
-    $('#tools > .wrapper > input').off('click').off('blur')[0].onkeydown = undefined;
+    $('#tools > .wrapper > .move-wrapper > div').off('click');
+    $('#tools > .wrapper > .temp > .value').off('click').off('blur')[0].onkeydown = undefined;
     $('#tools > .wrapper > .power-wrapper > div').off('click');
     $('#console-area').off('click');
     $('#console-nav').off('click');
@@ -565,10 +595,14 @@ var stgClickHandler = function(evt) {
             case "about":
                 var m    = chrome.runtime.getManifest(),
                     str  = '',
-                    key  = '5DPrint / fai·di·print /';
-                    desc = '<strong>' + key + '</strong>';
+                    desc = '';
 
-                desc += m.description.substring(key.length);
+                desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
+                    + 'tailor-made for the MakiBox A6 and modern 3D printing. '
+                    + 'The UI is designed for simplicity and letting the user '
+                    + 'get straight to printing. Devices are automatically '
+                    + 'detected and connected to. Moving the extruder around has '
+                    + 'never been easier with the interactive print area.';
 
                 str += '<div class="author">' + m.author + '</div>'; 
                 str += '<div class="desc">' + desc + '</div>'; 
@@ -586,6 +620,8 @@ var stgClickHandler = function(evt) {
 };
 
 var paClickHandler = function(evt) {
+    evt.preventDefault();
+
     switch($(evt.target).attr('id')) {
     case 'file-picker':
         //  TODO ::
@@ -594,7 +630,6 @@ var paClickHandler = function(evt) {
         //  or they can click "open" to select a new file
 
         var inp = ($('#fl').length > 0) ? $('#fl') : $('<input id="fl" type="file" accept=".gcode,.gc" class="fi" />');
-
         $('body').append(inp);
         $(inp).on('change', function(evt) {
             var f = evt.target.files[0],
@@ -618,9 +653,7 @@ var paClickHandler = function(evt) {
                 $('#fl').remove();
                 notify({ title: "File Loaded", message: "File loaded and ready for printing" });
             };
-        });
-        $(evt.target).blur();
-        $(inp).click();
+        }).click();
 
         //  clear out old object from canvas
         paths = new Array();
@@ -881,9 +914,7 @@ var attachMovers = function() {
 var detachMovers = function() {
     $('.slider').off('click');
     $('.slider > .handle').off('mouseup');
-
-    if($('.handle').is(':ui-draggable'))
-        $('.handle:ui-draggable').draggable('destroy');
+    $('.handle:ui-draggable').draggable('destroy');
 };
 
 var movePrintHead = function(offsetX, offsetY) {
@@ -998,10 +1029,4 @@ var pixelToMillimeter = function(p) {
 
 var millimeterToPixel = function(mm) {
     return (mm != 0) ? Math.floor(mm * MAGICNUM) : mm;
-};
-
-var notify = function(conf) {
-    conf['type'] = 'basic';
-    conf['iconUrl'] = NOTIFY_ICON;
-    chrome.notifications.create(conf.title.replace(/\s/g, '_') + (notifyId++), conf, function(info) { });
 };

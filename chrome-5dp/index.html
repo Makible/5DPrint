@@ -79,10 +79,11 @@
                         <div class="plus btn" data-axis="e">+</div>
                     </div>
                     <div class="label">ext</div>
-                    <div class="act temp icon-celcius">0</div>
-                    <!-- <div class="req temp icon-celcius" data-max="300" contenteditable="true">0</div> -->
-                    <input class="req temp" type="number" min="0" max="300" value="" placeholder="0">
-                    <div class="req icon-celcius"></div>
+                    <div class="temp icon-celcius">
+                        <div class="actual">0</div>
+                        <input type="number" class="value" max="300" min="0" placeholder="0">
+                        <!-- <div class="histo"></div> -->
+                    </div>
                     <div class="power-wrapper">
                         <div class="off btn selected">off</div>
                         <div class="on btn">on</div>
@@ -94,10 +95,11 @@
                         <div class="plus btn" data-axis="z">+</div>
                     </div>
                     <div class="label">bed</div>
-                    <div class="act temp icon-celcius">0</div>
-                    <!-- <div class="req temp icon-celcius" data-max="200" contenteditable="true">0</div> -->
-                    <input class="req temp" type="number" min="0" max="200" value="" placeholder="0">
-                    <div class="req icon-celcius"></div>
+                    <div class="temp icon-celcius">
+                        <div class="actual">0</div>
+                        <input type="number" class="value" max="200" min="0" placeholder="0">
+                        <!-- <div class="histo"></div> -->
+                    </div>
                     <div class="power-wrapper">
                         <div class="off btn selected">off</div>
                         <div class="on btn">on</div>
@@ -122,11 +124,10 @@
 
         <script src="/js/vendor/jquery-1.9.1.min.js"></script>
         <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>
-        <script src="/js/makible/mk.js"></script>
-        <script src="/js/device/const.js"></script>
-        <script src="/js/device/device.js"></script>
-        <script src="/js/interface/const.js"></script>
-        <script src="/js/interface/interface.js"></script>
+        <script src="/js/const.js"></script>
+        <script src="/js/profiles/mb_a6.js"></script>
+        <script src="/js/device.js"></script>
+        <script src="/js/interface.js"></script>
         <script src="/js/main.js"></script>
         <script src="/js/os.js"></script>
     </body>

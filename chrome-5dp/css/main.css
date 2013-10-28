@@ -565,7 +565,7 @@ nav #devices-overlay ul li div.dev-file {
 
 #tools .wrapper {
     position: relative;
-    margin: 18px auto;
+    margin: 24px auto;
     border: 1px solid #aaa;
     border-radius: 4px;
     color: #333;
@@ -584,26 +584,6 @@ nav #devices-overlay ul li div.dev-file {
     width: 37px;
     height: 24px;
     display: inline-block; 
-}
-
-input.req {
-    display: inline-block;
-    margin-top: 1px;
-    margin-left: -4px;
-    width: 37px;
-    height: 24px;
-    border: 0;
-    font-size: 0.8em;
-    line-height: 2.6em;
-    text-align: center;
-}
-
-#tools .wrapper div.req.icon-celcius {
-    display: inline-block;
-    margin-left: -8px;
-    width: 0;
-    height: 0;
-    vertical-align: top;
 }
 
 #tools .wrapper .move-wrapper div:hover, 
@@ -641,20 +621,51 @@ input.req {
     color: #fff;
 }
 
-.temp {
-    max-height: 32px;
-    overflow: hidden;
-    border-bottom: 1px solid #888;
-}
-
-.act {
+#tools .wrapper .temp {
+    position: relative;
+    margin: 0 auto;
+    width: 100%;
+    height: 64px;
     color: rgba(178, 18, 18, 1);
-    line-height: 2em;
-    cursor: default;
+    font-size: 1.4em;
 }
 
-.act .deg { font-size: 0.8em; }
-.req .deg, .dev-temp .deg { font-size: 0.6em; }
+#tools .wrapper .temp:hover .actual { display: none; }
+#tools .wrapper .temp .actual { 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 64px;
+    background-color: #fff;
+    line-height: 3em;
+    opacity: 1; 
+}
+
+#tools .wrapper .temp.icon-celcius:after { 
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    z-index: 3;
+}
+
+#tools .wrapper .temp .value {
+    width: 100%;
+    height: 64px;
+    padding: 0;
+    line-height: 2.2em;
+    text-align: center;
+    border: 0;
+}
+
+/*
+#tools .wrapper .temp .histo {
+    margin: 0 auto;
+    bottom: 0;
+    width: 100%;
+    height: 24px;
+}
+*/
 
 .power-wrapper div {
     margin-top: 1px;
@@ -780,10 +791,10 @@ input.fi { visibility: hidden; }
 
 #progress {
     position: absolute;
+    top: 0;
     left: 0;
-    bottom: 0;
-    width: 4px;
-    height: 0;
+    width: 0;
+    height: 4px;
     background-color: rgba(178, 18, 18, 0.8);
 }
 
