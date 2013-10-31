@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no">
+
+        <link rel="stylesheet" href="/css/normalize.css">
+        <link rel="stylesheet" href="/css/fonts.css">
+        <link rel="stylesheet" href="/css/main.css">
+        <script src="/js/vendor/modernizr-2.6.2.min.js"></script>
+    </head>
+    <body>
+        <nav>
+            <div id="active-dev" class="no-device">no device</div>
+            <div id="settings" class="btn logo icon-cog-alt"></div>
+            <div id="print-actions" class="wrapper">
+                <div id="file-picker" class="btn icon-doc-inv"></div>
+                <div id="print-pause" class="btn icon-play"></div>
+                <div id="reset" class="btn icon-undo"></div>
+            </div>
+            <div id="devices" class="btn icon-th"></div>
+
+            <div id="settings-overlay">
+                <div class="panel nav-left">
+                    <ul>
+                        <li id="basic" class="btn selected">Basic</li>
+                        <li id="advanced" class="btn">Advanced</li>
+                        <li id="profiles" class="btn">Profiles</li>
+                        <li id="about" class="btn">About</li>
+                    </ul>
+                </div>
+                <div class="panel content-right"></div>
+                <div class="btn close icon-cancel"></div>
+            </div>
+
+            <div id="devices-overlay">
+                <ul>
+                    <li class="btn">
+                        <div class="dev-name"></div>
+                        <div class="dev-status"></div>
+                        <div class="dev-temp icon-celcius"></div>
+                        <div class="dev-file"></div>
+                    </li>
+                </ul>
+                <div class="btn close icon-cancel"></div>
+            </div>
+        </nav>
+
+        <div id="print-area">
+            <div id="sliders">
+                <div id="x" class="slider">
+                    <div class="handle">x</div>
+                </div>
+                <div id="y" class="slider">
+                    <div class="handle">y</div>
+                </div>
+            </div>
+            <div id="canvas-wrapper">
+                <canvas id="grid-layer" width="567" height="415"></canvas>
+                <canvas id="highlight-layer" width="567" height="415"></canvas>
+                <canvas id="cross-layer" width="567" height="415"></canvas>
+                <canvas id="obj-layer" width="567" height="415"></canvas>
+                <canvas id="ph-layer" width="567" height="415"></canvas>
+                
+                <div id="homing" class="wrapper">
+                    <div id="ico-home" class="icon-home"></div>
+                    <div id="all-home">all</div>
+                    <div id="x-home" class="not-homed">x</div>
+                    <div id="y-home" class="not-homed">y</div>
+                    <div id="z-home" class="not-homed">z</div>
+                </div>
+            </div>
+            <div id="tools">
+                <div id="e" class="wrapper">
+                    <div class="move-wrapper">
+                        <div class="minus btn" data-axis="e">&ndash;</div>
+                        <div class="plus btn" data-axis="e">+</div>
+                    </div>
+                    <div class="label">ext</div>
+                    <div class="act temp icon-celcius">0</div>
+                    <!-- <div class="req temp icon-celcius" data-max="300" contenteditable="true">0</div> -->
+                    <input class="req temp" type="number" min="0" max="300" value="" placeholder="0">
+                    <div class="req icon-celcius"></div>
+                    <div class="power-wrapper">
+                        <div class="off btn selected">off</div>
+                        <div class="on btn">on</div>
+                    </div>
+                </div>
+                <div id="z" class="wrapper">
+                    <div class="move-wrapper">
+                        <div class="minus btn" data-axis="z">&ndash;</div>
+                        <div class="plus btn" data-axis="z">+</div>
+                    </div>
+                    <div class="label">bed</div>
+                    <div class="act temp icon-celcius">0</div>
+                    <!-- <div class="req temp icon-celcius" data-max="200" contenteditable="true">0</div> -->
+                    <input class="req temp" type="number" min="0" max="200" value="" placeholder="0">
+                    <div class="req icon-celcius"></div>
+                    <div class="power-wrapper">
+                        <div class="off btn selected">off</div>
+                        <div class="on btn">on</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="console-area">
+            <div class="wrapper">
+                <input class="ghost" value="" placeholder="enter manual commands here" />
+                <div class="handle icon-th"></div>
+            </div>
+            <div class="output"></div>
+            <div id="console-nav">
+                <div class="up icon-up-open-big"></div>
+                <div class="down icon-down-open-big"></div>
+            </div>
+        </div>
+
+        <div id="progress"></div>
+
+        <script src="/js/vendor/jquery-1.9.1.min.js"></script>
+        <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>
+        <script src="/js/makible/mk.js"></script>
+        <script src="/js/device/const.js"></script>
+        <script src="/js/device/device.js"></script>
+        <script src="/js/interface/const.js"></script>
+        <script src="/js/interface/interface.js"></script>
+        <script src="/js/main.js"></script>
+        <script src="/js/os.js"></script>
+    </body>
+</html>
