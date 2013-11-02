@@ -1004,4 +1004,7 @@ var notify = function(conf) {
     conf['type'] = 'basic';
     conf['iconUrl'] = NOTIFY_ICON;
     chrome.notifications.create(conf.title.replace(/\s/g, '_') + (notifyId++), conf, function(info) { });
+    chrome.notifications.onClicked.addListener(function(evt) {
+        console.log(evt);    
+    });
 };

@@ -1,3 +1,5 @@
+var BAUD = { bitrate: 115200 };
+
 const MAGICNUM       = 3.78;  //  1[mm] == 3.78[pixel]
 const POINTER_OFFSET = 5;
 const RED_INDICATOR  = 'rgba(178, 18, 18, 0.8)';

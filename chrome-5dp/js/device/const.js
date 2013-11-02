@@ -1,1 +1,0 @@
-var BAUD = { bitrate: 115200 };

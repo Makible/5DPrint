@@ -14,10 +14,8 @@ var win = function() {
     serialPrefix = 'COM';
 };
 
-var cros = function() {
-    serialPrefix = 'ttyACM';
-};
-
 var linux = function() {
     serialPrefix = 'ttyACM';
 };
+
+var cros = linux;
