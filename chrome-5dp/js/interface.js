@@ -70,7 +70,7 @@ UI.prototype.init = function() {
     ph      = new Indicator();
     ct      = undefined;
     pp      = undefined;
-    paths   = new Array();
+    paths   = [];
 
     ph.color = RED_INDICATOR; 
     ph.x     = 0;
@@ -87,7 +87,7 @@ UI.prototype.init = function() {
 
     displayGrid();
     setSlideTrimmers();
-}
+};
 
 var displayGrid = function() {
     var inc = millimeterToPixel(5);
@@ -164,7 +164,7 @@ var attachBtnHandlers = function() {
     $('#devices').on('click', devsClickHandler);
     $(phLayer.canvas).on('click', canvasClickHandler)
         .on('mousemove', function(evt) {
-            if(ct == undefined) {
+            if(ct === undefined) {
                 ct = new Indicator();
                 ct.color = 'rgba(222, 222, 222, 0.4)';
             }
@@ -197,8 +197,8 @@ var attachBtnHandlers = function() {
     });
 
     $('#tools > .wrapper > .temp > .value').on('blur', function(evt) {
-        var temp = parseInt($(evt.target).val()),
-            max  = parseInt($(evt.target).attr('max'));
+        var temp = parseInt($(evt.target).val(), 10),
+            max  = parseInt($(evt.target).attr('max'), 10);
 
         //  text in there that should be
         if(isNaN(temp) || temp < 0 || temp > max) {
@@ -216,7 +216,7 @@ var attachBtnHandlers = function() {
             $(onSwitch).addClass('selected');
         }
 
-        if(!$(offSwitch).hasClass('selected') && temp == 0) {
+        if(!$(offSwitch).hasClass('selected') && temp === 0) {
             $(onSwitch).removeClass('selected');
             $(offSwitch).addClass('selected');
         }
@@ -226,7 +226,7 @@ var attachBtnHandlers = function() {
             Value:  temp 
         });
     }).on('click', function(evt) {
-        prevTemp = parseInt($(evt.target).val());
+        prevTemp = parseInt($(evt.target).val(), 10);
         $(evt.target).val('');
     });
 
@@ -248,7 +248,7 @@ var attachBtnHandlers = function() {
     //  jQuery.on('keydown', ...) breaks the standard input func
     $('#console-area > .wrapper > input')[0].onkeydown = function(evt) {
         if(evt.keyCode == 13) {
-            if($(evt.target).val() != '' || $(evt.target).val().length > 2) {
+            if($(evt.target).val() !== '' || $(evt.target).val().length > 2) {
                 active.console($(evt.target).val().toUpperCase());
                 $('#console-nav > .down').click();
             }
@@ -312,7 +312,7 @@ var updateStatsUI = function(stats) {
             dn  = $(li).children('.dev-name').html(),
             d   = devices[dn];
 
-        if(d == undefined) {
+        if(d === undefined) {
             $(this).remove();
             return;
         }
@@ -320,7 +320,7 @@ var updateStatsUI = function(stats) {
         if($(li).children('.dev-status').html() != d.job.status)
             $(li).children('.dev-status').html(d.job.status);
 
-        if(d.job.filename != '')
+        if(d.job.filename !== '')
             $(li).children('.dev-file').html(d.job.filename);
         else 
             $(li).children('.dev-file').html('no pending / running prints');
@@ -371,9 +371,9 @@ var updateStatsUI = function(stats) {
             }
         }
 
-        if(homedData && homedData != undefined) {
-            for(var i = 0; i < homedData.length; i++) {
-                var axis = homedData[i].replace(/\s/g, '').split(':'),
+        if(homedData && homedData !== undefined) {
+            for(var j = 0; j < homedData.length; j++) {
+                var axis = homedData[j].replace(/\s/g, '').split(':'),
                     hId  = '#' + axis[0].toLowerCase() + '-home';
                 if(axis[1] == '0' && !$(hId).hasClass('not-homed'))
                     $(hId).addClass('not-homed');
@@ -383,11 +383,11 @@ var updateStatsUI = function(stats) {
             }
         }
 
-        if(posData && posData != undefined) {
-            for(var i = 0; i < posData.length; i++) {
-                if(posData[i].indexOf(':') == -1) continue;
+        if(posData && posData !== undefined) {
+            for(var k = 0; k < posData.length; k++) {
+                if(posData[k].indexOf(':') == -1) continue;
 
-                var coord = posData[i].split(':'),
+                var coord = posData[k].split(':'),
                     pos   = millimeterToPixel(coord[1]);
 
                 if(coord[0].toLowerCase() == 'x') ph.y = pos;
@@ -412,7 +412,7 @@ var updatePrintUI = function(pcmd) {
 
             //  plot prev layer and draw
             for(var i = 1; i < paths.length; i++) {
-                hlLayer.ctx.strokeStyle = (paths[i].e != undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+                hlLayer.ctx.strokeStyle = (paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
                 hlLayer.ctx.lineTo(paths[i].x, paths[i].y);
                 hlLayer.ctx.closePath();
                 hlLayer.ctx.stroke();
@@ -424,28 +424,28 @@ var updatePrintUI = function(pcmd) {
 
             //  reset "active" layer
             objLayer.ctx.clearRect(0, 0, w, h);
-            paths = new Array();
+            paths = [];
         }
 
         //  need to flip the X and Y here because of the way the
         //  physical printer is versus virtual via screen X / Y
         var mx, my, me, _pcmd = pcmd.split(' ');
-        for(var i = 0; i < _pcmd.length; i++) {
-            if(_pcmd[i].indexOf('X') > -1)
-                my = millimeterToPixel(_pcmd[i].substring(1));
+        for(var j = 0; j < _pcmd.length; j++) {
+            if(_pcmd[j].indexOf('X') > -1)
+                my = millimeterToPixel(_pcmd[j].substring(1));
 
-            if(_pcmd[i].indexOf('Y') > -1)
-                mx = millimeterToPixel(_pcmd[i].substring(1));
+            if(_pcmd[j].indexOf('Y') > -1)
+                mx = millimeterToPixel(_pcmd[j].substring(1));
 
-            if(_pcmd[i].indexOf('E') > -1)
-                me = millimeterToPixel(_pcmd[i].substring(1));
+            if(_pcmd[j].indexOf('E') > -1)
+                me = millimeterToPixel(_pcmd[j].substring(1));
         }
 
         paths.push({ x: mx, y: my, e: me });
         ph.x = mx, ph.y = my;
 
         //  only draw the new path here
-        objLayer.ctx.strokeStyle = (me != undefined) ? RED_INDICATOR : BLU_INDICATOR;
+        objLayer.ctx.strokeStyle = (me !== undefined) ? RED_INDICATOR : BLU_INDICATOR;
         objLayer.ctx.lineTo(mx, my);
         objLayer.ctx.closePath();
         objLayer.ctx.stroke();
@@ -494,13 +494,13 @@ var resetPrintUI = function() {
 };
 
 var loadContentToUI = function(content) {
-    paths = new Array();
+    paths = [];
     paths.push({ x:0, y:0, e:0 });
 
     //  loop through the file, getting each 'G1' line and loading the
     //  x / y coords into the paths array, ignoring the commented rows
     for(var i = 0; i < content.length; i++) {
-        if(content[i] && content[i] != undefined
+        if(content[i] && content[i] !== undefined
             && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1) 
             && (content[i].indexOf('G1 X') > -1 || content[i].indexOf('G1 Y') > -1)) {
 
@@ -520,7 +520,7 @@ var loadContentToUI = function(content) {
     }
 
     if(paths.length == 1)
-        paths = new Array();
+        paths = [];
     resetAndDrawPaths();
 };
 
@@ -656,12 +656,12 @@ var paClickHandler = function(evt) {
         }).click();
 
         //  clear out old object from canvas
-        paths = new Array();
+        paths = [];
         resetAndDrawPaths();
 
         break;
     case 'print-pause':
-        if(!active.job.filename || active.job.filename == '') {
+        if(!active.job.filename || active.job.filename === '') {
             notify({ 
                 title: "No File",
                 message: "Please load a valid gcode file to print"
@@ -678,7 +678,7 @@ var paClickHandler = function(evt) {
             active.job.status = 'running';
             active.startPendingJob();
 
-            paths = new Array();
+            paths = [];
             resetAndDrawPaths();
             break;
         } 
@@ -720,7 +720,7 @@ var paClickHandler = function(evt) {
         active.job = new Job();
         $('#progress').css('height', '0');
 
-        paths = new Array();
+        paths = [];
         
         hlLayer.ctx.clearRect(0, 0, w, h);
         objLayer.ctx.clearRect(0, 0, w, h);
@@ -757,7 +757,7 @@ var canvasClickHandler = function(evt) {
 
     //  send coords to device
     var dist = pixelToMillimeter(osy) + ',' + pixelToMillimeter(osx);
-    active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED })
+    active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
 
     // setup projected point indicator
     pp = new Indicator();
@@ -795,7 +795,7 @@ var consoleNavClickHandler = function(evt) {
 var powerToggleClickHandler = function(evt) {
     if($(evt.target).hasClass('selected')) return;
 
-    var p = $(evt.target).parent()
+    var p = $(evt.target).parent();
 
     //  updated the ui
     $(p).find('.selected').removeClass('selected');
@@ -808,7 +808,7 @@ var powerToggleClickHandler = function(evt) {
     //  .req value to 0
     var temp = 0;
     if($(evt.target).hasClass('on')) 
-        temp = parseInt($(p).parent().find('.req').val());
+        temp = parseInt($(p).parent().find('.req').val(), 10);
     else 
         $(p).parent().find('.req').removeAttr('value');
 
@@ -873,16 +873,16 @@ var updateConsoleOutput = function(data) {
             else {
                 var tmp = '',
                     ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
-                for(i in ots) 
+                for(var i in ots) 
                     tmp += ots[i] + '<br>';
                 opTxt = tmp + data;
             }
         } else {
             opTxt = '';
             var extra = nlen - LINE_COUNT;
-            for(var i = extra; i < nlen; i++)
-                opTxt += data.split('<br>')[i];
-            opTxt += '<br>'
+            for(var j = extra; j < nlen; j++)
+                opTxt += data.split('<br>')[j];
+            opTxt += '<br>';
         }
     }
     $('#console-area > .output').html(opTxt);
@@ -904,7 +904,7 @@ var attachMovers = function() {
     });
 
     $(document).on('mouseup', function(e) {
-        if(mouseDownHandler && mouseDownHandler != undefined) {
+        if(mouseDownHandler && mouseDownHandler !== undefined) {
             $(mouseDownHandler).trigger('mouseup');
             mouseDownHandler = undefined;
         }
@@ -984,7 +984,7 @@ var resetAndDrawPaths = function() {
     objLayer.ctx.moveTo(paths[0].x, paths[0].y);
 
     for(var i = 1; i < paths.length; i++) {
-        objLayer.ctx.strokeStyle = (paths[i].e != undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+        objLayer.ctx.strokeStyle = (paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
         objLayer.ctx.lineTo(paths[i].x, paths[i].y);
         objLayer.ctx.closePath();
         objLayer.ctx.stroke();
@@ -999,7 +999,7 @@ var redrawIndicators = function() {
     phLayer.ctx.clearRect(0, 0, w, h);
     ph.drawFill();
 
-    if(ct != undefined) ct.drawStroke();
+    if(ct !== undefined) ct.drawStroke();
     // if(pp != undefined) pp.drawStroke();
 };
 
@@ -1024,16 +1024,17 @@ var homeDeviceUI = function(axis) {
 //     convert helpers
 //  ======================
 var pixelToMillimeter = function(p) {
-    return (p != 0) ? Math.floor(p / MAGICNUM) : p;
+    return (p !== 0) ? Math.floor(p / MAGICNUM) : p;
 };
 
 var millimeterToPixel = function(mm) {
-    return (mm != 0) ? Math.floor(mm * MAGICNUM) : mm;
+    return (mm !== 0) ? Math.floor(mm * MAGICNUM) : mm;
 };
 
 var notify = function(conf) {
-    conf['type'] = 'basic';
-    conf['iconUrl'] = NOTIFY_ICON;
+    conf.type = 'basic';
+    conf.iconUrl = NOTIFY_ICON;
+    
     chrome.notifications.create(conf.title.replace(/\s/g, '_') + (notifyId++), conf, function(info) { });
     chrome.notifications.onClicked.addListener(function(evt) {
         console.log(evt);    

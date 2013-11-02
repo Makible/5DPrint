@@ -44,10 +44,10 @@ function Commands() {
 
 //  rs Responses
 function Resends() {
-    this.CS_OOR  = '(checksum out of range)'
-    this.CS_INV  = '(incorrect checksum - should be '
-    this.CMD_OOR = '(command code out of range)'
-    this.CMD_MSS = '(command code missing)'
+    this.CS_OOR  = '(checksum out of range)';
+    this.CS_INV  = '(incorrect checksum - should be ';
+    this.CMD_OOR = '(command code out of range)';
+    this.CMD_MSS = '(command code missing)';
 }
 
 var cmd = new Commands(),

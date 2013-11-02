@@ -213,25 +213,25 @@ Device.prototype.updateDeviceStats = function(stats) {
         }
     }
 
-    if(temp && temp != undefined) {
-        for(var i = 0; i < temp.length; i++) {
-            if(temp[i].indexOf('T') > -1) {
-                this.ETemp = temp[i].split(':')[1];
+    if(temp && temp !== undefined) {
+        for(var j = 0; j < temp.length; j++) {
+            if(temp[j].indexOf('T') > -1) {
+                this.ETemp = temp[j].split(':')[1];
                 continue;
             }
 
-            if(temp[i].indexOf('B') > -1) {
-                this.BTemp = temp[i].split(':')[1];
+            if(temp[j].indexOf('B') > -1) {
+                this.BTemp = temp[j].split(':')[1];
                 continue;
             }
         }
     }
 
-    if(pos && pos != undefined) {
-        for(var i = 0; i < pos.length; i++) {
-            if(pos[i].indexOf(':') == -1) continue;
+    if(pos && pos !== undefined) {
+        for(var k = 0; k < pos.length; k++) {
+            if(pos[k].indexOf(':') == -1) continue;
 
-            var c = pos[i].split(':'),
+            var c = pos[k].split(':'),
                 p = millimeterToPixel(c[1]);
 
             if(c[0].toLowerCase() == 'e') this.pos.e = parseFloat(p);
@@ -268,7 +268,7 @@ Device.prototype.home = function(axis) {
 };
 
 Device.prototype.console = function(input, callback) {
-    var _cmd = (NATURALS[input] != undefined) ? NATURALS[input] : input;
+    var _cmd = (NATURALS[input] !== undefined) ? NATURALS[input] : input;
 
     if(_cmd.indexOf(CMD_TERMINATOR) < 0)
         _cmd += CMD_TERMINATOR;
@@ -379,7 +379,7 @@ Device.prototype.runAtIdx = function(idx) {
     //  this should mean the job is done and
     //  housekeeping needs to happen 
     if(idx >= device.job.content.length || 
-        device.job.content[idx] == undefined) {
+        device.job.content[idx] === undefined) {
 
         //  clean up after print
         device.job.end = new Date().getTime();
@@ -390,8 +390,8 @@ Device.prototype.runAtIdx = function(idx) {
 
         var diff, hh, mm;
         diff = parseFloat(((device.job.end - device.job.start) / 3600000).toFixed(2));
-        hh = parseInt(diff);
-        mm = parseInt(parseFloat((diff -= hh).toFixed(2)) * 60);
+        hh = parseInt(diff, 10);
+        mm = parseInt(parseFloat((diff -= hh).toFixed(2), 10) * 60, 10);
 
         //  TODO ::
         //  include pause duration in msg
@@ -412,7 +412,7 @@ Device.prototype.runAtIdx = function(idx) {
 
     //  we may get into a bit of a race issue with
     //  the callbacks and a pause ....
-    if(_cmd.indexOf(';') == 0 || _cmd.length <= 1)
+    if(_cmd.indexOf(';') === 0 || _cmd.length <= 1)
         device.runAtIdx(idx);
     else {
         if(device.name == active.name)

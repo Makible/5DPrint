@@ -1,25 +1,8 @@
 var dbg, hostInfo, os, notifyId;
 
+var fdp, ui;
+
 function FDP() {}
-
-var init = function(info) {
-    notifyId = 0;
-    hostInfo = info;
-    config();
-
-    UI.init();
-    FDP.initDevicePolling();
-
-    //  DEBUG
-    // dbg=!0;
-};
-
-FDP.prototype.config = function() {
-    if(typeof window[hostInfo.os] === 'function')
-        window[hostInfo.os]();
-    else 
-        notify({ title: "Unsupported OS", message: "Unfortunately, your OS is not supported at this time." });
-};
 
 //  
 //  currently only listening for MakiBox devices
@@ -31,6 +14,18 @@ FDP.prototype.initDevicePolling = function() {
 
     if(devices === undefined) 
         devices = {};
+        
+    var conncb = function(device, valid) {
+        if(valid) {
+            notify({ title: "Device Attached", message: device.name + " attached" });
+            devices[device.name] = device;
+            attachDeviceToInterface(device);
+            device.getFullStats();
+        } else {
+            serial.flush(device.conn, function(){});
+            serial.close(device.conn, function(){});
+        }      
+    };
 
     //  pulls the list of devices according to the prefix
     //  and attempts to open and set the device if it is
@@ -38,19 +33,8 @@ FDP.prototype.initDevicePolling = function() {
     connTimer = window.setInterval(function() { 
         serial.getPorts(function(ports) {
             for(var i=0; i < ports.length; i++) {
-                if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] == undefined) {
-                    new Device(ports[i]).connect(function(device, valid) {
-                        if(valid) {
-                            notify({ title: "Device Attached", message: device.name + " attached" });
-                            devices[device.name] = device;
-                            attachDeviceToInterface(device);
-                            device.getFullStats();
-                        } else {
-                            serial.flush(device.conn, function(){});
-                            serial.close(device.conn, function(){});
-                        }
-                    });
-                }
+                if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] === undefined)
+                    new Device(ports[i]).connect(conncb);
             }
         });
     }, 1200);
@@ -79,4 +63,22 @@ $(window).on('resize', function(evt) {
 //  
 //  entry point here, because we need
 //  OS info in order to proceed
-chrome.runtime.getPlatformInfo(init);
+chrome.runtime.getPlatformInfo(function(info) {
+    fdp = new FDP();
+    ui  = new UI();
+    
+    notifyId = 0;
+    hostInfo = info;
+    
+    if(typeof window[hostInfo.os] !== 'function') {
+        notify({ title: "Unsupported OS", message: "Unfortunately, your OS is not supported at this time." });
+        return;
+    } else 
+        window[hostInfo.os]();
+        
+    fdp.initDevicePolling();
+    ui.init();
+
+    //  DEBUG
+    // dbg=!0;
+});
