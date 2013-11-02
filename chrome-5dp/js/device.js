@@ -38,9 +38,17 @@ Device.prototype.connect = function(callback) {
 };
 
 Device.prototype.onopen = function(info) {
-    this.conn = info.connectionId;
-    if(this.callbacks.connect)
-        this.callbacks.connect();
+    var device = this;
+
+    device.conn = info.connectionId;
+
+    device.write(cmd.FMWARE_INFO, function() {});
+    device.readall(function(info) {
+        if(info.toLowerCase().indexOf(MKB_FLAG.toLowerCase()) > -1 && device.callbacks.connect)
+            device.callbacks.connect(device, !0);
+        else
+            device.callbacks.connect(device, 0);
+    });
 };
 
 Device.prototype.read = function(callback) {
@@ -180,6 +188,7 @@ Device.prototype.setTemp = function(temp) {
     var _d   = this, 
         _cmd = ((temp.Name == 'e') ? cmd.SET_EXTEMP : cmd.SET_BDTEMP) + temp.Value;
 
+    _cmd += CMD_TERMINATOR;
     _d.write(_cmd, function(w) { 
         if(w.bytesWritten < 0) 
             _d.destroy();
@@ -282,7 +291,7 @@ Device.prototype.startPendingJob = function() {
 
 
     _d.job.start = new Date().getTime();
-    runAtIdx(_d, idx);
+    _d.runAtIdx(idx);
 };
 
 Device.prototype.resumeJob = function() {
@@ -294,7 +303,7 @@ Device.prototype.resumeJob = function() {
         });
 
         _d.job.pauseddur += (new Date().getTime()) - _d.job.paused;
-        runAtIdx(_d, _d.job.pausedidx);
+        _d.runAtIdx(_d.job.pausedidx);
     });
 };
 
@@ -334,7 +343,8 @@ Device.prototype.sendStdCmd = function(val) {
     });
 };
 
-var runAtIdx = function(device, idx) {
+Device.prototype.runAtIdx = function(idx) {
+    var device = this;
     if(device.hardStop) {
         device.hardStop = 0;
         return;
@@ -379,10 +389,12 @@ var runAtIdx = function(device, idx) {
         resetPrintUI();
 
         var diff, hh, mm;
-        diff = parseFloat(((active.job.end - active.job.start) / 3600000).toFixed(2));
+        diff = parseFloat(((device.job.end - device.job.start) / 3600000).toFixed(2));
         hh = parseInt(diff);
         mm = parseInt(parseFloat((diff -= hh).toFixed(2)) * 60);
 
+        //  TODO ::
+        //  include pause duration in msg
         msg = 'Print Time [hh:mm] ' + hh + ':' + mm
             + '\n\nyour system has now returned to the'
             + ' normal power settings'; 
@@ -401,10 +413,11 @@ var runAtIdx = function(device, idx) {
     //  we may get into a bit of a race issue with
     //  the callbacks and a pause ....
     if(_cmd.indexOf(';') == 0 || _cmd.length <= 1)
-        runAtIdx(device, idx);
+        device.runAtIdx(idx);
     else {
-        console.log('running cmd: ' + _cmd);
-        updatePrintUI(_cmd);
+        if(device.name == active.name)
+            updatePrintUI(_cmd);
+        
         if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
             _cmd += CMD_TERMINATOR;
 
@@ -414,58 +427,16 @@ var runAtIdx = function(device, idx) {
         //  execution on the device if the temp request takes 
         //  an extended amount of time to perform
         _cmd += cmd.GET_TEMP;
-
         device.write(_cmd, function(w) { 
             if(w.bytesWritten < 0) 
                 device.destroy();
             else {
                 device.readall(function(data) {
-                    console.log(data);
-
                     device.updateDeviceStats(data);
-                    runAtIdx(device, idx);
+                    device.runAtIdx(idx);
                 });
             }
         });
     }
 };
 
-var pollSerialDevices = function() {
-    if(devicePollTimer !== undefined)
-        window.clearInterval(devicePollTimer);
-
-    if(devices === undefined) 
-        devices = {};
-
-    //  pulls the list of devices according to the prefix
-    //  and attempts to open and set the device if it is
-    //  indeed a 5dprint compatable device (i.e. MakiBox A6)
-	connTimer = window.setInterval(function() { 
-		serial.getPorts(function(ports) {
-	        for(var i=0; i < ports.length; i++) {
-	            if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] == undefined) {
-	                var dev = new Device(ports[i]);
-	                dev.connect(function(d) {
-						//	check to see if this is a MakiBox
-	                    dev.write(cmd.FMWARE_INFO, function(w) { });
-	                    dev.readall(function(info) {
-	                        if(info.toLowerCase().indexOf(MKB_FLAG.toLowerCase()) > -1) {
-	                            notify({ 
-	                                title: "Device Attached", 
-	                                message: dev.name + " has been attached" 
-	                            });
-
-	                            devices[dev.name] = dev;
-	                            attachDeviceToInterface(dev);
-	                            dev.getFullStats();
-	                        } else {
-	                            serial.flush(dev.conn, function(){});
-	                            serial.close(dev.conn, function(){});
-	                        }
-	                    });
-	                });
-	            }
-	        }
-    	});
-	}, 1200);
-};
