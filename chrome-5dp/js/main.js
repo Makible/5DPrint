@@ -1,16 +1,16 @@
-var dbg, hostInfo, os, notifyId;
+var dbg, notifyId, fdp, ui, util;
 
-var fdp, ui;
-
-function FDP() {}
+function FDP() {
+    this.devicePollTimer = undefined;
+}
 
 //  
 //  currently only listening for MakiBox devices
 //  though this will change in the near future
 //  as device support increases
 FDP.prototype.initDevicePolling = function() {
-    if(devicePollTimer !== undefined)
-        window.clearInterval(devicePollTimer);
+    if(this.devicePollTimer !== undefined)
+        window.clearInterval(this.devicePollTimer);
 
     if(devices === undefined) 
         devices = {};
@@ -19,7 +19,7 @@ FDP.prototype.initDevicePolling = function() {
         if(valid) {
             notify({ title: "Device Attached", message: device.name + " attached" });
             devices[device.name] = device;
-            attachDeviceToInterface(device);
+            ui.attachDevice(device);
             device.getFullStats();
         } else {
             serial.flush(device.conn, function(){});
@@ -30,10 +30,10 @@ FDP.prototype.initDevicePolling = function() {
     //  pulls the list of devices according to the prefix
     //  and attempts to open and set the device if it is
     //  indeed a 5dprint compatable device (i.e. MakiBox A6)
-    connTimer = window.setInterval(function() { 
+    this.connTimer = window.setInterval(function() { 
         serial.getPorts(function(ports) {
             for(var i=0; i < ports.length; i++) {
-                if(ports[i].indexOf(serialPrefix) > -1 && devices[ports[i]] === undefined)
+                if(ports[i].indexOf(util.serialPrefix) > -1 && devices[ports[i]] === undefined)
                     new Device(ports[i]).connect(conncb);
             }
         });
@@ -43,8 +43,8 @@ FDP.prototype.initDevicePolling = function() {
 //  
 //  generic notifications using the chrome api
 var notify = function(conf) {
-    conf['type'] = 'basic';
-    conf['iconUrl'] = NOTIFY_ICON;
+    conf.type    = 'basic';
+    conf.iconUrl = NOTIFY_ICON;
     chrome.notifications.create(conf.title.replace(/\s/g, '_') + (notifyId++), conf, function(info) { });
 };
 
@@ -53,10 +53,12 @@ var notify = function(conf) {
 //  if the window is resized... so we'll just
 //  set a "trimer" to fix this
 $(window).on('resize', function(evt) {
-    setSlideTrimmers();
-    if($('.handle').is(':ui-draggable')) {
-        $('.handle:ui-draggable').draggable('destroy');
-        attachSliderHandlers();
+    if(ui && ui !== undefined) {
+        ui.setSlideTrimmers();
+        if($('.handle').is(':ui-draggable')) {
+            $('.handle:ui-draggable').draggable('destroy');
+            ui.attachSliderHandlers();
+        }
     }
 });
 
@@ -64,20 +66,19 @@ $(window).on('resize', function(evt) {
 //  entry point here, because we need
 //  OS info in order to proceed
 chrome.runtime.getPlatformInfo(function(info) {
-    fdp = new FDP();
-    ui  = new UI();
+    dbg = notifyId = 0;
+
+    util = new Util();
+    fdp  = new FDP();
+    ui   = new UI();
     
-    notifyId = 0;
-    hostInfo = info;
-    
-    if(typeof window[hostInfo.os] !== 'function') {
+    if(typeof util[info.os] !== 'function') {
         notify({ title: "Unsupported OS", message: "Unfortunately, your OS is not supported at this time." });
         return;
     } else 
-        window[hostInfo.os]();
+        util[info.os]();
         
     fdp.initDevicePolling();
-    ui.init();
 
     //  DEBUG
     // dbg=!0;

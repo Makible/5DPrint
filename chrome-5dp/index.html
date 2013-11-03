@@ -36,14 +36,7 @@
             </div>
 
             <div id="devices-overlay">
-                <ul>
-                    <li class="btn">
-                        <div class="dev-name"></div>
-                        <div class="dev-status"></div>
-                        <div class="dev-temp icon-celcius"></div>
-                        <div class="dev-file"></div>
-                    </li>
-                </ul>
+                <ul></ul>
                 <div class="btn close icon-cancel"></div>
             </div>
         </nav>
@@ -60,7 +53,7 @@
             <div id="canvas-wrapper">
                 <canvas id="grid-layer" width="567" height="415"></canvas>
                 <canvas id="highlight-layer" width="567" height="415"></canvas>
-                <canvas id="cross-layer" width="567" height="415"></canvas>
+                <canvas id="sub-layer" width="567" height="415"></canvas>
                 <canvas id="obj-layer" width="567" height="415"></canvas>
                 <canvas id="ph-layer" width="567" height="415"></canvas>
                 
@@ -75,34 +68,34 @@
             <div id="tools">
                 <div id="e" class="wrapper">
                     <div class="move-wrapper">
-                        <div class="minus btn" data-axis="e">&ndash;</div>
-                        <div class="plus btn" data-axis="e">+</div>
+                        <div id="e-minus" class="minus btn" data-axis="e">&ndash;</div>
+                        <div id="e-plus" class="plus btn" data-axis="e">+</div>
                     </div>
                     <div class="label">ext</div>
                     <div class="temp icon-celcius">
-                        <div class="actual">0</div>
-                        <input type="number" class="value" max="300" min="0" placeholder="0">
+                        <div id="e-actual" class="actual">0</div>
+                        <input id="e-requested" type="number" class="value" max="300" min="0" placeholder="0">
                         <!-- <div class="histo"></div> -->
                     </div>
                     <div class="power-wrapper">
-                        <div class="off btn selected">off</div>
-                        <div class="on btn">on</div>
+                        <div id="e-off" class="off btn selected">off</div>
+                        <div id="e-on" class="on btn">on</div>
                     </div>
                 </div>
                 <div id="z" class="wrapper">
                     <div class="move-wrapper">
-                        <div class="minus btn" data-axis="z">&ndash;</div>
-                        <div class="plus btn" data-axis="z">+</div>
+                        <div id="z-minus" class="minus btn" data-axis="z">&ndash;</div>
+                        <div id="z-plus" class="plus btn" data-axis="z">+</div>
                     </div>
                     <div class="label">bed</div>
                     <div class="temp icon-celcius">
-                        <div class="actual">0</div>
-                        <input type="number" class="value" max="200" min="0" placeholder="0">
+                        <div id="z-actual" class="actual">0</div>
+                        <input id="z-requested" type="number" class="value" max="200" min="0" placeholder="0">
                         <!-- <div class="histo"></div> -->
                     </div>
                     <div class="power-wrapper">
-                        <div class="off btn selected">off</div>
-                        <div class="on btn">on</div>
+                        <div id="z-off" class="off btn selected">off</div>
+                        <div id="z-on" class="on btn">on</div>
                     </div>
                 </div>
             </div>
@@ -110,10 +103,10 @@
 
         <div id="console-area">
             <div class="wrapper">
-                <input class="ghost" value="" placeholder="enter manual commands here" />
-                <div class="handle icon-th"></div>
+                <input id="console-input" class="ghost" value="" placeholder="enter manual commands here" />
+                <div id="console-handle" class="handle icon-th"></div>
             </div>
-            <div class="output"></div>
+            <div id="console-output"></div>
             <div id="console-nav">
                 <div class="up icon-up-open-big"></div>
                 <div class="down icon-down-open-big"></div>
@@ -124,11 +117,11 @@
 
         <script src="/js/vendor/jquery-1.9.1.min.js"></script>
         <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>
+        <script src="/js/util.js"></script>
         <script src="/js/const.js"></script>
         <script src="/js/profiles/mb_a6.js"></script>
         <script src="/js/device.js"></script>
         <script src="/js/interface.js"></script>
         <script src="/js/main.js"></script>
-        <script src="/js/os.js"></script>
     </body>
 </html>

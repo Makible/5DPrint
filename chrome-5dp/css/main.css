@@ -736,7 +736,7 @@ nav #devices-overlay ul li div.dev-file {
 #console-area .wrapper .handle:hover { box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.4); }
 #console-area .wrapper .handle:active { box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.8); }
 
-#console-area .output {
+#console-output {
     position: absolute;
     /*top: -358px;*/
     top: -1px;
@@ -759,8 +759,7 @@ nav #devices-overlay ul li div.dev-file {
     display: none;
 }
 
-#console-area .output span.temp { color: pink; }
-#console-area #console-nav {
+#console-nav {
     position: absolute;
     top: -90px;
     right: 36px;
@@ -772,7 +771,7 @@ nav #devices-overlay ul li div.dev-file {
     display: none;
 }
 
-#console-area #console-nav div {
+#console-nav div {
     position: relative;
     margin: 8px auto;
     width: 30px;
@@ -785,8 +784,8 @@ nav #devices-overlay ul li div.dev-file {
     cursor: pointer;
 }
 
-#console-area #console-nav div[class*=" icon-"]:after { margin: 0; }
-#console-area #console-nav div:active { color: #333; background-color: #4a8bf5; }
+#console-nav div[class*=" icon-"]:after { margin: 0; }
+#console-nav div:active { color: #333; background-color: #4a8bf5; }
 input.fi { visibility: hidden; }
 
 #progress {
@@ -912,7 +911,7 @@ input.fi { visibility: hidden; }
 @media print,
        (-o-min-device-pixel-ratio: 5/4),
        (-webkit-min-device-pixel-ratio: 1.25),
-       (min-resolution: 120dpi) {
+       (min-resolution: 120dppx) {
     /* Style adjustments for high resolution devices */
 }
 
