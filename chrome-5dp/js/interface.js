@@ -9,20 +9,98 @@ function Indicator() {
 }
 
 Indicator.prototype.drawHEFill = function() {
-    ui.phLayer.ctx.beginPath();
-    ui.phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-    ui.phLayer.ctx.strokeStyle = this.color;
-    ui.phLayer.ctx.fillStyle   = this.color;
-    ui.phLayer.ctx.closePath();
-    ui.phLayer.ctx.fill();
+    ui.pa.phLayer.ctx.beginPath();
+    ui.pa.phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+    ui.pa.phLayer.ctx.strokeStyle = this.color;
+    ui.pa.phLayer.ctx.fillStyle   = this.color;
+    ui.pa.phLayer.ctx.closePath();
+    ui.pa.phLayer.ctx.fill();
 };
 
 Indicator.prototype.drawHEStroke = function() {
-    ui.phLayer.ctx.beginPath();
-    ui.phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-    ui.phLayer.ctx.strokeStyle = this.color;
-    ui.phLayer.ctx.closePath();
-    ui.phLayer.ctx.stroke();
+    ui.pa.phLayer.ctx.beginPath();
+    ui.pa.phLayer.ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+    ui.pa.phLayer.ctx.strokeStyle = this.color;
+    ui.pa.phLayer.ctx.closePath();
+    ui.pa.phLayer.ctx.stroke();
+};
+
+function Slider(el) {
+    this.el = el;
+    this.mdh = undefined;
+    this.handle = el.children[0];
+    this.enabled  = 0;
+}
+
+Slider.prototype.init = function() {
+    var _sl = this;
+    _sl.el.onclick = function(evt) {
+        if(!_sl.enabled || evt.target.classList.contains('slider')) return;
+
+        if(evt.target.id == 'y')
+            evt.offsetY = ui.pa.phi.x + POINTER_OFFSET;
+        else
+            evt.offsetX = ui.pa.phi.y + POINTER_OFFSET;
+        ui.canvasCl(evt);
+    };
+
+    _sl.el.children[0].onmouseup = function(evt) {
+        if(!_sl.enabled) return;
+
+        _sl.mdh = undefined;
+        ui.disableMovers();
+
+        var dist = util.pixelToMillimeter(ui.pa.phi.y) + 
+                    ',' + util.pixelToMillimeter(ui.pa.phi.x);
+        active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+        ui.enableMovers();
+    };
+
+    //  
+    //  will trigger mouseup event from anywhere on the page
+    //  if the mouse is in a space far outside the handles bounds
+    document.onmouseup = function(evt) {
+        if(_sl.mdh && _sl.mdh !== undefined) {
+            _sl.mdh.onmouseup();
+            _sl.mdh = undefined;
+        }
+    };
+};
+
+Slider.attachDraggers = function() {
+    var xtb, xbb, ylb, yrb;
+
+    //  x draggable limits
+    xtb = ui.pa.xSlider.el.offsetTop + ui.xTrim;
+    xbb = xtb + ui.pa.xSlider.el.offsetHeight;
+
+    //  y draggable limits
+    ylb = ui.pa.ySlider.el.offsetLeft + ui.yTrim;
+    yrb = ylb + ui.pa.ySlider.el.offsetWidth;
+
+    jQuery(ui.pa.xSlider.handle).draggable({
+        axis: 'y',
+        containment: [0, xtb, 0, xbb],
+        drag: function(evt) {
+            var _mdh = evt.target;
+            ui.pa.phi.y = _mdh.offsetTop + Math.floor(_mdh.offsetHeight / 2) + Math.floor(POINTER_OFFSET / 2);
+
+            ui.pa.xSlider.mdh = _mdh;
+            ui.pa.redrawIndicators();
+        }
+    });
+
+    jQuery(ui.pa.ySlider.handle).draggable({ 
+        axis: 'x', 
+        containment: [ylb, 0, yrb, 0],
+        drag: function(evt) {
+            var _mdh = evt.target;
+            ui.pa.phi.x = _mdh.offsetLeft + Math.floor(_mdh.offsetWidth / 2) + Math.floor(POINTER_OFFSET / 2);
+
+            ui.pa.ySlider.mdh = _mdh;
+            ui.pa.redrawIndicators();
+        }
+    });
 };
 
 function Layer(c) {
@@ -33,7 +111,7 @@ function Layer(c) {
 }
 
 Layer.prototype.clear = function() {
-    this.ctx.clearRect(0, 0, ui.witdh, ui.height);
+    this.ctx.clearRect(0, 0, ui.pa.width, ui.pa.height);
 };
 
 Layer.prototype.startPath = function(x, y) {
@@ -54,8 +132,11 @@ function PrintArea() {
     this.el = document.getElementById('print-area');
 
     //  sliders
-    this.xSlider = document.getElementById('x');
-    this.ySlider = document.getElementById('y');
+    this.xSlider = new Slider(document.getElementById('x'));
+    this.ySlider = new Slider(document.getElementById('y'));
+
+    this.xSlider.init();
+    this.ySlider.init();
 
     //  home buttons
     this.homeAllBtn = document.getElementById('all-home');
@@ -91,22 +172,57 @@ function PrintArea() {
     this.width  = this.bgLayer.width;
     this.height = this.bgLayer.height;
 
-    this.phi = { color: RED_INDICATOR, x: 0, y: 0 };
     this.ct  = undefined;
     this.pp  = undefined;
+
+    this.phi = new Indicator();
+    this.phi.color = RED_INDICATOR;
+    this.phi.x = 0;
+    this.phi.y = 0;
 
 }
 
 PrintArea.prototype.resetAndDrawPaths = function() {
-    console.log('doin the reset and draw');
+    this.objLayer.clear();
+    if(ui.paths.length < 1) return;
+
+    this.objLayer.startPath(ui.paths[0].x, ui.paths[0].y);
+    for(var i = 1; i < paths.length; i++) {
+        var _x = ui.paths[i].x,
+            _y = ui.paths[i].y,
+            _c = (ui.paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+
+        this.objLayer.drawPathTo(_x, _y, _c);
+        this.objLayer.startPath(_x, _y)
+    }
+    this.bgLayer.closePath();
 };
 
-PrintArea.prototype.movePrintHead = function(x, y) {
+PrintArea.prototype.movePrintHead = function(offsetX, offsetY) {
+    this.phi.x = offsetX;
+    this.phi.y = offsetY;
 
+    ui.disableMovers();
+    this.moveSliders(offsetX, offsetY);
+    this.redrawIndicators();
+    ui.enableMovers();
 };
 
 PrintArea.prototype.redrawIndicators = function() {
+    this.phLayer.clear();
+    this.phi.drawHEFill();
 
+    if(this.ct !== undefined) 
+        this.ct.drawHEStroke();
+};
+
+PrintArea.prototype.moveSliders = function(offsetX, offsetY) {
+    var t, l;
+    t = this.phi.y - Math.floor(this.xSlider.handle.offsetHeight / 2) + Math.floor(POINTER_OFFSET / 2);
+    this.xSlider.handle.style.top = t+'px';
+
+    l = this.phi.x - Math.floor(this.xSlider.handle.offsetWidth / 2) + Math.floor(POINTER_OFFSET / 2);
+    this.ySlider.handle.style.left = l+'px';
 };
 
 function UI() {
@@ -150,7 +266,10 @@ function UI() {
     df.className = 'dev-file';
 
     this.deviceTpl.className = 'btn';
-    this.deviceTpl.innerHTML = dn + ds + dt + df;
+    this.deviceTpl.appendChild(dn);
+    this.deviceTpl.appendChild(ds);
+    this.deviceTpl.appendChild(dt);
+    this.deviceTpl.appendChild(df);
 
     //  display grid
     var _inc = util.millimeterToPixel(5);
@@ -166,6 +285,70 @@ function UI() {
     }
     this.pa.bgLayer.ctx.stroke();
     this.setSlideTrimmers();
+
+    this.settingsBtn.onclick = function(evt) {
+        if(ui.settingsBtn.classList.contains('selected') ||
+            ui.devicesBtn.classList.contains('selected') ||
+            document.getElementById('print-actions').getElementsByClassName('selected').length > 0) {
+            return;
+        }
+
+        evt.target.classList.add('selected');
+        ui.settings.style.display = 'block';
+
+        document.getElementById('settings-close').onclick = function(evt) {
+            ui.settings.style.display = 'none';
+            ui.settingsBtn.classList.remove('selected');
+        };
+
+        var _settingsClickHandler = function(evt) {
+            if(evt.target.classList.contains('selected'))
+                return;
+
+            //  remove selected class on previous item
+            ui.settings.getElementsByClassName('selected')[0].classList.remove('selected');
+
+            evt.target.classList.add('selected');
+            ui.settings.children[1].innerHTML = '';
+
+            switch(evt.target.id) {
+            case 'basic':
+                break;
+            case 'advanced':
+                break;
+            case 'profiles':
+                break;
+            case 'about':
+                var m    = chrome.runtime.getManifest(),
+                    str  = '',
+                    desc = '';
+
+                desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
+                    + 'tailor-made for the MakiBox A6 and modern 3D printing. '
+                    + 'The UI is designed for simplicity and letting the user '
+                    + 'get straight to printing. Devices are automatically '
+                    + 'detected and connected to. Moving the extruder around has '
+                    + 'never been easier with the interactive print area.';
+
+                str += '<div class="author">' + m.author + '</div>'; 
+                str += '<div class="desc">' + desc + '</div>'; 
+                str += '<div class="ver">v' + m.version + '</div>';
+
+                ui.settings.children[1].innerHTML = str; 
+                break;
+            default:
+                //  shouldn't really get here
+                break;
+            }
+        };
+
+        var _lis = ui.settings.getElementsByTagName('li');
+        for(var j = 0; j < _lis.length; j++)
+            _lis[j].onclick = _settingsClickHandler;
+
+        //  start with the basics
+        document.getElementById('basic').click();
+    };
 
     this.consoleIn.onkeydown = function(evt) {
         //  enter / return
@@ -242,66 +425,6 @@ UI.prototype.attachActionListeners = function() {
 
     //  
     //  Nav Handlers
-    this.settingsBtn.onclick = function(evt) {
-        if(_navSelected()) return;
-
-        evt.target.classList.add('selected');
-        ui.settings.style.display = 'block';
-
-        document.getElementById('settings-close').onclick = function(evt) {
-            ui.settings.style.display = 'none';
-            ui.settingsBtn.classList.remove('selected');
-        };
-
-        var _settingsClickHandler = function(evt) {
-            if(evt.target.classList.contains('selected'))
-                return;
-
-            //  remove selected class on previous item
-            ui.settings.getElementsByClassName('selected')[0].classList.remove('selected');
-
-            evt.target.classList.add('selected');
-            ui.settings.children[1].innerHTML = '';
-
-            switch(evt.target.id) {
-            case 'basic':
-                break;
-            case 'advanced':
-                break;
-            case 'profiles':
-                break;
-            case 'about':
-                var m    = chrome.runtime.getManifest(),
-                    str  = '',
-                    desc = '';
-
-                desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
-                    + 'tailor-made for the MakiBox A6 and modern 3D printing. '
-                    + 'The UI is designed for simplicity and letting the user '
-                    + 'get straight to printing. Devices are automatically '
-                    + 'detected and connected to. Moving the extruder around has '
-                    + 'never been easier with the interactive print area.';
-
-                str += '<div class="author">' + m.author + '</div>'; 
-                str += '<div class="desc">' + desc + '</div>'; 
-                str += '<div class="ver">v' + m.version + '</div>';
-
-                ui.settings.children[1].innerHTML = str; 
-                break;
-            default:
-                //  shouldn't really get here
-                break;
-            }
-        };
-
-        var _lis = ui.settings.getElementsByTagName('li');
-        for(var j = 0; j < _lis.length; j++)
-            _lis[j].onclick = _settingsClickHandler;
-
-        //  start with the basics
-        document.getElementById('basic').click();
-    };
-
     this.devicesBtn.onclick = function(evt) { 
         if(_navSelected()) return;
 
@@ -415,29 +538,7 @@ UI.prototype.attachActionListeners = function() {
 
     //
     //  PrintArea Handlers
-
-    this.pa.phLayer.canvas.onclick = function(evt) {
-        if((evt.offsetX == ui.pa.phi.y && evt.offsetY == ui.pa.phi.x) ||
-            evt.offsetX < 0 || evt.offsetX > ui.pa.width ||
-            evt.offsetY < 0 || evt.offsetY > ui.pa.height) return;  //  don't need to do anything
-
-        ui.detachMovers();
-    
-        var osx, osy;
-        osx = evt.offsetX - POINTER_OFFSET;
-        osy = evt.offsetY - POINTER_OFFSET;
-
-        var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
-        active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
-
-        ui.pa.pp = new Indicator();
-        ui.pa.pp.x = osx;
-        ui.pa.pp.y = osy;
-        ui.pa.pp.color = RED_IND_GHOST;
-
-        ui.pa.movePrintHead(osx, osy);
-    };
-
+    this.pa.phLayer.canvas.onclick = ui.canvasCl;
     this.pa.phLayer.canvas.onmousemove = function(evt) {
         if(ui.pa.ct === undefined) {
             ui.pa.ct = new Indicator();
@@ -445,7 +546,7 @@ UI.prototype.attachActionListeners = function() {
         }
 
         ui.pa.ct.x = evt.offsetX - POINTER_OFFSET;
-        ui.pa.ct.y = evt.offsetX - POINTER_OFFSET;
+        ui.pa.ct.y = evt.offsetY - POINTER_OFFSET;
         ui.pa.redrawIndicators();
     };
 
@@ -591,8 +692,29 @@ UI.prototype.attachActionListeners = function() {
     this.pa.zTempRequested.onkeydown = _okd;
 };
 
+UI.prototype.canvasCl = function(evt) {
+    if((evt.offsetX == ui.pa.phi.y && evt.offsetY == ui.pa.phi.x) ||
+        evt.offsetX < 0 || evt.offsetX > ui.pa.width ||
+        evt.offsetY < 0 || evt.offsetY > ui.pa.height) return;  //  don't need to do anything
+
+    ui.disableMovers();
+
+    var osx, osy;
+    osx = evt.offsetX - POINTER_OFFSET;
+    osy = evt.offsetY - POINTER_OFFSET;
+
+    var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
+    active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+
+    ui.pa.pp = new Indicator();
+    ui.pa.pp.x = osx;
+    ui.pa.pp.y = osy;
+    ui.pa.pp.color = RED_IND_GHOST;
+
+    ui.pa.movePrintHead(osx, osy);
+};
+
 UI.prototype.detachActionListeners = function() {
-    this.settingsBtn.onclick = undefined;
     this.devicesBtn.onclick = undefined;
     this.loadJobBtn.onclick = undefined;
     this.jobActionBtn.onclick = undefined;
@@ -618,12 +740,44 @@ UI.prototype.detachActionListeners = function() {
     this.pa.zTempRequested.onblur = undefined;
 };
 
+UI.prototype.enableMovers = function() {
+    ui.pa.xSlider.enabled = !0;
+    ui.pa.ySlider.enabled = !0;
+    Slider.attachDraggers();
+};
+
+UI.prototype.disableMovers = function() {
+    ui.pa.xSlider.enabled = 0;
+    ui.pa.ySlider.enabled = 0;
+    jQuery('.handle:ui-draggable').draggable('destroy');
+};
+
 UI.prototype.attachDevice = function(device) {
-    //  
+    var _li = ui.deviceTpl.cloneNode(!0);
+
+    _li.dataset.dn = device.name;
+    _li.getElementsByClassName('dev-name')[0].innerHTML = device.name;
+    _li.getElementsByClassName('dev-status')[0].innerHTML = device.job.status;
+    _li.getElementsByClassName('dev-temp')[0].innerHTML = 'E:0 / B:0';
+    _li.getElementsByClassName('dev-file')[0].innerHTML = 'no print loaded';
+    _li.onclick = function(evt) {
+        var _d = evt.currentTarget;
+        if(_d.classList.contains('selected')) return;
+
+        ui.settings.getElementsByClassName('selected')[0].classList.remove('selected');
+        _d.classList.add('selected');
+        document.getElementById('devices-close').click();
+
+        active = devices[_d.dataset.dn];
+        ui.adnameEl.innerHTML = active.name;
+    };
+
+    ui.devices.getElementsByTagName('ul')[0].appendChild(_li);
 
     if(this.adnameEl.innerHTML === 'no device') {
+        _li.classList.add('selected');
         this.setAsActiveDevice(device);
-        //
+        Slider.attachDraggers();
     }
 };
 
@@ -639,8 +793,158 @@ UI.prototype.setAsActiveDevice = function(device) {
     this.pa.movePrintHead(0, 0);
 };
 
-UI.prototype.loadContentToPrintArea = function(gcode) {
+UI.prototype.detachDevice = function(device) {
+    var _d,
+        _dns = ui.devices.getElementsByTagName('li');
+    for(var i = 0; i < _dns.length; i++) {
+        if(_dns[i].data.dn == device) {
+            _dns[i].remove();
+            break;
+        }
+    }
 
+    if(active.name == device) {
+        if(ui.devices.getElementsByTagName('li').length > 0) {
+
+        } else {
+            active = undefined;
+            ui.adnameEl.innerHTML = 'no device';
+            ui.adnameEl.classList.add('no-device');
+
+            ui.pa.eTempRequested.value = 0;
+            ui.pa.eTempActual.innerHTML = 0;
+
+            ui.pa.zTempRequested.value = 0;
+            ui.pa.zTempActual.innerHTML = 0;
+
+            if(ui.pa.zOn.classList.contains('selected')) {
+                ui.pa.zOn.classList.remove('selected');
+                ui.pa.zOff.classList.add('selected');
+            }
+
+            if(ui.pa.eOn.classList.contains('selected')) {
+                ui.pa.eOn.classList.remove('selected');
+                ui.pa.eOff.classList.add('selected');
+            }
+
+            ui.detachActionListeners();
+            ui.disableMovers();
+        }
+    }
+};
+
+UI.prototype.loadContentToPrintArea = function(gcode) {
+    ui.paths = [];
+    ui.paths.push({ x:0, y:0, e:0 });
+
+    //  loop through the file, getting each 'G1' line and loading the
+    //  x / y coords into the paths array, ignoring the commented rows
+    for(var i = 0; i < gcode.length; i++) {
+        if(gcode[i] && gcode[i] !== undefined
+            && (gcode[i].indexOf(';') == -1 || gcode[i].indexOf(';') > 1) 
+            && (gcode[i].indexOf('G1 X') > -1 || gcode[i].indexOf('G1 Y') > -1)) {
+
+            var mx, my, me, move = gcode[i].split(' ');
+            for(var j = 0; j < move.length; j++) {
+                if(move[j].indexOf('X') > -1)
+                    mx = util.millimeterToPixel(move[j].substring(1));
+
+                if(move[j].indexOf('Y') > -1)
+                    my = util.millimeterToPixel(move[j].substring(1));
+
+                if(move[j].indexOf('E') > -1)
+                    me = util.millimeterToPixel(move[j].substring(1));
+            }
+            ui.paths.push({ x: my, y: mx, e: me });
+        }
+    }
+
+    if(ui.paths.length == 1)
+        ui.paths = [];
+    ui.pa.resetAndDrawPaths();
+};
+
+UI.prototype.digestCmd = function(prCmd) {
+    if(prCmd.indexOf(cmd.MOVE) > -1) {
+        var _pa = this.pa;
+        if(prCmd.indexOf('Z') > -1) {
+            //  clear prev++ layer and prep
+            //  for prev layer plotting
+            _pa.hlLayer.clear();
+            _pa.hlLayer.startPath(paths[0].x, paths[0].y);
+
+            //  plot prev layer and draw
+            for(var i = 1; i < paths.length; i++) {
+                var _c = (paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+                _pa.hlLayer.drawPathTo(paths[i].x, paths[i].y, _c);
+                _pa.hlLayer.startPath();
+            }
+            _pa.hlLayer.closePath();
+
+            //  reset "active" layer
+            _pa.objLayer.clear();
+            _paths = [];
+        }
+
+        //  need to flip the X and Y here because of the way the
+        //  physical printer X/Y is vs. virtual via screen X/Y
+        var mx, my, me, _prCmd = prCmd.split(' ');
+        for(var i = 0; i < _prCmd.length; i++) {
+            if(_prCmd[i].indexOf('X') > -1)
+                my = util.millimeterToPixel(_prCmd[i].substring(1));
+
+            if(_prCmd[i].indexOf('Y') > -1)
+                mx = util.millimeterToPixel(_prCmd[i].substring(1));
+
+            if(_prCmd[i].indexOf('E') > -1)
+                me = util.millimeterToPixel(_prCmd[i].substring(1));
+        }
+
+        this.paths.push({ x: mx, y: my, e: me });
+        _pa.ph.x = mx, this.pa.ph.y = my;
+
+        //  only draw the new path here
+        var _c = (me !== undefined) ? RED_INDICATOR : BLU_INDICATOR;
+        _pa.objLayer.drawPathTo(mx, my, _c);
+        _pa.objLayer.startPath();
+
+        var yw, xh,
+            xHandle = _pa.xSlider.children[0],
+            yHandle = _pa.ySlider.children[0];
+        yw = mx - (Math.floor(yHandle.offsetWidth / 2)) - Math.floor(POINTER_OFFSET / 2);
+        xh = my - (Math.floor(xHandle.offsetHeight / 2)) - Math.floor(POINTER_OFFSET / 2);
+
+        yHandle.style.left = yw + 'px';
+        xHandle.style.top = xh + 'px';
+        _pa.redrawIndicators();
+    }
+
+    if(prCmd.indexOf(cmd.HOME) > -1) {
+        var _nh = document.getElementsByClassName('not-homed');
+        for(var i = 0; i < _nh.length; i++)
+            _nh[i].classList.remove('not-homed');
+        ui.pa.movePrintHead(0, 0);
+    }
+
+    if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
+        prCmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
+
+        //  toggle the on switch and set the requested temp
+        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1) {
+            if(!this.pa.zOn.classList.contains('selected')) {
+                this.pa.zOn.classList.add('selected');
+                this.pa.zOff.classList.remove('selected');
+            }
+
+            this.pa.zTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
+        } else {
+            if(!this.pa.eOn.classList.contains('selected')) {
+                this.pa.eOn.classList.add('selected');
+                this.pa.eOff.classList.remove('selected');
+            }
+            this.pa.eTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
+        }
+    }
 };
 
 UI.prototype.expandConsoleOutput = function() {
@@ -802,3 +1106,13 @@ UI.prototype.updateStats = function(stats) {
     }
 };
 
+UI.prototype.updateProgress = function(val) {
+    ui.progress.style.width = val.toString() + '%';
+};
+
+UI.prototype.resetWithContent = function() {
+    //  uses the completed job content
+    this.jobActionBtn.classList.remove('icon-pause');
+    this.jobActionBtn.classList.add('icon-play');
+    this.loadContentToPrintArea(active.job.content);
+};

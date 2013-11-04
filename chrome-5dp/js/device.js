@@ -116,7 +116,7 @@ Device.prototype.destroy = function(callback) {
         window.clearInterval(_device.statPollTimer);
 
     _device.hardStop = !0; //  force-stop any jobs for this device
-    detachDeviceFromUI(_device.name);
+    ui.detachDevice(_device.name);
     chrome.power.releaseKeepAwake();
 
     serial.flush(_device.conn, function(info) { });
@@ -308,8 +308,8 @@ Device.prototype.resumeJob = function() {
 };
 
 Device.prototype.resetJob = function() {
-    var destroy = this;
-    destroy.write(cmd.JOB_ABDN, function(w) {
+    var device = this;
+    device.write(cmd.JOB_ABDN, function(w) {
         if(w.bytesWritten > 0)
             notify({ title:   'PRINT ABANDONED', message: '' });
         else
@@ -373,8 +373,7 @@ Device.prototype.runAtIdx = function(idx) {
         device.statPollTimer = -1;
     }
 
-    var per = ((idx - 1) * 100) / device.job.content.length;
-    updateProgressBar(per);
+    ui.updateProgress(((idx - 1) * 100) / device.job.content.length);
     
     //  this should mean the job is done and
     //  housekeeping needs to happen 
@@ -386,12 +385,13 @@ Device.prototype.runAtIdx = function(idx) {
         device.job.status = 'complete';
         device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
 
-        resetPrintUI();
+        ui.resetWithContent();
 
         var diff, hh, mm;
+
         diff = parseFloat(((device.job.end - device.job.start) / 3600000).toFixed(2));
-        hh = parseInt(diff, 10);
-        mm = parseInt(parseFloat((diff -= hh).toFixed(2), 10) * 60, 10);
+        hh   = parseInt(diff, 10);
+        mm   = parseInt(parseFloat((diff -= hh).toFixed(2), 10) * 60, 10);
 
         //  TODO ::
         //  include pause duration in msg
@@ -416,7 +416,7 @@ Device.prototype.runAtIdx = function(idx) {
         device.runAtIdx(idx);
     else {
         if(device.name == active.name)
-            updatePrintUI(_cmd);
+            ui.digestCmd(_cmd);
         
         if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
             _cmd += CMD_TERMINATOR;
