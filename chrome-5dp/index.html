@@ -13,7 +13,7 @@
     </head>
     <body>
         <nav>
-            <div id="active-dev" class="no-device">no device</div>
+            <div id="active-dname" class="no-device">no device</div>
             <div id="settings" class="btn logo icon-cog-alt"></div>
             <div id="print-actions" class="wrapper">
                 <div id="file-picker" class="btn icon-doc-inv"></div>
@@ -32,12 +32,12 @@
                     </ul>
                 </div>
                 <div class="panel content-right"></div>
-                <div class="btn close icon-cancel"></div>
+                <div id="settings-close" class="btn close icon-cancel"></div>
             </div>
 
             <div id="devices-overlay">
                 <ul></ul>
-                <div class="btn close icon-cancel"></div>
+                <div id="devices-close" class="btn close icon-cancel"></div>
             </div>
         </nav>
 
@@ -114,6 +114,7 @@
         </div>
 
         <div id="progress"></div>
+        <input id="fl" type="file" accept=".gcode,.gc" class="fi" />
 
         <script src="/js/vendor/jquery-1.9.1.min.js"></script>
         <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>

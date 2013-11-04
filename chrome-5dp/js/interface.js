@@ -28,8 +28,8 @@ Indicator.prototype.drawHEStroke = function() {
 function Layer(c) {
     this.canvas = c;
     this.ctx    = c.getContext('2d');
-    this.width  = $(c).attr('width');
-    this.height = $(c).attr('height');
+    this.width  = c.width;
+    this.height = c.height;
 }
 
 Layer.prototype.clear = function() {
@@ -97,6 +97,18 @@ function PrintArea() {
 
 }
 
+PrintArea.prototype.resetAndDrawPaths = function() {
+    console.log('doin the reset and draw');
+};
+
+PrintArea.prototype.movePrintHead = function(x, y) {
+
+};
+
+PrintArea.prototype.redrawIndicators = function() {
+
+};
+
 function UI() {
     //  header controls
     this.settingsBtn  = document.getElementById('settings');
@@ -105,6 +117,9 @@ function UI() {
     this.jobResetBtn  = document.getElementById('reset');
     this.devicesBtn   = document.getElementById('devices');
     this.adnameEl     = document.getElementById('active-dname');
+
+    this.settings   = document.getElementById('settings-overlay');
+    this.devices    = document.getElementById('devices-overlay');
 
     this.pa = new PrintArea();
 
@@ -151,6 +166,62 @@ function UI() {
     }
     this.pa.bgLayer.ctx.stroke();
     this.setSlideTrimmers();
+
+    this.consoleIn.onkeydown = function(evt) {
+        //  enter / return
+        if(evt.which == 13) {
+            if(evt.target.value !== '' && evt.target.value.length > 2) {
+                active.console(evt.target.value.toUpperCase());
+                ui.consoleBottom.click();
+            }
+
+            evt.target.value = '';
+            evt.target.focus();
+            return;
+        }
+    };
+
+    this.consoleIn.onblur = function(evt) { 
+        evt.target.classList.add('ghost');
+        evt.target.value = '';
+    };
+
+    this.consoleIn.onfocus = function(evt) { 
+        evt.target.value = '';
+        if(evt.target.classList.contains('ghost'))
+            evt.target.classList.remove('ghost');
+
+        if(!jQuery(ui.consoleOut).is(':visible'))
+            ui.expandConsoleOutput();
+    };
+
+    this.consoleToggle.onclick = function(evt) {
+        if(!jQuery(ui.consoleOut).is(':visible'))
+            ui.expandConsoleOutput();
+        else
+            ui.collapseConsoleOutput(); 
+    };
+
+    this.consoleTop.onclick = function(evt) {
+        jQuery(ui.consoleOut).animate({ scrollTop: 0 }, 800);
+    };
+
+    this.consoleBottom.onclick = function(evt) { 
+        jQuery(ui.consoleOut).animate({ scrollTop: ui.consoleOut.scrollHeight }, 800);
+    };
+
+    //  show / hide console output on esc
+    document.body.onkeydown = function(evt) {
+        if(evt.which == 27) {
+            if(jQuery(ui.consoleOut).is(':visible'))
+                ui.collapseConsoleOutput();
+            else
+                ui.expandConsoleOutput();
+        }
+    };
+
+    //  debug
+    // this.attachActionListeners();
 }
 
 UI.prototype.setSlideTrimmers = function() {
@@ -159,4 +230,575 @@ UI.prototype.setSlideTrimmers = function() {
     this.yTrim = this.pa.el.offsetLeft - shim;
 };
 
+UI.prototype.attachActionListeners = function() {
+    var _navSelected = function() {
+        if(ui.settingsBtn.classList.contains('selected') ||
+            ui.devicesBtn.classList.contains('selected') ||
+            document.getElementById('print-actions').getElementsByClassName('selected').length > 0) {
+            return !0;
+        }
+        return 0;
+    };
+
+    //  
+    //  Nav Handlers
+    this.settingsBtn.onclick = function(evt) {
+        if(_navSelected()) return;
+
+        evt.target.classList.add('selected');
+        ui.settings.style.display = 'block';
+
+        document.getElementById('settings-close').onclick = function(evt) {
+            ui.settings.style.display = 'none';
+            ui.settingsBtn.classList.remove('selected');
+        };
+
+        var _settingsClickHandler = function(evt) {
+            if(evt.target.classList.contains('selected'))
+                return;
+
+            //  remove selected class on previous item
+            ui.settings.getElementsByClassName('selected')[0].classList.remove('selected');
+
+            evt.target.classList.add('selected');
+            ui.settings.children[1].innerHTML = '';
+
+            switch(evt.target.id) {
+            case 'basic':
+                break;
+            case 'advanced':
+                break;
+            case 'profiles':
+                break;
+            case 'about':
+                var m    = chrome.runtime.getManifest(),
+                    str  = '',
+                    desc = '';
+
+                desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
+                    + 'tailor-made for the MakiBox A6 and modern 3D printing. '
+                    + 'The UI is designed for simplicity and letting the user '
+                    + 'get straight to printing. Devices are automatically '
+                    + 'detected and connected to. Moving the extruder around has '
+                    + 'never been easier with the interactive print area.';
+
+                str += '<div class="author">' + m.author + '</div>'; 
+                str += '<div class="desc">' + desc + '</div>'; 
+                str += '<div class="ver">v' + m.version + '</div>';
+
+                ui.settings.children[1].innerHTML = str; 
+                break;
+            default:
+                //  shouldn't really get here
+                break;
+            }
+        };
+
+        var _lis = ui.settings.getElementsByTagName('li');
+        for(var j = 0; j < _lis.length; j++)
+            _lis[j].onclick = _settingsClickHandler;
+
+        //  start with the basics
+        document.getElementById('basic').click();
+    };
+
+    this.devicesBtn.onclick = function(evt) { 
+        if(_navSelected()) return;
+
+        evt.target.classList.add('selected');
+        ui.devices.style.display = 'block';
+        document.getElementById('devices-close').onclick = function(evt) {
+            ui.devices.style.display = 'none';
+            ui.devicesBtn.classList.remove('selected');
+        };
+    };
+
+    this.loadJobBtn.onclick = function(evt) { 
+        if(_navSelected()) return;
+
+        var inp = document.getElementById('fl');
+        inp.onchange = function(evt) {
+            var f = evt.target.files[0],
+                fr = new FileReader();
+
+            fr.readAsText(f, 'UTF-8');
+            fr.onload = function(evt) { };
+            fr.onerror = function(err) {
+                notify({ title: "File Load Issue", message: "Error loading file. Please try again." });
+            };
+
+            fr.onloadend = function(evt) {
+                var fname   = f.name,
+                    content = evt.target.result.split('\n');
+
+                active.job.filename = fname;
+                active.job.content  = content;
+                active.job.status   = 'pending';
+
+                ui.loadContentToPrintArea(content);
+                notify({ title: "File Loaded", message: "File loaded and ready for printing" });
+            };
+        };
+        inp.click();
+
+        ui.paths = [];
+        ui.pa.resetAndDrawPaths();
+    };
+
+    this.jobActionBtn.onclick = function(evt) { 
+        if(!active.job.filename || active.job.filename === '') {
+            notify({ 
+                title: "No File",
+                message: "Please load a valid gcode file to print"
+            });
+            return;
+        }
+
+        var _pbtn = document.getElementById('print-pause');
+
+        //  do it
+        if(active.job.status == 'pending') {
+            _pbtn.classList.remove('icon-play');
+            _pbtn.classList.add('icon-pause');
+
+            active.job.status = 'running';
+            active.startPendingJob();
+
+            paths = [];
+            resetAndDrawPaths();
+            return;
+        } 
+
+        //  since we update active.job.status here
+        //  the print queue will see this and send
+        //  over the pause cmd and leave the queue
+        if(active.job.status == 'running') {
+            _pbtn.classList.remove('icon-pause');
+            _pbtn.classList.add('icon-play');
+
+            active.job.status = 'paused';
+            return;
+        }
+
+        if(active.job.status == 'paused') {
+            _pbtn.classList.remove('icon-play');
+            _pbtn.classList.add('icon-pause');
+            
+            active.job.status = 'running';
+            active.resumeJob();
+            return;
+        }
+    };
+
+    this.jobResetBtn.onclick = function(evt) {
+        if(active.job.status == 'running')
+            active.hardStop = !0;
+
+        if(active.job.status == 'paused')
+            active.resetJob();
+
+        active.job = new Job();
+
+        var _pbtn = document.getElementById('print-pause');
+        if(_pbtn.classList.contain('icon-pause')) {
+            _pbtn.classList.remove('icon-pause');
+            _pbtn.classList.add('icon-play');
+        }
+
+        //  reset progress bar
+        document.getElementById('progress').style.height = 0;
+
+        paths = [];
+        hlLayer.clear();
+        objLayer.clear();
+    };
+
+    //
+    //  PrintArea Handlers
+
+    this.pa.phLayer.canvas.onclick = function(evt) {
+        if((evt.offsetX == ui.pa.phi.y && evt.offsetY == ui.pa.phi.x) ||
+            evt.offsetX < 0 || evt.offsetX > ui.pa.width ||
+            evt.offsetY < 0 || evt.offsetY > ui.pa.height) return;  //  don't need to do anything
+
+        ui.detachMovers();
+    
+        var osx, osy;
+        osx = evt.offsetX - POINTER_OFFSET;
+        osy = evt.offsetY - POINTER_OFFSET;
+
+        var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
+        active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+
+        ui.pa.pp = new Indicator();
+        ui.pa.pp.x = osx;
+        ui.pa.pp.y = osy;
+        ui.pa.pp.color = RED_IND_GHOST;
+
+        ui.pa.movePrintHead(osx, osy);
+    };
+
+    this.pa.phLayer.canvas.onmousemove = function(evt) {
+        if(ui.pa.ct === undefined) {
+            ui.pa.ct = new Indicator();
+            ui.pa.ct.color = 'rgba(222, 222, 222, 0.4)';
+        }
+
+        ui.pa.ct.x = evt.offsetX - POINTER_OFFSET;
+        ui.pa.ct.y = evt.offsetX - POINTER_OFFSET;
+        ui.pa.redrawIndicators();
+    };
+
+    this.pa.phLayer.canvas.onmouseout = function(evt) {
+        ui.pa.ct = undefined;
+        ui.pa.redrawIndicators();
+    };
+
+    //  homing handlers
+    this.pa.homeAllBtn.onclick = function(evt) {
+        var _nh = document.getElementsByClassName('not-homed');
+        for(var i = 0; i < _nh.length; i++)
+            _nh[i].classList.remove('not-homed');
+        ui.pa.movePrintHead(0, 0);
+        active.home(evt.target.innerHTML);
+    };
+
+    this.pa.homeXBtn.onclick = function(evt) {
+        if(this.classList.contains('not-homed'))
+            this.classList.remove('not-homed');
+        ui.pa.movePrintHead(0, ui.pa.phi.y);
+        active.home(evt.target.innerHTML);
+    };
+    
+    this.pa.homeYBtn.onclick = function(evt) {
+        if(this.classList.contains('not-homed'))
+            this.classList.remove('not-homed');
+        ui.pa.movePrintHead(ui.pa.phi.x, 0);
+        active.home(evt.target.innerHTML);
+    };
+    
+    this.pa.homeZBtn.onclick = function(evt) {
+        if(this.classList.contains('not-homed'))
+            this.classList.remove('not-homed');
+        active.home(evt.target.innerHTML);
+    };
+
+    //  E / Z mover handler
+    var _ezmov = function(evt) {
+        var mvr, axis = evt.target.dataset.axis;
+
+        active.pos[axis] += (evt.target.classList.contains('minus')) ? ZEDIST * -1: ZEDIST;
+        mvr = { Axis: axis, Distance: active.pos[axis], Speed: DEFSPEED };
+        active.sendMovement(mvr);
+    };
+
+    this.pa.ePlus.onclick  = _ezmov;
+    this.pa.eMinus.onclick = _ezmov;
+    this.pa.zPlus.onclick  = _ezmov;
+    this.pa.zMinus.onclick = _ezmov;
+
+    //  E / Z power toggle handlers
+    var _pon  = function(evt) {
+        if(evt.target.classList.contains('selected')) return;
+
+        var temp = 0,
+            axis;
+
+        if(evt.target.id.indexOf('z-') > -1) {
+            if(ui.pa.zTempRequested.value < 0) return;
+
+            axis = 'z';
+            temp = ui.pa.zTempRequested.value;
+            ui.pa.zOff.classList.remove('selected');
+        } else { 
+            if(ui.pa.eTempRequested.value < 0) return;
+
+            axis = 'e';
+            temp = ui.pa.eTempRequested.value;
+            ui.pa.eOff.classList.remove('selected');
+        };
+
+        this.classList.add('selected');
+        active.setTemp({ Name: axis, Value: temp });
+    };
+
+    var _poff = function(evt) {
+        if(evt.target.classList.contains('selected')) return;
+
+        var axis;
+
+        if(evt.target.id.indexOf('z-') > -1) {
+            axis = 'z';
+            ui.pa.zTempRequested.value = 0;
+            ui.pa.zOn.classList.remove('selected');
+        } else { 
+            axis = 'e';
+            ui.pa.eTempRequested.value = 0;
+            ui.pa.eOn.classList.remove('selected');
+        };
+
+        this.classList.add('selected');
+        active.setTemp({ Name: axis, Value: 0 });
+    };
+
+    var _inb  = function(evt) {
+        var temp = parseInt(evt.target.value, 10),
+            max  = parseInt(evt.target.max, 10),
+            axis;
+
+
+        if(isNaN(temp) || temp < 0 || temp > max) {
+            evt.target.value = '';
+            return;
+        }
+
+        if(this.id.indexOf('z-') > -1) {
+            axis = 'z';
+            if(!ui.pa.zOn.classList.contains('selected')) {
+                ui.pa.zOff.classList.remove('selected');
+                ui.pa.zOn.classList.add('selected');
+            }
+        } else {
+            axis = 'e';
+            if(!ui.pa.eOn.classList.contains('selected')) {
+                ui.pa.eOff.classList.remove('selected');
+                ui.pa.eOn.classList.add('selected');
+            }
+        }
+
+        active.setTemp({ Name: axis, Value: temp });
+    };
+
+    var _okd  = function(evt) {
+        if(evt.which == 13) {
+            evt.preventDefault();
+            evt.target.blur();
+        }
+    };
+
+    this.pa.eOn.onclick  = _pon;
+    this.pa.eOff.onclick = _poff;
+    this.pa.zOn.onclick  = _pon;
+    this.pa.zOff.onclick = _poff;
+
+    this.pa.eTempRequested.onclick = function(evt) { evt.target.value = ''; };
+    this.pa.zTempRequested.onclick = function(evt) { evt.target.value = ''; };
+
+    this.pa.eTempRequested.onblur = _inb;
+    this.pa.zTempRequested.onblur = _inb;
+
+    this.pa.eTempRequested.onkeydown = _okd;
+    this.pa.zTempRequested.onkeydown = _okd;
+};
+
+UI.prototype.detachActionListeners = function() {
+    this.settingsBtn.onclick = undefined;
+    this.devicesBtn.onclick = undefined;
+    this.loadJobBtn.onclick = undefined;
+    this.jobActionBtn.onclick = undefined;
+    this.jobResetBtn.onclick = undefined;
+    this.pa.phLayer.canvas.onclick = undefined;
+    this.pa.phLayer.canvas.onmousemove = undefined;
+    this.pa.phLayer.canvas.onmouseout = undefined;
+    this.pa.homeAllBtn.onclick = undefined;
+    this.pa.homeXBtn.onclick = undefined;
+    this.pa.homeYBtn.onclick = undefined;
+    this.pa.homeZBtn.onclick = undefined;
+    this.pa.ePlus.onclick = undefined;
+    this.pa.eMinus.onclick = undefined;
+    this.pa.zPlus.onclick = undefined;
+    this.pa.zMinus.onclick = undefined;
+    this.pa.eOn.onclick = undefined;
+    this.pa.eOff.onclick = undefined;
+    this.pa.zOn.onclick = undefined;
+    this.pa.zOff.onclick = undefined;
+    this.pa.eTempRequested.onclick = undefined;
+    this.pa.eTempRequested.onblur = undefined;
+    this.pa.zTempRequested.onclick = undefined;
+    this.pa.zTempRequested.onblur = undefined;
+};
+
+UI.prototype.attachDevice = function(device) {
+    //  
+
+    if(this.adnameEl.innerHTML === 'no device') {
+        this.setAsActiveDevice(device);
+        //
+    }
+};
+
+UI.prototype.setAsActiveDevice = function(device) {
+    this.adnameEl.innerHTML = device.name;
+    if(this.adnameEl.classList.contains('no-device'))
+        this.adnameEl.classList.remove('no-device');
+
+    active = device;
+
+    this.detachActionListeners();
+    this.attachActionListeners();
+    this.pa.movePrintHead(0, 0);
+};
+
+UI.prototype.loadContentToPrintArea = function(gcode) {
+
+};
+
+UI.prototype.expandConsoleOutput = function() {
+    jQuery(ui.consoleOut).show().animate({
+        height:             '330px',
+        'padding-top':      '8px',
+        'padding-bottom':   '8px',
+        top:                '-347px'
+    }, 140, function() {
+        jQuery('#console-nav').fadeIn(800);
+        ui.consoleBottom.click();
+    });
+};
+
+UI.prototype.collapseConsoleOutput = function() {
+    jQuery('#console-nav').fadeOut(200, function() {
+        jQuery(ui.consoleOut).animate({
+            height:             '0px',
+            'padding-top':      '0px',
+            'padding-bottom':   '0px',
+            top:                '-1px'
+        }, 140, function() { 
+            jQuery(ui.consoleOut).hide(); 
+        });
+    });
+};
+
+UI.prototype.updateConsole = function(data) {
+    var _data = data.replace(/\n/g, '<br>');
+
+    //  truncate output after ~200 rows (ignoring extra <br>)
+    var LINE_COUNT = 200;
+
+    var opTxt = ui.consoleOut.innerHTML,
+        olen  = opTxt.split('<br>').length,
+        nlen  = _data.split('<br>').length;
+
+    if(nlen == LINE_COUNT)
+        opTxt = _data + '<br>';
+    else {
+        if(nlen < LINE_COUNT) {
+            if(olen + nlen <= LINE_COUNT) 
+                opTxt += _data + '<br>';
+            else {
+                var tmp = '',
+                    ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
+                for(var i in ots) 
+                    tmp += ots[i] + '<br>';
+                opTxt = tmp + _data;
+            }
+        } else {
+            opTxt = '';
+            var extra = nlen - LINE_COUNT;
+            for(var j = extra; j < nlen; j++)
+                opTxt += _data.split('<br>')[j];
+            opTxt += '<br>';
+        }
+    }
+    ui.consoleOut.innerHTML = opTxt;
+};
+
+UI.prototype.updateStats = function(stats) {
+    ui.updateConsole(stats);
+
+    //  update active dev UI temps
+    ui.pa.eTempActual.innerHTML = active.ETemp;
+    ui.pa.zTempActual.innerHTML = active.BTemp;
+
+    //  update device list info
+    // $('#devices-overlay > ul > li').each(function() {
+    //     var li  = this,
+    //         dn  = $(li).children('.dev-name').html(),
+    //         d   = devices[dn];
+
+    //     if(d === undefined) {
+    //         $(this).remove();
+    //         return;
+    //     }
+
+    //     if($(li).children('.dev-status').html() != d.job.status)
+    //         $(li).children('.dev-status').html(d.job.status);
+
+    //     if(d.job.filename !== '')
+    //         $(li).children('.dev-file').html(d.job.filename);
+    //     else 
+    //         $(li).children('.dev-file').html('no pending / running prints');
+
+    //     $(li).children('.dev-temp').html('E:' + d.ETemp + ' / B:' + d.BTemp);
+    // });
+
+    //  process full stat list
+    if(stats.indexOf('--FULL STATS') > -1) {
+        var rows = stats.split('\n'),
+            homedData,
+            posData,
+            fwData,
+            limits,
+            esteps;
+
+        for(var i = 0; i < rows.length; i++) {
+            var row     = rows[i],
+                ahFlag  = '-- Axes Homed',
+                posFlag = '-- C:',
+                fwFlag  = 'Firmware Version',
+                lmtFlag = '// X_MAX_LENGTH',
+                esFlag  = 'Steps per unit:';
+
+            if(row.indexOf(ahFlag) > -1) {
+                homedData = row.substring(row.indexOf(ahFlag) + ahFlag.length + 1).split(' ');
+                continue;
+            }
+
+            if(row.indexOf(posFlag) > -1) {
+                posData = row.substring(row.indexOf(posFlag) + posFlag.length + 1).split(' ');
+                continue;
+            }
+
+            if(row.indexOf(fwFlag) > -1) {
+                fwData = row;
+                continue;
+            }
+
+            if(row.indexOf(lmtFlag) > -1) {
+                limits = row.substring(2).split(' ');
+                continue;
+            }
+
+            if(row.indexOf(esFlag) > -1) {
+                esteps = rows[i+1].split(' ')[4];
+                continue;
+            }
+        }
+
+        if(homedData && homedData !== undefined) {
+            for(var j = 0; j < homedData.length; j++) {
+                var axis = homedData[j].replace(/\s/g, '').split(':'),
+                    el   = document.getElementById(axis[0].toLowerCase() + '-home');
+                if(axis[1] == '0' && !el.classList.contains('not-homed'))
+                    el.classList.add('not-homed');
+
+                if(axis[1] == '1' && el.classList.contains('not-homed'))
+                    el.classList.remove('not-homed');
+            }
+        }
+
+        if(posData && posData !== undefined) {
+            for(var k = 0; k < posData.length; k++) {
+                if(posData[k].indexOf(':') == -1) continue;
+
+                var coord = posData[k].split(':'),
+                    pos   = util.millimeterToPixel(coord[1]);
+
+                if(coord[0].toLowerCase() == 'x') ui.pa.phi.y = pos;
+                if(coord[0].toLowerCase() == 'y') ui.pa.phi.x = pos;
+            }
+
+            ui.pa.movePrintHead(ui.pa.phi.x, ui.pa.phi.y);
+        }
+    }
+};
 

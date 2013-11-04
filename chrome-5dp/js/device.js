@@ -157,7 +157,7 @@ Device.prototype.getFullStats = function() {
                     if(idx < cmd.GET_FSTATS.length)
                         get(idx);
                     else {
-                        updateConsoleOutput(data);
+                        ui.updateConsole(data);
                         _d.updateDeviceStats('--FULL STATS\n'+result);
                         _d.statPollTimer = window.setInterval(function() { _d.getTemp(); }, SPTDELAY);
                     }
@@ -177,7 +177,7 @@ Device.prototype.getTemp = function() {
             _d.destroy();
         else {
             _d.readall(function(data) { 
-                updateConsoleOutput(data);
+                ui.updateConsole(data);
                 _d.updateDeviceStats(data); 
             });
         }
@@ -193,7 +193,7 @@ Device.prototype.setTemp = function(temp) {
         if(w.bytesWritten < 0) 
             _d.destroy();
         else
-        _d.readall(updateConsoleOutput);
+        _d.readall(ui.updateConsole);
     });
 };
 
@@ -232,14 +232,14 @@ Device.prototype.updateDeviceStats = function(stats) {
             if(pos[k].indexOf(':') == -1) continue;
 
             var c = pos[k].split(':'),
-                p = millimeterToPixel(c[1]);
+                p = util.millimeterToPixel(c[1]);
 
             if(c[0].toLowerCase() == 'e') this.pos.e = parseFloat(p);
             if(c[0].toLowerCase() == 'z') this.pos.z = parseFloat(p);
         }
     }
 
-    updateStatsUI(stats);
+    ui.updateStats(stats);
 };
 
 Device.prototype.sendMovement = function(mv) {
@@ -333,7 +333,7 @@ Device.prototype.sendStdCmd = function(val) {
             device.destroy();
         else {
             device.readall(function(info) {
-                updateConsoleOutput(info);
+                ui.updateConsole(info);
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
 
                 if(dbg)

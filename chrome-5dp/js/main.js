@@ -52,7 +52,7 @@ var notify = function(conf) {
 //  slide handles will be off when sliding
 //  if the window is resized... so we'll just
 //  set a "trimer" to fix this
-$(window).on('resize', function(evt) {
+window.onresize = function(evt) {
     if(ui && ui !== undefined) {
         ui.setSlideTrimmers();
         if($('.handle').is(':ui-draggable')) {
@@ -60,7 +60,7 @@ $(window).on('resize', function(evt) {
             ui.attachSliderHandlers();
         }
     }
-});
+};
 
 //  
 //  entry point here, because we need

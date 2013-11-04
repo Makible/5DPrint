@@ -157,9 +157,9 @@ nav > div {
     display: inline-block; 
 }
 
-nav > div.btn:hover,
-nav #print-actions .btn:hover,
-nav > div.selected { 
+nav div.btn:hover,
+/*nav #print-actions .btn:hover,*/
+nav div.selected { 
     background-color: rgba(20, 20, 20, 0.4);
     box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.4);
 }
@@ -476,7 +476,7 @@ nav #devices-overlay ul li div.dev-file {
     z-index: 20;
 }
 
-#active-dev {
+#active-dname {
     position: absolute;
     bottom: -28px;
     left: 42px;
@@ -498,7 +498,7 @@ nav #devices-overlay ul li div.dev-file {
     z-index: 1;
 }
 
-#active-dev.no-device { 
+#active-dname.no-device { 
     color: #fff;
     background-color: rgba(178, 18, 18, 1); 
 }
