@@ -134,7 +134,7 @@ input::-webkit-inner-spin-button {
 
 nav {
     position: relative;
-    margin: 34px auto;
+    margin: 10px auto;
     width: 317px;
     height: 54px;
     border-radius: 8px;
@@ -717,7 +717,7 @@ nav #devices-overlay ul li div.dev-file {
 #console-area .wrapper .handle {
     margin-left: -4px;
     min-width: 33px;
-    max-width: 34px;
+    max-width: 35px;
     width: 100%;
     height: 28px;
     border: 0;

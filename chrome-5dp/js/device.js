@@ -111,6 +111,9 @@ Device.prototype.onwrite = function(info) {
 };
 
 Device.prototype.destroy = function(callback) {
+    //  debug
+    console.log('[dev].destroy has been called...');    
+    
     var _device = this;
     if(_device.statPollTimer > -1) 
         window.clearInterval(_device.statPollTimer);
@@ -147,9 +150,9 @@ Device.prototype.getFullStats = function() {
     //  oh now... this won't cause any issues down the road /s
     var get = function(idx) {
         _d.write(cmd.GET_FSTATS[idx], function(w) {
-            if(w.bytesWritten < 0)
-                _d.destroy();
-            else {
+            // if(w.bytesWritten < 0)
+            //     _d.destroy();
+            // else {
                 _d.readall(function(data) {
                     result += data;
                     idx++;
@@ -162,7 +165,7 @@ Device.prototype.getFullStats = function() {
                         _d.statPollTimer = window.setInterval(function() { _d.getTemp(); }, SPTDELAY);
                     }
                 });
-            }
+            // }
         });
         
     };
@@ -173,14 +176,14 @@ Device.prototype.getTemp = function() {
     var _d = this;
 
     _d.write(cmd.GET_TEMP, function(w) {
-        if(w.bytesWritten < 0)
-            _d.destroy();
-        else {
+        // if(w.bytesWritten < 0)
+        //     _d.destroy();
+        // else {
             _d.readall(function(data) { 
                 ui.updateConsole(data);
                 _d.updateDeviceStats(data); 
             });
-        }
+        // }
     });
 };
 
@@ -190,9 +193,9 @@ Device.prototype.setTemp = function(temp) {
 
     _cmd += CMD_TERMINATOR;
     _d.write(_cmd, function(w) { 
-        if(w.bytesWritten < 0) 
-            _d.destroy();
-        else
+        // if(w.bytesWritten < 0) 
+        //     _d.destroy();
+        // else
         _d.readall(ui.updateConsole);
     });
 };
@@ -310,10 +313,10 @@ Device.prototype.resumeJob = function() {
 Device.prototype.resetJob = function() {
     var device = this;
     device.write(cmd.JOB_ABDN, function(w) {
-        if(w.bytesWritten > 0)
+        // if(w.bytesWritten > 0)
             notify({ title:   'PRINT ABANDONED', message: '' });
-        else
-            device.destroy();
+        // else
+        //     device.destroy();
     });
 };
 
@@ -329,9 +332,9 @@ Device.prototype.sendStdCmd = function(val) {
 
     var device = this;
     device.write(val, function(w) { 
-        if(w.bytesWritten < 0) 
-            device.destroy();
-        else {
+        // if(w.bytesWritten < 0) 
+        //     device.destroy();
+        // else {
             device.readall(function(info) {
                 ui.updateConsole(info);
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
@@ -339,7 +342,7 @@ Device.prototype.sendStdCmd = function(val) {
                 if(dbg)
                     console.log('statPollTimer restarted');
             });
-        }
+        // }
     });
 };
 
@@ -355,9 +358,9 @@ Device.prototype.runAtIdx = function(idx) {
         device.job.paused = new Date().getTime();
 
         device.write(cmd.JOB_PAUSE, function(w) { 
-            if(w.bytesWritten < 0) 
-                device.destroy();
-            else
+            // if(w.bytesWritten < 0) 
+            //     device.destroy();
+            // else
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
         });
         notify({ 
@@ -428,14 +431,14 @@ Device.prototype.runAtIdx = function(idx) {
         //  an extended amount of time to perform
         _cmd += cmd.GET_TEMP;
         device.write(_cmd, function(w) { 
-            if(w.bytesWritten < 0) 
-                device.destroy();
-            else {
+            // if(w.bytesWritten < 0) 
+            //     device.destroy();
+            // else {
                 device.readall(function(data) {
                     device.updateDeviceStats(data);
                     device.runAtIdx(idx);
                 });
-            }
+            // }
         });
     }
 };

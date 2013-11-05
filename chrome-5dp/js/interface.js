@@ -34,19 +34,19 @@ function Slider(el) {
 
 Slider.prototype.init = function() {
     var _sl = this;
-    _sl.el.onclick = function(evt) {
-        if(!_sl.enabled || evt.target.classList.contains('slider')) return;
+    // _sl.el.onclick = function(evt) {
+    //     if(!_sl.enabled || evt.target.classList.contains('slider')) return;
 
-        if(evt.target.id == 'y')
-            evt.offsetY = ui.pa.phi.x + POINTER_OFFSET;
-        else
-            evt.offsetX = ui.pa.phi.y + POINTER_OFFSET;
-        ui.canvasCl(evt);
-    };
+    //     if(evt.target.id == 'y')
+    //         evt.offsetY = ui.pa.phi.x + POINTER_OFFSET;
+    //     else
+    //         evt.offsetX = ui.pa.phi.y + POINTER_OFFSET;
+    //     ui.canvasCl(evt);
+    // };
 
-    _sl.el.children[0].onmouseup = function(evt) {
+    _sl.handle.onmouseup = function(evt) {
         if(!_sl.enabled) return;
-
+        
         _sl.mdh = undefined;
         ui.disableMovers();
 
@@ -126,7 +126,7 @@ Layer.prototype.drawPathTo = function(x, y, color) {
     this.ctx.stroke();
 };
 
-Layer.prototype.closePath = function() { this.ctx.closePath(); }
+Layer.prototype.closePath = function() { this.ctx.closePath(); };
 
 function PrintArea() {
     this.el = document.getElementById('print-area');
@@ -187,13 +187,13 @@ PrintArea.prototype.resetAndDrawPaths = function() {
     if(ui.paths.length < 1) return;
 
     this.objLayer.startPath(ui.paths[0].x, ui.paths[0].y);
-    for(var i = 1; i < paths.length; i++) {
+    for(var i = 1; i < ui.paths.length; i++) {
         var _x = ui.paths[i].x,
             _y = ui.paths[i].y,
             _c = (ui.paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
 
         this.objLayer.drawPathTo(_x, _y, _c);
-        this.objLayer.startPath(_x, _y)
+        this.objLayer.startPath(_x, _y);
     }
     this.bgLayer.closePath();
 };
@@ -487,8 +487,8 @@ UI.prototype.attachActionListeners = function() {
             active.job.status = 'running';
             active.startPendingJob();
 
-            paths = [];
-            resetAndDrawPaths();
+            ui.paths = [];
+            ui.pa.resetAndDrawPaths();
             return;
         } 
 
@@ -523,7 +523,7 @@ UI.prototype.attachActionListeners = function() {
         active.job = new Job();
 
         var _pbtn = document.getElementById('print-pause');
-        if(_pbtn.classList.contain('icon-pause')) {
+        if(_pbtn.classList.contains('icon-pause')) {
             _pbtn.classList.remove('icon-pause');
             _pbtn.classList.add('icon-play');
         }
@@ -617,7 +617,7 @@ UI.prototype.attachActionListeners = function() {
             axis = 'e';
             temp = ui.pa.eTempRequested.value;
             ui.pa.eOff.classList.remove('selected');
-        };
+        }
 
         this.classList.add('selected');
         active.setTemp({ Name: axis, Value: temp });
@@ -636,7 +636,7 @@ UI.prototype.attachActionListeners = function() {
             axis = 'e';
             ui.pa.eTempRequested.value = 0;
             ui.pa.eOn.classList.remove('selected');
-        };
+        }
 
         this.classList.add('selected');
         active.setTemp({ Name: axis, Value: 0 });
@@ -797,7 +797,7 @@ UI.prototype.detachDevice = function(device) {
     var _d,
         _dns = ui.devices.getElementsByTagName('li');
     for(var i = 0; i < _dns.length; i++) {
-        if(_dns[i].data.dn == device) {
+        if(_dns[i].dataset.dn == device) {
             _dns[i].remove();
             break;
         }
@@ -871,19 +871,19 @@ UI.prototype.digestCmd = function(prCmd) {
             //  clear prev++ layer and prep
             //  for prev layer plotting
             _pa.hlLayer.clear();
-            _pa.hlLayer.startPath(paths[0].x, paths[0].y);
+            _pa.hlLayer.startPath(ui.paths[0].x, ui.paths[0].y);
 
             //  plot prev layer and draw
-            for(var i = 1; i < paths.length; i++) {
-                var _c = (paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
-                _pa.hlLayer.drawPathTo(paths[i].x, paths[i].y, _c);
-                _pa.hlLayer.startPath();
+            for(var i = 1; i < ui.paths.length; i++) {
+                var _c = (ui.paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST;
+                _pa.hlLayer.drawPathTo(ui.paths[i].x, ui.paths[i].y, _c);
+                _pa.hlLayer.startPath(ui.paths[i].x, ui.paths[i].y);
             }
             _pa.hlLayer.closePath();
 
             //  reset "active" layer
             _pa.objLayer.clear();
-            _paths = [];
+            ui.paths = [];
         }
 
         //  need to flip the X and Y here because of the way the
@@ -900,30 +900,31 @@ UI.prototype.digestCmd = function(prCmd) {
                 me = util.millimeterToPixel(_prCmd[i].substring(1));
         }
 
-        this.paths.push({ x: mx, y: my, e: me });
-        _pa.ph.x = mx, this.pa.ph.y = my;
+        ui.paths.push({ x: mx, y: my, e: me });
+        _pa.phi.x = mx, _pa.phi.y = my;
 
         //  only draw the new path here
         var _c = (me !== undefined) ? RED_INDICATOR : BLU_INDICATOR;
         _pa.objLayer.drawPathTo(mx, my, _c);
-        _pa.objLayer.startPath();
+        _pa.objLayer.startPath(mx, my);
 
-        var yw, xh,
-            xHandle = _pa.xSlider.children[0],
-            yHandle = _pa.ySlider.children[0];
-        yw = mx - (Math.floor(yHandle.offsetWidth / 2)) - Math.floor(POINTER_OFFSET / 2);
-        xh = my - (Math.floor(xHandle.offsetHeight / 2)) - Math.floor(POINTER_OFFSET / 2);
+        var yw, xh;
+        yw = mx - (Math.floor(_pa.ySlider.handle.offsetWidth / 2)) - Math.floor(POINTER_OFFSET / 2);
+        xh = my - (Math.floor(_pa.xSlider.handle.offsetHeight / 2)) - Math.floor(POINTER_OFFSET / 2);
 
-        yHandle.style.left = yw + 'px';
-        xHandle.style.top = xh + 'px';
+        _pa.ySlider.handle.style.left = yw + 'px';
+        _pa.xSlider.handle.style.top = xh + 'px';
         _pa.redrawIndicators();
     }
 
     if(prCmd.indexOf(cmd.HOME) > -1) {
-        var _nh = document.getElementsByClassName('not-homed');
-        for(var i = 0; i < _nh.length; i++)
-            _nh[i].classList.remove('not-homed');
-        ui.pa.movePrintHead(0, 0);
+        // var _nh = document.getElementsByClassName('not-homed');
+        // for(var i = 0; i < _nh.length; i++)
+        //     _nh[i].classList.remove('not-homed');
+        this.pa.homeXBtn.classList.remove('not-homed');
+        this.pa.homeYBtn.classList.remove('not-homed');
+        this.pa.homeZBtn.classList.remove('not-homed');
+        this.pa.movePrintHead(0, 0);
     }
 
     if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
