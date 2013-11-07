@@ -73,7 +73,10 @@ chrome.runtime.getPlatformInfo(function(info) {
     ui   = new UI();
     
     if(typeof util[info.os] !== 'function') {
-        notify({ title: "Unsupported OS", message: "Unfortunately, your OS is not supported at this time." });
+        notify({ 
+            title: "Unsupported OS", 
+            message: "Unfortunately, your OS is not supported at this time." 
+        });
         return;
     } else 
         util[info.os]();
@@ -82,4 +85,13 @@ chrome.runtime.getPlatformInfo(function(info) {
 
     //  DEBUG
     // dbg=!0;
+});
+
+chrome.app.window.onClosed.addListener(function() {
+    if(devices && devices.length > 0) {
+        var keys = Object.keys(devices);
+        for(var i = 0; i < keys.length; i++) {
+            devices[k[i]].destroy();
+        }
+    }
 });

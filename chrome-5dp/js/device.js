@@ -72,8 +72,8 @@ Device.prototype.readall = function(callback) {
         data = this.ab2str(info.data);
         result += data;
 
-        if(dbg && result.length > 1) 
-            console.log(result);
+        // if(dbg && result.length > 1) 
+            // console.log(result);
 
         if(data.indexOf('rs') === 0)
             throw 'Device requested a resend';
@@ -150,9 +150,11 @@ Device.prototype.getFullStats = function() {
     //  oh now... this won't cause any issues down the road /s
     var get = function(idx) {
         _d.write(cmd.GET_FSTATS[idx], function(w) {
-            // if(w.bytesWritten < 0)
-            //     _d.destroy();
-            // else {
+            if(w.bytesWritten < 0) {
+                if(dbg)
+                    notify({ title: 'DEBUG - device.destroy', message: 'getFullStats: calling destroy' });
+                _d.destroy();
+            } else {
                 _d.readall(function(data) {
                     result += data;
                     idx++;
@@ -165,7 +167,7 @@ Device.prototype.getFullStats = function() {
                         _d.statPollTimer = window.setInterval(function() { _d.getTemp(); }, SPTDELAY);
                     }
                 });
-            // }
+            }
         });
         
     };
@@ -176,14 +178,16 @@ Device.prototype.getTemp = function() {
     var _d = this;
 
     _d.write(cmd.GET_TEMP, function(w) {
-        // if(w.bytesWritten < 0)
-        //     _d.destroy();
-        // else {
+        if(w.bytesWritten < 0) {
+            if(dbg)
+                notify({ title: 'DEBUG - device.destroy', message: 'getTemp: calling destroy' });
+            _d.destroy();
+        } else {
             _d.readall(function(data) { 
                 ui.updateConsole(data);
                 _d.updateDeviceStats(data); 
             });
-        // }
+        }
     });
 };
 
@@ -193,10 +197,12 @@ Device.prototype.setTemp = function(temp) {
 
     _cmd += CMD_TERMINATOR;
     _d.write(_cmd, function(w) { 
-        // if(w.bytesWritten < 0) 
-        //     _d.destroy();
-        // else
-        _d.readall(ui.updateConsole);
+        if(w.bytesWritten < 0) {
+            if(dbg)
+                notify({ title: 'DEBUG - device.destroy', message: 'setTemp: calling destroy' });
+            _d.destroy();
+        } else
+            _d.readall(ui.updateConsole);
     });
 };
 
@@ -313,10 +319,13 @@ Device.prototype.resumeJob = function() {
 Device.prototype.resetJob = function() {
     var device = this;
     device.write(cmd.JOB_ABDN, function(w) {
-        // if(w.bytesWritten > 0)
+        if(w.bytesWritten > 0)
             notify({ title:   'PRINT ABANDONED', message: '' });
-        // else
-        //     device.destroy();
+        else {
+            if(dbg)
+                notify({ title: 'DEBUG - device.destroy', message: 'resetJob: calling destroy' });
+            device.destroy();
+        }
     });
 };
 
@@ -328,21 +337,23 @@ Device.prototype.sendStdCmd = function(val) {
     this.statPollTimer = -1;
 
     if(dbg)
-        console.log('statPollTimer cleared');
+        notify({ title: 'DEBUG - device.destroy', message: 'statPollTimer cleared' });
 
     var device = this;
     device.write(val, function(w) { 
-        // if(w.bytesWritten < 0) 
-        //     device.destroy();
-        // else {
+        if(w.bytesWritten < 0) {
+            if(dbg)
+                notify({ title: 'DEBUG - device.destroy', message: 'sendStdCmd: callind destroy' });
+            device.destroy();
+        } else {
             device.readall(function(info) {
                 ui.updateConsole(info);
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
 
                 if(dbg)
-                    console.log('statPollTimer restarted');
+                    notify({ title: 'DEBUG - device.destroy', message: 'statPollTimer restarted' });
             });
-        // }
+        }
     });
 };
 
@@ -358,9 +369,11 @@ Device.prototype.runAtIdx = function(idx) {
         device.job.paused = new Date().getTime();
 
         device.write(cmd.JOB_PAUSE, function(w) { 
-            // if(w.bytesWritten < 0) 
-            //     device.destroy();
-            // else
+            if(w.bytesWritten < 0) {
+                if(dbg)
+                    notify({ title: 'DEBUG - device.destroy', message: 'runAtIdx: calling destroy' });
+                device.destroy();
+            } else
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
         });
         notify({ 
@@ -430,16 +443,30 @@ Device.prototype.runAtIdx = function(idx) {
         //  execution on the device if the temp request takes 
         //  an extended amount of time to perform
         _cmd += cmd.GET_TEMP;
-        device.write(_cmd, function(w) { 
-            // if(w.bytesWritten < 0) 
-            //     device.destroy();
-            // else {
-                device.readall(function(data) {
-                    device.updateDeviceStats(data);
-                    device.runAtIdx(idx);
-                });
-            // }
-        });
+
+        var _iter = 0, 
+            _cb = function(w) {
+                if(w.bytesWritten < 0) {
+                    if(_iter === 0) {
+                        _iter++;
+                        device.write(_cmd, _cb);
+                    } else {
+                        if(dbg) {
+                            notify({ 
+                                title: 'DEBUG - device.destroy', 
+                                message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
+                            });
+                        }
+                        device.destroy();
+                    }
+                } else {
+                    device.readall(function(data) {
+                        device.updateDeviceStats(data);
+                        device.runAtIdx(idx);
+                    });
+                }
+            };
+        device.write(_cmd, _cb);
     }
 };
 

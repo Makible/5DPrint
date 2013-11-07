@@ -694,6 +694,7 @@ nav #devices-overlay ul li div.dev-file {
     height: 28px;
     border: 1px solid #aaa;
     border-radius: 4px;
+    background-color: #fff;
 }
 
 #console-area .wrapper input,
@@ -705,20 +706,19 @@ nav #devices-overlay ul li div.dev-file {
 }
 
 #console-area .wrapper input {
+    margin-left: 3px;
     width: 640px;
     height: 26px;
     color: #333;
     border: 0;
-    padding-left: 4px;
     text-transform: none;
 }
 
 #console-area .wrapper input.ghost { color: #bbb; }
 #console-area .wrapper .handle {
     margin-left: -4px;
-    min-width: 33px;
-    max-width: 35px;
-    width: 100%;
+    float: right;
+    width: 32px;
     height: 28px;
     border: 0;
     border-left: 1px solid rgba(100, 100, 100, 0.4);

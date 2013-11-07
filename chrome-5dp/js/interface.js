@@ -529,11 +529,11 @@ UI.prototype.attachActionListeners = function() {
         }
 
         //  reset progress bar
-        document.getElementById('progress').style.height = 0;
+        ui.progress.style.width = 0;
 
-        paths = [];
-        hlLayer.clear();
-        objLayer.clear();
+        ui.paths = [];
+        ui.pa.hlLayer.clear();
+        ui.pa.objLayer.clear();
     };
 
     //
