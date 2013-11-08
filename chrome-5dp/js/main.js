@@ -89,9 +89,8 @@ chrome.runtime.getPlatformInfo(function(info) {
 
 chrome.app.window.onClosed.addListener(function() {
     if(devices && devices.length > 0) {
-        var keys = Object.keys(devices);
-        for(var i = 0; i < keys.length; i++) {
+        var k = Object.keys(devices);
+        for(var i = 0; i < k.length; i++)
             devices[k[i]].destroy();
-        }
     }
 });

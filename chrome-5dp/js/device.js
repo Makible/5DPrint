@@ -290,7 +290,7 @@ Device.prototype.startPendingJob = function() {
     chrome.power.requestKeepAwake('system');
 
     var idx = 0,
-        _d = this,
+        device = this,
         msg = 'The warming process can take some time. Please be patient.'
             + ' During the print, your display may go to sleep (depending'
             + ' on your OS settings) though your system will not. Once'
@@ -298,9 +298,99 @@ Device.prototype.startPendingJob = function() {
             + ' OS settings previously set.';
     notify({ title: "Starting Print", message: msg });
 
+    device.job.start = new Date().getTime();
+    // device.runAtIdx(idx);
 
-    _d.job.start = new Date().getTime();
-    _d.runAtIdx(idx);
+    var nd = !0, idx = 0;
+    while(nd && !device.hardStop) {
+        if(device.job.status != 'paused') {
+            ui.updateProgress(((idx - 1) * 100) / device.job.content.length);
+            if(idx >= device.job.content.length || 
+                device.job.content[idx] === undefined) {
+
+                device.job.end = new Date().getTime();
+                device.job.status = 'complete';
+                device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
+
+                ui.resetWithContent();
+
+                var diff, hh, mm;
+
+                diff = parseFloat(((device.job.end - device.job.start) / 3600000).toFixed(2));
+                hh   = parseInt(diff, 10);
+                mm   = parseInt(parseFloat((diff -= hh).toFixed(2), 10) * 60, 10);
+
+                msg = 'Print Time [hh:mm] ' + hh + ':' + mm
+                    + '\n\nyour system has now returned to the'
+                    + ' normal power settings'; 
+
+                chrome.power.releaseKeepAwake();
+                notify({ 
+                    title: "Print Complete", 
+                    message: msg
+                });
+
+                nd = 0;
+            } else {
+                var _cmd = device.job.content[idx].trim();
+                idx++;
+
+                if(_cmd.length > 2 && _cmd.indexOf(';') !== 0) {
+                    if(device.name == active.name)
+                        ui.digestCmd(_cmd);
+
+                    if(_cmd.indexOf(CMD_TERMINATOR) < 0)
+                        _cmd += CMD_TERMINATOR;
+
+                    device.write(_cmd, function(w) {
+                        if(w.bytesWritten < 0) {
+                            if(dbg) {
+                                notify({
+                                    title: 'DEBUG - device.destroy',
+                                    message: 'startPendingJob - write(_cmd: ' + _cmd
+                                });
+                            }
+                            device.destroy();
+                        } else {
+                            device.readall(function(data) {
+                                ui.updateConsole(data);
+                                device.write(cmd.GET_TEMP, function(w) {
+                                    if(w.bytesWritten < 0) {
+                                        if(dbg) {
+                                            notify({
+                                                title: 'DEBUG - device.destroy',
+                                                message: 'startPendingJob - write(cmd.GET_TEMP: ' + _cmd
+                                            });
+                                        }
+                                        device.destroy();
+                                    } else
+                                        device.readall(updateDeviceStats);
+                                });
+                            });
+                        }
+                    });
+                }
+            }
+        }
+    }
+};
+
+Device.prototype.pause = function() {
+    var device = this;
+
+    device.job.paused = new Date().getTime();
+    device.write(cmd.JOB_PAUSE, function(w) {
+        if(w.bytesWritten < 0) {
+            if(dbg)
+                notify({ title: 'DEBUG - device.destroy', message: 'runAtIdx: calling destroy' });
+            device.destroy();
+        } else
+            device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
+    });
+    notify({ 
+        title: "Paused", 
+        message: "Click PLAY to continue or RESET to start fresh" 
+    });
 };
 
 Device.prototype.resumeJob = function() {
@@ -312,7 +402,8 @@ Device.prototype.resumeJob = function() {
         });
 
         _d.job.pauseddur += (new Date().getTime()) - _d.job.paused;
-        _d.runAtIdx(_d.job.pausedidx);
+        window.clearInterval(_d.statPollTimer);
+        _d.statPollTimer = -1;
     });
 };
 
@@ -431,42 +522,44 @@ Device.prototype.runAtIdx = function(idx) {
     if(_cmd.indexOf(';') === 0 || _cmd.length <= 1)
         device.runAtIdx(idx);
     else {
-        if(device.name == active.name)
-            ui.digestCmd(_cmd);
-        
-        if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
-            _cmd += CMD_TERMINATOR;
+        setTimeout(function() {
+            if(device.name == active.name)
+                ui.digestCmd(_cmd);
+            
+            if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
+                _cmd += CMD_TERMINATOR;
 
-        //  tag a temp request on to each cmd
-        //  
-        //  WARNING: this could cause some jumps in the job
-        //  execution on the device if the temp request takes 
-        //  an extended amount of time to perform
-        _cmd += cmd.GET_TEMP;
+            //  tag a temp request on to each cmd
+            //  
+            //  WARNING: this could cause some jumps in the job
+            //  execution on the device if the temp request takes 
+            //  an extended amount of time to perform
+            _cmd += cmd.GET_TEMP;
 
-        var _iter = 0, 
-            _cb = function(w) {
-                if(w.bytesWritten < 0) {
-                    if(_iter === 0) {
-                        _iter++;
-                        device.write(_cmd, _cb);
-                    } else {
-                        if(dbg) {
-                            notify({ 
-                                title: 'DEBUG - device.destroy', 
-                                message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
-                            });
+            var _iter = 0, 
+                _cb = function(w) {
+                    if(w.bytesWritten < 0) {
+                        if(_iter < 6) {
+                            _iter++;
+                            setTimeout(function() { device.write(_cmd, _cb); }, 100);
+                        } else {
+                            if(dbg) {
+                                notify({ 
+                                    title: 'DEBUG - device.destroy', 
+                                    message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
+                                });
+                            }
+                            device.destroy();
                         }
-                        device.destroy();
+                    } else {
+                        device.readall(function(data) {
+                            device.updateDeviceStats(data);
+                            device.runAtIdx(idx);
+                        });
                     }
-                } else {
-                    device.readall(function(data) {
-                        device.updateDeviceStats(data);
-                        device.runAtIdx(idx);
-                    });
-                }
-            };
-        device.write(_cmd, _cb);
+                };
+            device.write(_cmd, _cb);
+        }, 300);
     }
 };
 
