@@ -1,43 +1,45 @@
-var dbg, notifyId, fdp, ui, util;
+var dbg, notifyId, launcher;
 
-function FDP() {
-    this.devicePollTimer = undefined;
-}
+var fdp = {
+    devicePollTimer: undefined,
+    connTimer: -1,
 
-//  
-//  currently only listening for MakiBox devices
-//  though this will change in the near future
-//  as device support increases
-FDP.prototype.initDevicePolling = function() {
-    if(this.devicePollTimer !== undefined)
-        window.clearInterval(this.devicePollTimer);
+    //  
+    //  currently only listening for MakiBox devices
+    //  though this will change in the near future
+    //  as device support increases
+    initDevicePolling: function() {
+        if(fdp.devicePollTimer !== undefined)
+            window.clearInterval(fdp.devicePollTimer);
 
-    if(devices === undefined) 
-        devices = {};
-        
-    var conncb = function(device, valid) {
-        if(valid) {
-            notify({ title: "Device Attached", message: device.name + " attached" });
-            devices[device.name] = device;
-            ui.attachDevice(device);
-            device.getFullStats();
-        } else {
-            serial.flush(device.conn, function(){});
-            serial.close(device.conn, function(){});
-        }      
-    };
+        if(devices === undefined) 
+            devices = {};
+            
+        var conncb = function(device, valid) {
+            if(valid) {
+                notify({ title: "Device Attached", message: device.name + " attached" });
+                devices[device.name] = device;
+                launcher.devIds.push(device.conn);
+                ui.attachDevice(device);
+                device.getFullStats();
+            } else {
+                serial.flush(device.conn, function(){});
+                serial.close(device.conn, function(){});
+            }      
+        };
 
-    //  pulls the list of devices according to the prefix
-    //  and attempts to open and set the device if it is
-    //  indeed a 5dprint compatable device (i.e. MakiBox A6)
-    this.connTimer = window.setInterval(function() { 
-        serial.getPorts(function(ports) {
-            for(var i=0; i < ports.length; i++) {
-                if(ports[i].indexOf(util.serialPrefix) > -1 && devices[ports[i]] === undefined)
-                    new Device(ports[i]).connect(conncb);
-            }
-        });
-    }, 1200);
+        //  pulls the list of devices according to the prefix
+        //  and attempts to open and set the device if it is
+        //  indeed a 5dprint compatable device (i.e. MakiBox A6)
+        connTimer = window.setInterval(function() { 
+            serial.getPorts(function(ports) {
+                for(var i=0; i < ports.length; i++) {
+                    if(ports[i].indexOf(util.serialPrefix) > -1 && devices[ports[i]] === undefined)
+                        new Device(ports[i]).connect(conncb);
+                }
+            });
+        }, 1200);
+    }
 };
 
 //  
@@ -68,10 +70,8 @@ window.onresize = function(evt) {
 chrome.runtime.getPlatformInfo(function(info) {
     dbg = notifyId = 0;
 
-    util = new Util();
-    fdp  = new FDP();
-    ui   = new UI();
-    
+    ui.init();
+
     if(typeof util[info.os] !== 'function') {
         notify({ 
             title: "Unsupported OS", 
@@ -80,17 +80,22 @@ chrome.runtime.getPlatformInfo(function(info) {
         return;
     } else 
         util[info.os]();
-        
-    fdp.initDevicePolling();
+
+    chrome.runtime.getBackgroundPage(function(bg) { 
+        launcher = bg.window;
+        fdp.initDevicePolling();
+    });
 
     //  DEBUG
     // dbg=!0;
 });
 
-chrome.app.window.onClosed.addListener(function() {
-    if(devices && devices.length > 0) {
-        var k = Object.keys(devices);
-        for(var i = 0; i < k.length; i++)
-            devices[k[i]].destroy();
+//  show / hide console output on esc
+document.body.onkeydown = function(evt) {
+    if(evt.which == 27) {
+        if(jQuery(ui.consoleOut).is(':visible'))
+            ui.collapseConsoleOutput();
+        else
+            ui.expandConsoleOutput();
     }
-});
+};

@@ -112,7 +112,7 @@ Device.prototype.onwrite = function(info) {
 
 Device.prototype.destroy = function(callback) {
     //  debug
-    console.log('[dev].destroy has been called...');    
+    if(dbg) console.log('[dev].destroy has been called...');    
     
     var _device = this;
     if(_device.statPollTimer > -1) 
@@ -120,13 +120,20 @@ Device.prototype.destroy = function(callback) {
 
     _device.hardStop = !0; //  force-stop any jobs for this device
     ui.detachDevice(_device.name);
-    chrome.power.releaseKeepAwake();
 
+    var _idx = launcher.devIds.indexOf(_device.conn);
+    launcher.devIds = launcher.devIds.splice(_idx, 1);
+
+    chrome.power.releaseKeepAwake();
     serial.flush(_device.conn, function(info) { });
     serial.close(_device.conn, function(info) {
         delete devices[_device.name];  //  remove device from list
         notify({ title: "Device Detached", message: _device.name + " has been detached" });
     });
+};
+
+Device.prototype.flush = function(callback) {
+    serial.flush(this.conn, callback);
 };
 
 Device.prototype.ab2str = function(buf) {
@@ -299,80 +306,7 @@ Device.prototype.startPendingJob = function() {
     notify({ title: "Starting Print", message: msg });
 
     device.job.start = new Date().getTime();
-    // device.runAtIdx(idx);
-
-    var nd = !0, idx = 0;
-    while(nd && !device.hardStop) {
-        if(device.job.status != 'paused') {
-            ui.updateProgress(((idx - 1) * 100) / device.job.content.length);
-            if(idx >= device.job.content.length || 
-                device.job.content[idx] === undefined) {
-
-                device.job.end = new Date().getTime();
-                device.job.status = 'complete';
-                device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
-
-                ui.resetWithContent();
-
-                var diff, hh, mm;
-
-                diff = parseFloat(((device.job.end - device.job.start) / 3600000).toFixed(2));
-                hh   = parseInt(diff, 10);
-                mm   = parseInt(parseFloat((diff -= hh).toFixed(2), 10) * 60, 10);
-
-                msg = 'Print Time [hh:mm] ' + hh + ':' + mm
-                    + '\n\nyour system has now returned to the'
-                    + ' normal power settings'; 
-
-                chrome.power.releaseKeepAwake();
-                notify({ 
-                    title: "Print Complete", 
-                    message: msg
-                });
-
-                nd = 0;
-            } else {
-                var _cmd = device.job.content[idx].trim();
-                idx++;
-
-                if(_cmd.length > 2 && _cmd.indexOf(';') !== 0) {
-                    if(device.name == active.name)
-                        ui.digestCmd(_cmd);
-
-                    if(_cmd.indexOf(CMD_TERMINATOR) < 0)
-                        _cmd += CMD_TERMINATOR;
-
-                    device.write(_cmd, function(w) {
-                        if(w.bytesWritten < 0) {
-                            if(dbg) {
-                                notify({
-                                    title: 'DEBUG - device.destroy',
-                                    message: 'startPendingJob - write(_cmd: ' + _cmd
-                                });
-                            }
-                            device.destroy();
-                        } else {
-                            device.readall(function(data) {
-                                ui.updateConsole(data);
-                                device.write(cmd.GET_TEMP, function(w) {
-                                    if(w.bytesWritten < 0) {
-                                        if(dbg) {
-                                            notify({
-                                                title: 'DEBUG - device.destroy',
-                                                message: 'startPendingJob - write(cmd.GET_TEMP: ' + _cmd
-                                            });
-                                        }
-                                        device.destroy();
-                                    } else
-                                        device.readall(updateDeviceStats);
-                                });
-                            });
-                        }
-                    });
-                }
-            }
-        }
-    }
+    device.runAtIdx(idx);
 };
 
 Device.prototype.pause = function() {
@@ -516,33 +450,34 @@ Device.prototype.runAtIdx = function(idx) {
 
     var _cmd = device.job.content[idx].trim();
     idx++;
-
     //  we may get into a bit of a race issue with
     //  the callbacks and a pause ....
     if(_cmd.indexOf(';') === 0 || _cmd.length <= 1)
         device.runAtIdx(idx);
     else {
-        setTimeout(function() {
-            if(device.name == active.name)
-                ui.digestCmd(_cmd);
-            
-            if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
-                _cmd += CMD_TERMINATOR;
+        //  grab the temp from the device 
+        //  before running the next cmd
+        device.write(cmd.GET_TEMP, function(w) {
+            if(w.bytesWritten < 0) {
+                if(dbg) {
+                    notify({ 
+                        title: 'DEBUG - device.destroy', 
+                        message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
+                    });
+                }
+                device.destroy();
+            } else {
+                device.readall(function(data) {
+                    device.updateDeviceStats(data);
 
-            //  tag a temp request on to each cmd
-            //  
-            //  WARNING: this could cause some jumps in the job
-            //  execution on the device if the temp request takes 
-            //  an extended amount of time to perform
-            _cmd += cmd.GET_TEMP;
+                    if(device.name == active.name)
+                        ui.digestCmd(_cmd);
+                    
+                    if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
+                        _cmd += CMD_TERMINATOR;
 
-            var _iter = 0, 
-                _cb = function(w) {
-                    if(w.bytesWritten < 0) {
-                        if(_iter < 6) {
-                            _iter++;
-                            setTimeout(function() { device.write(_cmd, _cb); }, 100);
-                        } else {
+                    device.write(_cmd, function(w) {
+                        if(w.bytesWritten < 0) {
                             if(dbg) {
                                 notify({ 
                                     title: 'DEBUG - device.destroy', 
@@ -550,16 +485,15 @@ Device.prototype.runAtIdx = function(idx) {
                                 });
                             }
                             device.destroy();
+                        } else {
+                            device.readall(function(data) {
+                                ui.updateConsole(data);
+                                device.runAtIdx(idx);
+                            });
                         }
-                    } else {
-                        device.readall(function(data) {
-                            device.updateDeviceStats(data);
-                            device.runAtIdx(idx);
-                        });
-                    }
-                };
-            device.write(_cmd, _cb);
-        }, 300);
+                    });
+                });
+            }
+        });
     }
 };
-

@@ -1,16 +1,16 @@
-function Util() {
-    this.serialPrefix = '';
-}
+var util = {
+    serialPrefix: '',
 
-Util.prototype.pixelToMillimeter = function(p) {
-    return (p !== 0) ? Math.floor(p / MAGICNUM) : p;
+    pixelToMillimeter: function(p) {
+        return (p !== 0) ? Math.floor(p / MAGICNUM) : p;
+    },
+
+    millimeterToPixel: function(mm) {
+        return (mm !== 0) ? Math.floor(mm * MAGICNUM) : mm;
+    },
+
+    mac:   function() { util.serialPrefix = 'tty.usbmodem'; },
+    win:   function() { util.serialPrefix = 'COM'; },
+    linux: function() { util.serialPrefix = 'ttyACM'; },
+    cros:  function() { util.serialPrefix = 'ttyACM'; }
 };
-
-Util.prototype.millimeterToPixel = function(mm) {
-    return (mm !== 0) ? Math.floor(mm * MAGICNUM) : mm;
-};
-
-Util.prototype.mac   = function() { this.serialPrefix = 'tty.usbmodem'; };
-Util.prototype.win   = function() { this.serialPrefix = 'COM'; };
-Util.prototype.linux = function() { this.serialPrefix = 'ttyACM'; };
-Util.prototype.cros  = function() { this.serialPrefix = 'ttyACM'; };
