@@ -227,14 +227,28 @@ PrintArea.prototype.moveSliders = function(offsetX, offsetY) {
 
 var ui = {
     //  header controls
-    settingsBtn:  document.querySelector('#settings'),
     loadJobBtn:   document.querySelector('#file-picker'),
     jobActionBtn: document.querySelector('#print-pause'),
     jobResetBtn:  document.querySelector('#reset'),
     devicesBtn:   document.querySelector('#devices'),
     adnameEl:     document.querySelector('#active-dname'),
 
-    settings: document.querySelector('#settings-overlay'),
+    settings: {
+        button: document.querySelector('#settings'),
+        overlay: document.querySelector('#settings-overlay'),
+        pane: {
+            about: document.querySelector('#settings-about'),
+            advanced: document.querySelector('#settings-advanced'),
+            basic: document.querySelector('#settings-basic'),
+            profiles: document.querySelector('#settings-profiles')
+        },
+        tab: {
+            about: document.querySelector('#about'),
+            advanced: document.querySelector('#advanced'),
+            basic: document.querySelector('#basic'),
+            profiles: document.querySelector('#profiles')
+        }
+    },
     devices:  document.querySelector('#devices-overlay'),
 
     pa: new PrintArea(),
@@ -301,7 +315,7 @@ var ui = {
 
     attachActionListeners: function() {
         var _navSelected = function() {
-            if(ui.settingsBtn.classList.contains('selected') ||
+            if(ui.settings.button.classList.contains('selected') ||
                 ui.devicesBtn.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return !0;
@@ -1007,69 +1021,72 @@ var ui = {
     },
 
     init: function() {
-        ui.settingsBtn.onclick = function(evt) {
-            if(ui.settingsBtn.classList.contains('selected') ||
+        // Set the active settings tab and pane
+        ui.settings.tab.active = ui.settings.tab.basic;
+        ui.settings.pane.active = ui.settings.pane.basic;
+
+        // Hide inactive settings panes
+        jQuery(ui.settings.pane.advanced).hide();
+        jQuery(ui.settings.pane.profiles).hide();
+        jQuery(ui.settings.pane.about).hide();
+
+        // Set the basic pane's dynamic information
+        // TODO: figure out how to query device for initial data!
+        document.querySelector('#settings-steps-x').value = 500;
+        document.querySelector('#settings-steps-y').value = 600;
+        document.querySelector('#settings-steps-z').value = 700;
+        document.querySelector('#settings-steps-e').value = 120;
+
+        // Set the about pane's dynamic information
+        var manifest = chrome.runtime.getManifest();
+        document.querySelector('.author').innerHTML = manifest.author;
+        document.querySelector('.ver').innerHTML = 'v' + manifest.version;
+
+        ui.settings.button.onclick = function(evt) {
+            if(ui.settings.button.classList.contains('selected') ||
                 ui.devicesBtn.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return;
             }
 
             evt.target.classList.add('selected');
-            ui.settings.style.display = 'block';
+            ui.settings.overlay.style.display = 'block';
 
             document.querySelector('#settings-close').onclick = function(evt) {
-                ui.settings.style.display = 'none';
-                ui.settingsBtn.classList.remove('selected');
+                ui.settings.overlay.style.display = 'none';
+                ui.settings.button.classList.remove('selected');
             };
-
-            var _settingsClickHandler = function(evt) {
-                if(evt.target.classList.contains('selected'))
-                    return;
-
-                //  remove selected class on previous item
-                ui.settings.querySelector('.selected').classList.remove('selected');
-
-                evt.target.classList.add('selected');
-                ui.settings.children[1].innerHTML = '';
-
-                switch(evt.target.id) {
-                case 'basic':
-                    break;
-                case 'advanced':
-                    break;
-                case 'profiles':
-                    break;
-                case 'about':
-                    var m    = chrome.runtime.getManifest(),
-                        str  = '',
-                        desc = '';
-
-                    desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
-                        + 'tailor-made for the MakiBox A6 and modern 3D printing. '
-                        + 'The UI is designed for simplicity and letting the user '
-                        + 'get straight to printing. Devices are automatically '
-                        + 'detected and connected to. Moving the extruder around has '
-                        + 'never been easier with the interactive print area.';
-
-                    str += '<div class="author">' + m.author + '</div>';
-                    str += '<div class="desc">' + desc + '</div>';
-                    str += '<div class="ver">v' + m.version + '</div>';
-
-                    ui.settings.children[1].innerHTML = str;
-                    break;
-                default:
-                    //  shouldn't really get here
-                    break;
-                }
-            };
-
-            var _lis = ui.settings.getElementsByTagName('li');
-            for(var j = 0; j < _lis.length; j++)
-                _lis[j].onclick = _settingsClickHandler;
-
-            //  start with the basics
-            document.querySelector('#basic').click();
         };
+
+        var _settingsClickHandler = function(evt) {
+            if(evt.target.classList.contains('selected'))
+                return;
+
+            // Hide the inactive settings tab and pane
+            ui.settings.tab.active.classList.remove('selected');
+            jQuery(ui.settings.pane.active).hide();
+
+            // Show the active settings tab and pane
+            ui.settings.tab.active = evt.target;
+            ui.settings.tab.active.classList.add('selected');
+            ui.settings.pane.active = ui.settings.pane[evt.target.id];
+            jQuery(ui.settings.pane.active).show();
+        };
+
+        var _lis = [ui.settings.tab.basic, ui.settings.tab.advanced,
+                    ui.settings.tab.profiles, ui.settings.tab.about];
+        for(var j = 0; j < _lis.length; j++)
+            _lis[j].onclick = _settingsClickHandler;
+
+        var _settingsUpdateHandler = function(evt) {
+            active.sendStdCmd('M92 ' +
+                'X' + document.querySelector('#settings-steps-x').value + ' ' +
+                'Y' + document.querySelector('#settings-steps-y').value + ' ' +
+                'Z' + document.querySelector('#settings-steps-z').value + ' ' +
+                'E' + document.querySelector('#settings-steps-e').value
+            );
+        };
+        document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
 
         ui.consoleIn.onkeydown = function(evt) {
             //  enter / return
