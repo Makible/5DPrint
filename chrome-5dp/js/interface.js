@@ -256,7 +256,11 @@ var ui = {
             feedrateX: document.querySelector('#settings-feedrate-x'),
             feedrateY: document.querySelector('#settings-feedrate-y'),
             feedrateZ: document.querySelector('#settings-feedrate-z'),
-            feedrateE: document.querySelector('#settings-feedrate-e')
+            feedrateE: document.querySelector('#settings-feedrate-e'),
+            accelerationX: document.querySelector('#settings-acceleration-x'),
+            accelerationY: document.querySelector('#settings-acceleration-y'),
+            accelerationZ: document.querySelector('#settings-acceleration-z'),
+            accelerationE: document.querySelector('#settings-acceleration-e')
         },
         disable: function() {
             for (var key in ui.settings.fields) {
@@ -285,6 +289,13 @@ var ui = {
             ui.settings.fields.feedrateY.value = values[2];
             ui.settings.fields.feedrateZ.value = values[3];
             ui.settings.fields.feedrateE.value = values[4];
+
+            var accelerationRegExp = /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/;
+            values = accelerationRegExp.exec(stats);
+            ui.settings.fields.accelerationX.value = values[1];
+            ui.settings.fields.accelerationY.value = values[2];
+            ui.settings.fields.accelerationZ.value = values[3];
+            ui.settings.fields.accelerationE.value = values[4];
         }
     },
     devices:  document.querySelector('#devices-overlay'),
@@ -1124,6 +1135,13 @@ var ui = {
                 'Y' + ui.settings.fields.feedrateY.value + ' ' +
                 'Z' + ui.settings.fields.feedrateZ.value + ' ' +
                 'E' + ui.settings.fields.feedrateE.value +
+                CMD_TERMINATOR
+            );
+            active.sendStdCmd('M201 ' +
+                'X' + ui.settings.fields.accelerationX.value + ' ' +
+                'Y' + ui.settings.fields.accelerationY.value + ' ' +
+                'Z' + ui.settings.fields.accelerationZ.value + ' ' +
+                'E' + ui.settings.fields.accelerationE.value +
                 CMD_TERMINATOR
             );
             active.sendStdCmd('M500');
