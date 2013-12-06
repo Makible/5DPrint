@@ -229,7 +229,7 @@ function DeviceConfiguration() {
     this.fields = [
         ['steps', 'M92', ['x', 'y', 'z', 'e'], /M92 X(\d+) Y(\d+) Z(\d+) E(\d+)/],
         ['feedrate', 'M202', ['x', 'y', 'z', 'e'], /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
-        ['acceleration', 'M201', ['x', 'y', 'z', 'e'], /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/]
+        ['max-acceleration', 'M201', ['x', 'y', 'z', 'e'], /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/]
     ];
     this.settings = this.fields.map(function(attrs) {
         return new Setting(attrs[0], attrs[1], attrs[2], attrs[3]);
