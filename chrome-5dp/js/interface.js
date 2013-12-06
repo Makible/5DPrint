@@ -264,23 +264,27 @@ var ui = {
             }
             document.querySelector('#settings-basic-submit').disabled = true;
         },
-        enable: function() {
+        enable: function(stats) {
             for (var key in ui.settings.fields) {
                 ui.settings.fields[key].disabled = false;
             }
             document.querySelector('#settings-basic-submit').disabled = false;
 
-            // Set the basic pane's dynamic information
-            // TODO: figure out how to query device for initial data!
-            ui.settings.fields.stepsX.value = 500;
-            ui.settings.fields.stepsY.value = 600;
-            ui.settings.fields.stepsZ.value = 700;
-            ui.settings.fields.stepsE.value = 120;
+            // Set the values in the settings fields to the stats returned from
+            // the device
+            var stepsRegExp = /M92 X(\d+) Y(\d+) Z(\d+) E(\d+)/;
+            var values = stepsRegExp.exec(stats);
+            ui.settings.fields.stepsX.value = values[1];
+            ui.settings.fields.stepsY.value = values[2];
+            ui.settings.fields.stepsZ.value = values[3];
+            ui.settings.fields.stepsE.value = values[4];
 
-            ui.settings.fields.feedrateX.value = "120.000";
-            ui.settings.fields.feedrateY.value = "120.000";
-            ui.settings.fields.feedrateZ.value = "20.000";
-            ui.settings.fields.feedrateE.value = "45.000";
+            var feedrateRegExp = /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/;
+            values = feedrateRegExp.exec(stats);
+            ui.settings.fields.feedrateX.value = values[1];
+            ui.settings.fields.feedrateY.value = values[2];
+            ui.settings.fields.feedrateZ.value = values[3];
+            ui.settings.fields.feedrateE.value = values[4];
         }
     },
     devices:  document.querySelector('#devices-overlay'),

@@ -150,7 +150,7 @@ Device.prototype.str2ab = function(str, callback) {
     callback(buf);
 };
 
-Device.prototype.getFullStats = function() {
+Device.prototype.getFullStats = function(callback) {
     var _d     = this,
         result = '';
 
@@ -170,6 +170,7 @@ Device.prototype.getFullStats = function() {
                         get(idx);
                     else {
                         ui.updateConsole(data);
+                        if(callback !== undefined) callback(result);
                         _d.updateDeviceStats('--FULL STATS\n'+result);
                         _d.statPollTimer = window.setInterval(function() { _d.getTemp(); }, SPTDELAY);
                     }
