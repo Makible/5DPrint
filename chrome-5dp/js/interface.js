@@ -231,7 +231,7 @@ function DeviceConfiguration() {
         ['feedrate', 'M202', ['x', 'y', 'z', 'e'], /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
         ['max-acceleration', 'M201', ['x', 'y', 'z', 'e'], /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/],
         ['acceleration', 'M204', ['s', 't'], /M204 S(\d+\.\d+) T(\d+\.\d+)/],
-        ['advanced', 'M205', ['s', 't', 'xy', 'z', 'e'], /M205 S(\d+\.\d+) T(\d+\.\d+) XY(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
+        ['advanced', 'M205', ['s', 't', 'x', 'z', 'e'], /M205 S(\d+\.\d+) T(\d+\.\d+) XY(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
         ['pid', 'M301', ['p', 'i', 'd'], /M301 P(\d+) I(\d+) D(\d+)/]
     ];
     this.settings = this.fields.map(function(attrs) {
@@ -296,7 +296,7 @@ Setting.prototype.disable = function() {
 
 Setting.prototype.persist = function() {
     args = [this.devCmd].concat(this.params.map(function(param, index) {
-        return param[0] + this.fields[index].value;
+        return param + this.fields[index].value;
     }, this));
     active.sendStdCmd(args.join(' ').toUpperCase() + CMD_TERMINATOR);
 };
