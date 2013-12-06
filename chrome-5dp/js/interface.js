@@ -257,6 +257,30 @@ var ui = {
             feedrateY: document.querySelector('#settings-feedrate-y'),
             feedrateZ: document.querySelector('#settings-feedrate-z'),
             feedrateE: document.querySelector('#settings-feedrate-e')
+        },
+        disable: function() {
+            for (var key in ui.settings.fields) {
+                ui.settings.fields[key].disabled = true;
+            }
+            document.querySelector('#settings-basic-submit').disabled = true;
+        },
+        enable: function() {
+            for (var key in ui.settings.fields) {
+                ui.settings.fields[key].disabled = false;
+            }
+            document.querySelector('#settings-basic-submit').disabled = false;
+
+            // Set the basic pane's dynamic information
+            // TODO: figure out how to query device for initial data!
+            ui.settings.fields.stepsX.value = 500;
+            ui.settings.fields.stepsY.value = 600;
+            ui.settings.fields.stepsZ.value = 700;
+            ui.settings.fields.stepsE.value = 120;
+
+            ui.settings.fields.feedrateX.value = "120.000";
+            ui.settings.fields.feedrateY.value = "120.000";
+            ui.settings.fields.feedrateZ.value = "20.000";
+            ui.settings.fields.feedrateE.value = "45.000";
         }
     },
     devices:  document.querySelector('#devices-overlay'),
@@ -1036,22 +1060,11 @@ var ui = {
         ui.settings.pane.active = ui.settings.pane.basic;
 
         // Hide inactive settings panes
-        jQuery(ui.settings.pane.advanced).hide();
-        jQuery(ui.settings.pane.profiles).hide();
-        jQuery(ui.settings.pane.about).hide();
+        ui.settings.pane.advanced.style.display = 'none';
+        ui.settings.pane.profiles.style.display = 'none';
+        ui.settings.pane.about.style.display = 'none';
 
-        // Set the basic pane's dynamic information
-        // TODO: figure out how to query device for initial data!
-        ui.settings.fields.stepsX.value = 500;
-        ui.settings.fields.stepsY.value = 600;
-        ui.settings.fields.stepsZ.value = 700;
-        ui.settings.fields.stepsE.value = 120;
-
-        // // TODO: figure out how to query device for initial data!
-        ui.settings.fields.feedrateX.value = "120.000";
-        ui.settings.fields.feedrateY.value = "120.000";
-        ui.settings.fields.feedrateZ.value = "20.000";
-        ui.settings.fields.feedrateE.value = "45.000";
+        ui.settings.disable();
 
         // Set the about pane's dynamic information
         var manifest = chrome.runtime.getManifest();
@@ -1080,13 +1093,13 @@ var ui = {
 
             // Hide the inactive settings tab and pane
             ui.settings.tab.active.classList.remove('selected');
-            jQuery(ui.settings.pane.active).hide();
+            ui.settings.pane.active.style.display = 'none';
 
             // Show the active settings tab and pane
             ui.settings.tab.active = evt.target;
             ui.settings.tab.active.classList.add('selected');
             ui.settings.pane.active = ui.settings.pane[evt.target.id];
-            jQuery(ui.settings.pane.active).show();
+            ui.settings.pane.active.style.display = 'block';
         };
 
         var _lis = [ui.settings.tab.basic, ui.settings.tab.advanced,
@@ -1109,6 +1122,7 @@ var ui = {
                 'E' + ui.settings.fields.feedrateE.value +
                 '\r\n'
             );
+            active.sendStdCmd('M500');
         };
         document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
 
