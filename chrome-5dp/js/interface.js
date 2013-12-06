@@ -245,6 +245,7 @@ DeviceConfiguration.prototype.set = function(deviceStats) {
         e.enable(deviceStats);
     });
     document.querySelector('#settings-basic-submit').disabled = false;
+    document.querySelector('#settings-advanced-submit').disabled = false;
 }
 
 DeviceConfiguration.prototype.clear = function() {
@@ -253,6 +254,7 @@ DeviceConfiguration.prototype.clear = function() {
         e.disable();
     });
     document.querySelector('#settings-basic-submit').disabled = true;
+    document.querySelector('#settings-advanced-submit').disabled = true;
 }
 
 DeviceConfiguration.prototype.persist = function() {
@@ -809,6 +811,8 @@ var ui = {
                 ui.disableMovers();
             }
         }
+
+        ui.settings.configuration.clear();
     },
 
     loadContentToPrintArea: function(gcode) {
