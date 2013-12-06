@@ -247,6 +247,16 @@ var ui = {
             advanced: document.querySelector('#advanced'),
             basic: document.querySelector('#basic'),
             profiles: document.querySelector('#profiles')
+        },
+        fields: {
+            stepsX: document.querySelector('#settings-steps-x'),
+            stepsY: document.querySelector('#settings-steps-y'),
+            stepsZ: document.querySelector('#settings-steps-z'),
+            stepsE: document.querySelector('#settings-steps-e'),
+            feedrateX: document.querySelector('#settings-feedrate-x'),
+            feedrateY: document.querySelector('#settings-feedrate-y'),
+            feedrateZ: document.querySelector('#settings-feedrate-z'),
+            feedrateE: document.querySelector('#settings-feedrate-e')
         }
     },
     devices:  document.querySelector('#devices-overlay'),
@@ -1032,10 +1042,16 @@ var ui = {
 
         // Set the basic pane's dynamic information
         // TODO: figure out how to query device for initial data!
-        document.querySelector('#settings-steps-x').value = 500;
-        document.querySelector('#settings-steps-y').value = 600;
-        document.querySelector('#settings-steps-z').value = 700;
-        document.querySelector('#settings-steps-e').value = 120;
+        ui.settings.fields.stepsX.value = 500;
+        ui.settings.fields.stepsY.value = 600;
+        ui.settings.fields.stepsZ.value = 700;
+        ui.settings.fields.stepsE.value = 120;
+
+        // // TODO: figure out how to query device for initial data!
+        ui.settings.fields.feedrateX.value = "120.000";
+        ui.settings.fields.feedrateY.value = "120.000";
+        ui.settings.fields.feedrateZ.value = "20.000";
+        ui.settings.fields.feedrateE.value = "45.000";
 
         // Set the about pane's dynamic information
         var manifest = chrome.runtime.getManifest();
@@ -1080,10 +1096,18 @@ var ui = {
 
         var _settingsUpdateHandler = function(evt) {
             active.sendStdCmd('M92 ' +
-                'X' + document.querySelector('#settings-steps-x').value + ' ' +
-                'Y' + document.querySelector('#settings-steps-y').value + ' ' +
-                'Z' + document.querySelector('#settings-steps-z').value + ' ' +
-                'E' + document.querySelector('#settings-steps-e').value
+                'X' + ui.settings.fields.stepsX.value + ' ' +
+                'Y' + ui.settings.fields.stepsY.value + ' ' +
+                'Z' + ui.settings.fields.stepsZ.value + ' ' +
+                'E' + ui.settings.fields.stepsE.value +
+                '\r\n'
+            );
+            active.sendStdCmd('M202 ' +
+                'X' + ui.settings.fields.feedrateX.value + ' ' +
+                'Y' + ui.settings.fields.feedrateY.value + ' ' +
+                'Z' + ui.settings.fields.feedrateZ.value + ' ' +
+                'E' + ui.settings.fields.feedrateE.value +
+                '\r\n'
             );
         };
         document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
