@@ -46,17 +46,17 @@ Slider.prototype.init = function() {
 
     _sl.handle.onmouseup = function(evt) {
         if(!_sl.enabled) return;
-        
+
         _sl.mdh = undefined;
         ui.disableMovers();
 
-        var dist = util.pixelToMillimeter(ui.pa.phi.y) + 
+        var dist = util.pixelToMillimeter(ui.pa.phi.y) +
                     ',' + util.pixelToMillimeter(ui.pa.phi.x);
         active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
         ui.enableMovers();
     };
 
-    //  
+    //
     //  will trigger mouseup event from anywhere on the page
     //  if the mouse is in a space far outside the handles bounds
     document.onmouseup = function(evt) {
@@ -90,8 +90,8 @@ Slider.attachDraggers = function() {
         }
     });
 
-    jQuery(ui.pa.ySlider.handle).draggable({ 
-        axis: 'x', 
+    jQuery(ui.pa.ySlider.handle).draggable({
+        axis: 'x',
         containment: [ylb, 0, yrb, 0],
         drag: function(evt) {
             var _mdh = evt.target;
@@ -212,7 +212,7 @@ PrintArea.prototype.redrawIndicators = function() {
     this.phLayer.clear();
     this.phi.drawHEFill();
 
-    if(this.ct !== undefined) 
+    if(this.ct !== undefined)
         this.ct.drawHEStroke();
 };
 
@@ -309,9 +309,9 @@ var ui = {
             return 0;
         };
 
-        //  
+        //
         //  Nav Handlers
-        ui.devicesBtn.onclick = function(evt) { 
+        ui.devicesBtn.onclick = function(evt) {
             if(_navSelected()) return;
 
             evt.target.classList.add('selected');
@@ -322,7 +322,7 @@ var ui = {
             };
         };
 
-        ui.loadJobBtn.onclick = function(evt) { 
+        ui.loadJobBtn.onclick = function(evt) {
             if(_navSelected()) return;
 
             var inp = document.querySelector('#fl');
@@ -354,9 +354,9 @@ var ui = {
             ui.pa.resetAndDrawPaths();
         };
 
-        ui.jobActionBtn.onclick = function(evt) { 
+        ui.jobActionBtn.onclick = function(evt) {
             if(!active.job.filename || active.job.filename === '') {
-                notify({ 
+                notify({
                     title: "No File",
                     message: "Please load a valid gcode file to print"
                 });
@@ -376,7 +376,7 @@ var ui = {
                 ui.paths = [];
                 ui.pa.resetAndDrawPaths();
                 return;
-            } 
+            }
 
             //  since we update active.job.status here
             //  the print queue will see this and send
@@ -392,7 +392,7 @@ var ui = {
             if(active.job.status == 'paused') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
-                
+
                 active.job.status = 'running';
                 active.resumeJob();
                 return;
@@ -458,14 +458,14 @@ var ui = {
             ui.pa.movePrintHead(ui.pa.phi.x, 0);
             active.home(evt.target.innerHTML);
         };
-        
+
         ui.pa.homeYBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
             ui.pa.movePrintHead(0, ui.pa.phi.y);
             active.home(evt.target.innerHTML);
         };
-        
+
         ui.pa.homeZBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
@@ -499,7 +499,7 @@ var ui = {
                 axis = 'z';
                 temp = ui.pa.zTempRequested.value;
                 ui.pa.zOff.classList.remove('selected');
-            } else { 
+            } else {
                 if(ui.pa.eTempRequested.value < 0) return;
 
                 axis = 'e';
@@ -520,7 +520,7 @@ var ui = {
                 axis = 'z';
                 ui.pa.zTempRequested.value = 0;
                 ui.pa.zOn.classList.remove('selected');
-            } else { 
+            } else {
                 axis = 'e';
                 ui.pa.eTempRequested.value = 0;
                 ui.pa.eOn.classList.remove('selected');
@@ -730,7 +730,7 @@ var ui = {
         //  x / y coords into the paths array, ignoring the commented rows
         for(var i = 0; i < gcode.length; i++) {
             if(gcode[i] && gcode[i] !== undefined
-                && (gcode[i].indexOf(';') == -1 || gcode[i].indexOf(';') > 1) 
+                && (gcode[i].indexOf(';') == -1 || gcode[i].indexOf(';') > 1)
                 && (gcode[i].indexOf('G1 X') > -1 || gcode[i].indexOf('G1 Y') > -1)) {
 
                 var mx, my, me, move = gcode[i].split(' ');
@@ -813,7 +813,7 @@ var ui = {
             ui.pa.movePrintHead(0, 0);
         }
 
-        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
+        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 ||
             prCmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
 
             //  toggle the on switch and set the requested temp
@@ -853,8 +853,8 @@ var ui = {
                 'padding-top':      '0px',
                 'padding-bottom':   '0px',
                 top:                '-1px'
-            }, 140, function() { 
-                jQuery(ui.consoleOut).hide(); 
+            }, 140, function() {
+                jQuery(ui.consoleOut).hide();
             });
         });
     },
@@ -873,12 +873,12 @@ var ui = {
             opTxt = _data + '<br>';
         else {
             if(nlen < LINE_COUNT) {
-                if(olen + nlen <= LINE_COUNT) 
+                if(olen + nlen <= LINE_COUNT)
                     opTxt += _data + '<br>';
                 else {
                     var tmp = '',
                         ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
-                    for(var i in ots) 
+                    for(var i in ots)
                         tmp += ots[i] + '<br>';
                     opTxt = tmp + _data;
                 }
@@ -918,7 +918,7 @@ var ui = {
             var _df = li.querySelector('.dev-file');
             if(d.job.filename !== '')
                 _df.innerHTML = d.job.filename;
-            else 
+            else
                 _df.innerHTML = 'no pending / running prints';
 
             li.querySelector('.dev-temp').innerHTML = 'E:' + d.ETemp + ' / B:' + d.BTemp;
@@ -1051,11 +1051,11 @@ var ui = {
                         + 'detected and connected to. Moving the extruder around has '
                         + 'never been easier with the interactive print area.';
 
-                    str += '<div class="author">' + m.author + '</div>'; 
-                    str += '<div class="desc">' + desc + '</div>'; 
+                    str += '<div class="author">' + m.author + '</div>';
+                    str += '<div class="desc">' + desc + '</div>';
                     str += '<div class="ver">v' + m.version + '</div>';
 
-                    ui.settings.children[1].innerHTML = str; 
+                    ui.settings.children[1].innerHTML = str;
                     break;
                 default:
                     //  shouldn't really get here
@@ -1085,12 +1085,12 @@ var ui = {
             }
         };
 
-        ui.consoleIn.onblur = function(evt) { 
+        ui.consoleIn.onblur = function(evt) {
             evt.target.classList.add('ghost');
             evt.target.value = '';
         };
 
-        ui.consoleIn.onfocus = function(evt) { 
+        ui.consoleIn.onfocus = function(evt) {
             evt.target.value = '';
             if(evt.target.classList.contains('ghost'))
                 evt.target.classList.remove('ghost');
@@ -1103,18 +1103,17 @@ var ui = {
             if(!jQuery(ui.consoleOut).is(':visible'))
                 ui.expandConsoleOutput();
             else
-                ui.collapseConsoleOutput(); 
+                ui.collapseConsoleOutput();
         };
 
         ui.consoleTop.onclick = function(evt) {
             jQuery(ui.consoleOut).animate({ scrollTop: 0 }, 800);
         };
 
-        ui.consoleBottom.onclick = function(evt) { 
+        ui.consoleBottom.onclick = function(evt) {
             jQuery(ui.consoleOut).animate({ scrollTop: ui.consoleOut.scrollHeight }, 800);
         };
 
         ui.displayGrid();
     }
 };
-

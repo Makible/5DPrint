@@ -52,7 +52,7 @@ Device.prototype.onopen = function(info) {
 };
 
 Device.prototype.read = function(callback) {
-    if(this.conn < 0) 
+    if(this.conn < 0)
         throw 'Device not connected';
 
     serial.read(this.conn, 255, this.onread.bind(this));
@@ -72,13 +72,13 @@ Device.prototype.readall = function(callback) {
         data = this.ab2str(info.data);
         result += data;
 
-        // if(dbg && result.length > 1) 
+        // if(dbg && result.length > 1)
             // console.log(result);
 
         if(data.indexOf('rs') === 0)
             throw 'Device requested a resend';
 
-        if(data.indexOf(HEISS) > -1) 
+        if(data.indexOf(HEISS) > -1)
             notify({ title: "WARNING", message: data });
 
         if(data.indexOf('ok') > -1) {
@@ -112,10 +112,10 @@ Device.prototype.onwrite = function(info) {
 
 Device.prototype.destroy = function(callback) {
     //  debug
-    if(dbg) console.log('[dev].destroy has been called...');    
-    
+    if(dbg) console.log('[dev].destroy has been called...');
+
     var _device = this;
-    if(_device.statPollTimer > -1) 
+    if(_device.statPollTimer > -1)
         window.clearInterval(_device.statPollTimer);
 
     _device.hardStop = !0; //  force-stop any jobs for this device
@@ -151,7 +151,7 @@ Device.prototype.str2ab = function(str, callback) {
 };
 
 Device.prototype.getFullStats = function() {
-    var _d     = this, 
+    var _d     = this,
         result = '';
 
     //  oh now... this won't cause any issues down the road /s
@@ -176,7 +176,7 @@ Device.prototype.getFullStats = function() {
                 });
             }
         });
-        
+
     };
     get(0);
 };
@@ -190,20 +190,20 @@ Device.prototype.getTemp = function() {
                 notify({ title: 'DEBUG - device.destroy', message: 'getTemp: calling destroy' });
             _d.destroy();
         } else {
-            _d.readall(function(data) { 
+            _d.readall(function(data) {
                 ui.updateConsole(data);
-                _d.updateDeviceStats(data); 
+                _d.updateDeviceStats(data);
             });
         }
     });
 };
 
 Device.prototype.setTemp = function(temp) {
-    var _d   = this, 
+    var _d   = this,
         _cmd = ((temp.Name == 'e') ? cmd.SET_EXTEMP : cmd.SET_BDTEMP) + temp.Value;
 
     _cmd += CMD_TERMINATOR;
-    _d.write(_cmd, function(w) { 
+    _d.write(_cmd, function(w) {
         if(w.bytesWritten < 0) {
             if(dbg)
                 notify({ title: 'DEBUG - device.destroy', message: 'setTemp: calling destroy' });
@@ -267,8 +267,8 @@ Device.prototype.sendMovement = function(mv) {
         _cmd += ' ' + axes[0] + dists[0];
         _cmd += ' ' + axes[1] + dists[1];
         _cmd += ' F' + mv.Speed + CMD_TERMINATOR;
-    } else 
-        _cmd += ' ' + ((mv.Axis == 'e') ? 'E1' : mv.Axis.toUpperCase()) 
+    } else
+        _cmd += ' ' + ((mv.Axis == 'e') ? 'E1' : mv.Axis.toUpperCase())
             + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
     this.sendStdCmd(_cmd);
 };
@@ -278,9 +278,9 @@ Device.prototype.home = function(axis) {
     if(axis.toLowerCase() != 'all')
         _cmd += ' ' + axis.toUpperCase() + '0';
 
-    if(axis.toLowerCase() == 'z' || 'all') 
+    if(axis.toLowerCase() == 'z' || 'all')
         this.pos.z = 0;
-    this.sendStdCmd(_cmd + CMD_TERMINATOR); 
+    this.sendStdCmd(_cmd + CMD_TERMINATOR);
 };
 
 Device.prototype.console = function(input, callback) {
@@ -321,9 +321,9 @@ Device.prototype.pause = function() {
         } else
             device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
     });
-    notify({ 
-        title: "Paused", 
-        message: "Click PLAY to continue or RESET to start fresh" 
+    notify({
+        title: "Paused",
+        message: "Click PLAY to continue or RESET to start fresh"
     });
 };
 
@@ -356,7 +356,7 @@ Device.prototype.resetJob = function() {
 
 Device.prototype.sendStdCmd = function(val) {
     //  do this so that we don't overload the MCU
-    //  during long moves, such as a Z home from 
+    //  during long moves, such as a Z home from
     //  farthest position
     window.clearInterval(this.statPollTimer);
     this.statPollTimer = -1;
@@ -365,7 +365,7 @@ Device.prototype.sendStdCmd = function(val) {
         notify({ title: 'DEBUG - device.destroy', message: 'statPollTimer cleared' });
 
     var device = this;
-    device.write(val, function(w) { 
+    device.write(val, function(w) {
         if(w.bytesWritten < 0) {
             if(dbg)
                 notify({ title: 'DEBUG - device.destroy', message: 'sendStdCmd: callind destroy' });
@@ -393,7 +393,7 @@ Device.prototype.runAtIdx = function(idx) {
         device.job.pausedidx = idx;
         device.job.paused = new Date().getTime();
 
-        device.write(cmd.JOB_PAUSE, function(w) { 
+        device.write(cmd.JOB_PAUSE, function(w) {
             if(w.bytesWritten < 0) {
                 if(dbg)
                     notify({ title: 'DEBUG - device.destroy', message: 'runAtIdx: calling destroy' });
@@ -401,9 +401,9 @@ Device.prototype.runAtIdx = function(idx) {
             } else
                 device.statPollTimer = window.setInterval(function() { device.getTemp(); }, SPTDELAY);
         });
-        notify({ 
-            title: "Paused", 
-            message: "Click PLAY to continue or RESET to start fresh" 
+        notify({
+            title: "Paused",
+            message: "Click PLAY to continue or RESET to start fresh"
         });
         return;
     }
@@ -415,10 +415,10 @@ Device.prototype.runAtIdx = function(idx) {
     }
 
     ui.updateProgress(((idx - 1) * 100) / device.job.content.length);
-    
+
     //  this should mean the job is done and
-    //  housekeeping needs to happen 
-    if(idx >= device.job.content.length || 
+    //  housekeeping needs to happen
+    if(idx >= device.job.content.length ||
         device.job.content[idx] === undefined) {
 
         //  clean up after print
@@ -438,11 +438,11 @@ Device.prototype.runAtIdx = function(idx) {
         //  include pause duration in msg
         msg = 'Print Time [hh:mm] ' + hh + ':' + mm
             + '\n\nyour system has now returned to the'
-            + ' normal power settings'; 
+            + ' normal power settings';
 
         chrome.power.releaseKeepAwake();
-        notify({ 
-            title: "Print Complete", 
+        notify({
+            title: "Print Complete",
             message: msg
         });
         return;
@@ -455,14 +455,14 @@ Device.prototype.runAtIdx = function(idx) {
     if(_cmd.indexOf(';') === 0 || _cmd.length <= 1)
         device.runAtIdx(idx);
     else {
-        //  grab the temp from the device 
+        //  grab the temp from the device
         //  before running the next cmd
         device.write(cmd.GET_TEMP, function(w) {
             if(w.bytesWritten < 0) {
                 if(dbg) {
-                    notify({ 
-                        title: 'DEBUG - device.destroy', 
-                        message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
+                    notify({
+                        title: 'DEBUG - device.destroy',
+                        message: 'runAtIdx - temp check: calling destroy ... ' + _cmd
                     });
                 }
                 device.destroy();
@@ -472,16 +472,16 @@ Device.prototype.runAtIdx = function(idx) {
 
                     if(device.name == active.name)
                         ui.digestCmd(_cmd);
-                    
-                    if(_cmd.indexOf(CMD_TERMINATOR) < 0) 
+
+                    if(_cmd.indexOf(CMD_TERMINATOR) < 0)
                         _cmd += CMD_TERMINATOR;
 
                     device.write(_cmd, function(w) {
                         if(w.bytesWritten < 0) {
                             if(dbg) {
-                                notify({ 
-                                    title: 'DEBUG - device.destroy', 
-                                    message: 'runAtIdx - temp check: calling destroy ... ' + _cmd 
+                                notify({
+                                    title: 'DEBUG - device.destroy',
+                                    message: 'runAtIdx - temp check: calling destroy ... ' + _cmd
                                 });
                             }
                             device.destroy();

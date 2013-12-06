@@ -1,10 +1,10 @@
 const CMD_TERMINATOR = '\r\n';
 const NOTIFY_ICON = 'img/icon_128.png';
 const MKB_FLAG ='MakiBox Firmware';
-const NATURALS = { 
-    'DROP':  'G1 Z80 F2000\r\n', 
-    'RAISE': 'G1 Z0 F2000\r\n', 
-    'LOAD':  'G92 E0\r\nG1 F2000 E250\r\nM84\r\n', 
+const NATURALS = {
+    'DROP':  'G1 Z80 F2000\r\n',
+    'RAISE': 'G1 Z0 F2000\r\n',
+    'LOAD':  'G92 E0\r\nG1 F2000 E250\r\nM84\r\n',
     'EJECT': 'G92 E0\r\nG1 F2000 E-250\r\nM84\r\n',
     'MOFF':  'M84\r\n'
 };
@@ -31,14 +31,14 @@ function Commands() {
     this.JOB_RESUME = 'M226 P0' + CMD_TERMINATOR;
     this.JOB_ABDN   = 'M226 P-255' + CMD_TERMINATOR;
 
-    this.GET_FSTATS = [ 
-            this.GET_TEMP, 
-            this.POSITION, 
-            this.CAPABILITIES, 
-            this.ENDSTOP_STATE, 
-            this.MEM_SETTINGS, 
+    this.GET_FSTATS = [
+            this.GET_TEMP,
+            this.POSITION,
+            this.CAPABILITIES,
+            this.ENDSTOP_STATE,
+            this.MEM_SETTINGS,
             this.FREE_RAM,
-            this.FMWARE_INFO 
+            this.FMWARE_INFO
         ];
 }
 
