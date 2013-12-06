@@ -1113,14 +1113,14 @@ var ui = {
                 'Y' + ui.settings.fields.stepsY.value + ' ' +
                 'Z' + ui.settings.fields.stepsZ.value + ' ' +
                 'E' + ui.settings.fields.stepsE.value +
-                '\r\n'
+                CMD_TERMINATOR
             );
             active.sendStdCmd('M202 ' +
                 'X' + ui.settings.fields.feedrateX.value + ' ' +
                 'Y' + ui.settings.fields.feedrateY.value + ' ' +
                 'Z' + ui.settings.fields.feedrateZ.value + ' ' +
                 'E' + ui.settings.fields.feedrateE.value +
-                '\r\n'
+                CMD_TERMINATOR
             );
             active.sendStdCmd('M500');
         };
