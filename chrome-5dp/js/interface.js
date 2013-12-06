@@ -225,6 +225,77 @@ PrintArea.prototype.moveSliders = function(offsetX, offsetY) {
     this.ySlider.handle.style.left = l +'px';
 };
 
+function DeviceConfiguration() {
+    this.fields = [
+        ['steps', 'M92', ['x', 'y', 'z', 'e'], /M92 X(\d+) Y(\d+) Z(\d+) E(\d+)/],
+        ['feedrate', 'M202', ['x', 'y', 'z', 'e'], /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
+        ['acceleration', 'M201', ['x', 'y', 'z', 'e'], /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/]
+    ];
+    this.settings = this.fields.map(function(attrs) {
+        return new Setting(attrs[0], attrs[1], attrs[2], attrs[3]);
+    });
+};
+
+DeviceConfiguration.prototype.set = function(deviceStats) {
+    console.log("Enabling settings");
+    this.settings.forEach(function(e) {
+        e.enable(deviceStats);
+    });
+    document.querySelector('#settings-basic-submit').disabled = false;
+}
+
+DeviceConfiguration.prototype.clear = function() {
+    console.log("Clearing settings");
+    this.settings.forEach(function(e) {
+        e.disable();
+    });
+    document.querySelector('#settings-basic-submit').disabled = true;
+}
+
+DeviceConfiguration.prototype.persist = function() {
+    this.settings.forEach(function(e) {
+        e.persist();
+    });
+    active.sendStdCmd('M500');
+}
+
+function Setting(id, devCmd, params, regExp) {
+    // console.log("Creating a new Setting with ID " + id + " cmd " + devCmd + " regex " + regExp);
+    this.id = id;
+    this.devCmd = devCmd;
+    this.regExp = regExp;
+    this.params = params;
+    this.fields = this.params.map(function(e) {
+        return document.querySelector('#settings-' + this.id + '-' + e);
+    }, this);
+}
+
+Setting.prototype.enable = function(deviceStats) {
+    // console.log("Enabling fields for " + this.id)
+    var values = this.regExp.exec(deviceStats);
+    this.fields.forEach(function(field, index) {
+        // console.log("Enabling field " + field + " at index " + index);
+        field.value = values[index + 1];
+        field.disabled = false;
+    });
+};
+
+Setting.prototype.disable = function() {
+    // console.log("Disabling fields for " + this.id)
+    this.fields.forEach(function(field) {
+        // console.log("Disabling field " + field);
+        field.value = '';
+        field.disabled = true;
+    });
+};
+
+Setting.prototype.persist = function() {
+    args = [this.devCmd].concat(this.params.map(function(param, index) {
+        return param + this.fields[index].value;
+    }, this));
+    active.sendStdCmd(args.join(' ').toUpperCase() + CMD_TERMINATOR);
+};
+
 var ui = {
     //  header controls
     loadJobBtn:   document.querySelector('#file-picker'),
@@ -235,6 +306,7 @@ var ui = {
 
     settings: {
         button: document.querySelector('#settings'),
+        configuration: new DeviceConfiguration(),
         overlay: document.querySelector('#settings-overlay'),
         pane: {
             about: document.querySelector('#settings-about'),
@@ -247,55 +319,6 @@ var ui = {
             advanced: document.querySelector('#advanced'),
             basic: document.querySelector('#basic'),
             profiles: document.querySelector('#profiles')
-        },
-        fields: {
-            stepsX: document.querySelector('#settings-steps-x'),
-            stepsY: document.querySelector('#settings-steps-y'),
-            stepsZ: document.querySelector('#settings-steps-z'),
-            stepsE: document.querySelector('#settings-steps-e'),
-            feedrateX: document.querySelector('#settings-feedrate-x'),
-            feedrateY: document.querySelector('#settings-feedrate-y'),
-            feedrateZ: document.querySelector('#settings-feedrate-z'),
-            feedrateE: document.querySelector('#settings-feedrate-e'),
-            accelerationX: document.querySelector('#settings-acceleration-x'),
-            accelerationY: document.querySelector('#settings-acceleration-y'),
-            accelerationZ: document.querySelector('#settings-acceleration-z'),
-            accelerationE: document.querySelector('#settings-acceleration-e')
-        },
-        disable: function() {
-            for (var key in ui.settings.fields) {
-                ui.settings.fields[key].disabled = true;
-            }
-            document.querySelector('#settings-basic-submit').disabled = true;
-        },
-        enable: function(stats) {
-            for (var key in ui.settings.fields) {
-                ui.settings.fields[key].disabled = false;
-            }
-            document.querySelector('#settings-basic-submit').disabled = false;
-
-            // Set the values in the settings fields to the stats returned from
-            // the device
-            var stepsRegExp = /M92 X(\d+) Y(\d+) Z(\d+) E(\d+)/;
-            var values = stepsRegExp.exec(stats);
-            ui.settings.fields.stepsX.value = values[1];
-            ui.settings.fields.stepsY.value = values[2];
-            ui.settings.fields.stepsZ.value = values[3];
-            ui.settings.fields.stepsE.value = values[4];
-
-            var feedrateRegExp = /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/;
-            values = feedrateRegExp.exec(stats);
-            ui.settings.fields.feedrateX.value = values[1];
-            ui.settings.fields.feedrateY.value = values[2];
-            ui.settings.fields.feedrateZ.value = values[3];
-            ui.settings.fields.feedrateE.value = values[4];
-
-            var accelerationRegExp = /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/;
-            values = accelerationRegExp.exec(stats);
-            ui.settings.fields.accelerationX.value = values[1];
-            ui.settings.fields.accelerationY.value = values[2];
-            ui.settings.fields.accelerationZ.value = values[3];
-            ui.settings.fields.accelerationE.value = values[4];
         }
     },
     devices:  document.querySelector('#devices-overlay'),
@@ -1079,7 +1102,7 @@ var ui = {
         ui.settings.pane.profiles.style.display = 'none';
         ui.settings.pane.about.style.display = 'none';
 
-        ui.settings.disable();
+        ui.settings.configuration.clear();
 
         // Set the about pane's dynamic information
         var manifest = chrome.runtime.getManifest();
@@ -1123,28 +1146,7 @@ var ui = {
             _lis[j].onclick = _settingsClickHandler;
 
         var _settingsUpdateHandler = function(evt) {
-            active.sendStdCmd('M92 ' +
-                'X' + ui.settings.fields.stepsX.value + ' ' +
-                'Y' + ui.settings.fields.stepsY.value + ' ' +
-                'Z' + ui.settings.fields.stepsZ.value + ' ' +
-                'E' + ui.settings.fields.stepsE.value +
-                CMD_TERMINATOR
-            );
-            active.sendStdCmd('M202 ' +
-                'X' + ui.settings.fields.feedrateX.value + ' ' +
-                'Y' + ui.settings.fields.feedrateY.value + ' ' +
-                'Z' + ui.settings.fields.feedrateZ.value + ' ' +
-                'E' + ui.settings.fields.feedrateE.value +
-                CMD_TERMINATOR
-            );
-            active.sendStdCmd('M201 ' +
-                'X' + ui.settings.fields.accelerationX.value + ' ' +
-                'Y' + ui.settings.fields.accelerationY.value + ' ' +
-                'Z' + ui.settings.fields.accelerationZ.value + ' ' +
-                'E' + ui.settings.fields.accelerationE.value +
-                CMD_TERMINATOR
-            );
-            active.sendStdCmd('M500');
+            ui.settings.configuration.persist();
         };
         document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
 

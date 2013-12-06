@@ -21,7 +21,7 @@ var fdp = {
                 devices[device.name] = device;
                 launcher.devIds.push(device.conn);
                 ui.attachDevice(device);
-                device.getFullStats(function(stats) { ui.settings.enable(stats); });
+                device.getFullStats(function(stats) { ui.settings.configuration.set(stats); });
             } else {
                 serial.flush(device.conn, function(){});
                 serial.close(device.conn, function(){});
