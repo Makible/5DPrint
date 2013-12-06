@@ -240,7 +240,7 @@ function DeviceConfiguration() {
 };
 
 DeviceConfiguration.prototype.set = function(deviceStats) {
-    console.log("Enabling settings");
+    // console.log("Enabling settings");
     this.settings.forEach(function(e) {
         e.enable(deviceStats);
     });
@@ -248,7 +248,7 @@ DeviceConfiguration.prototype.set = function(deviceStats) {
 }
 
 DeviceConfiguration.prototype.clear = function() {
-    console.log("Clearing settings");
+    // console.log("Clearing settings");
     this.settings.forEach(function(e) {
         e.disable();
     });
