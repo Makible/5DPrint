@@ -8,8 +8,10 @@ automatically detected and connected. Moving the extruder around has never been 
 the interactive print area.
 
 5DPrint is a [Chrome App](https://www.google.com/intl/en/chrome/webstore/apps-create.html) 
-so no compilation is required. If you'd like to use the code outside of the Chrome webstore, you may
-clone the git repo and install via `chrome://extensions` and enable `Developer Mode`.
+so no compilation is required. If you'd like to use the code outside of the Chrome webstore, 
+you may clone the git repo and install via `chrome://extensions` and enable `Developer Mode`. 
+The preferred method for install (which will include auto-updating) is via the 
+[Chrome WebStore](https://chrome.google.com/webstore/detail/5dprint/dlepjlomfckbdkhebehehnnimmbaekjb)
 
 Currently supports the MakiBox A6 (LT & HT) running the [MakiBox specific firmware](https://bitbucket.org/makible/makibox-firmware) 
 living in bitbucket (__*Will soon port to github as well.*__).
