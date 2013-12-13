@@ -19,6 +19,13 @@ for more details.
 
 __*MakiBox flavored G/MCode info, coming soon*__
 
+Linux Users:
+=======
+For "**Debian-like**" distros (e.g Ubuntu), users will need to be added to the dialout group if 
+they are to use a serial device such as the MakiBox. *The Fedora 3D printing feature also mentions this.*
+
+In Linux to add a user to the dialout group run the following as root *(sudo)* `usermod -a -G dialout <username>`
+
 License
 =======
 Copyright (c) 2013, Makible Ltd. All rights reserved.
