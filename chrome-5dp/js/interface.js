@@ -422,6 +422,7 @@ var ui = {
             if(active.job.status == 'pending') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
+                _pbtn.title = "Pause Print Job"
 
                 active.job.status = 'running';
                 active.startPendingJob();
@@ -437,6 +438,7 @@ var ui = {
             if(active.job.status == 'running') {
                 _pbtn.classList.remove('icon-pause');
                 _pbtn.classList.add('icon-play');
+                _pbtn.title = "Restart Print Job"
 
                 active.job.status = 'paused';
                 return;
@@ -445,6 +447,7 @@ var ui = {
             if(active.job.status == 'paused') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
+                _pbtn.title = "Pause Print Job"
 
                 active.job.status = 'running';
                 active.resumeJob();
@@ -1003,6 +1006,7 @@ var ui = {
         //  uses the completed job content
         ui.jobActionBtn.classList.remove('icon-pause');
         ui.jobActionBtn.classList.add('icon-play');
+        ui.jobActionBtn.title = "Start Print Job"
         ui.loadContentToPrintArea(active.job.content);
     },
 
