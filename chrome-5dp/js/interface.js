@@ -317,13 +317,11 @@ var ui = {
             about: document.querySelector('#settings-about'),
             advanced: document.querySelector('#settings-advanced'),
             basic: document.querySelector('#settings-basic'),
-            profiles: document.querySelector('#settings-profiles')
         },
         tab: {
             about: document.querySelector('#about'),
             advanced: document.querySelector('#advanced'),
             basic: document.querySelector('#basic'),
-            profiles: document.querySelector('#profiles')
         }
     },
     devices:  document.querySelector('#devices-overlay'),
@@ -1106,7 +1104,6 @@ var ui = {
 
         // Hide inactive settings panes
         ui.settings.pane.advanced.style.display = 'none';
-        ui.settings.pane.profiles.style.display = 'none';
         ui.settings.pane.about.style.display = 'none';
 
         ui.settings.configuration.clear();
@@ -1148,7 +1145,7 @@ var ui = {
         };
 
         var _lis = [ui.settings.tab.basic, ui.settings.tab.advanced,
-                    ui.settings.tab.profiles, ui.settings.tab.about];
+                    ui.settings.tab.about];
         for(var j = 0; j < _lis.length; j++)
             _lis[j].onclick = _settingsClickHandler;
 
