@@ -167,14 +167,6 @@ nav div.selected {
 nav > div.btn:active, nav #print-actions .btn:hover, { box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.8); }
 nav > div.btn, nav #print-actions .btn { border-right: 1px solid #2a2a2a; }
 
-nav #devices {
-    margin-left: -2px;
-    line-height: 2.8em;
-    font-size: 1.2em;
-    border-right: 0;
-    border-radius: 0 8px 8px 0;
-}
-
 nav #settings {
     margin-left: 2px;
     border-radius: 8px 0 0 8px;
@@ -197,7 +189,6 @@ nav #print-actions div {
 }
 
 nav #settings:after,
-nav #devices:after,
 nav #print-actions #file-picker:after,
 nav #print-actions #print-pause:after,
 nav #print-actions #reset:after,
@@ -218,13 +209,7 @@ nav #print-actions #reset:after {
     font-size: 1.4em;
 }
 
-nav #devices:after {
-    top: 1px;
-    font-size: 1.2em;
-}
-
-nav #settings-overlay,
-nav #devices-overlay {
+nav #settings-overlay {
     position: relative;
     margin-top: 24px;
     margin-left: -80px;
@@ -306,8 +291,7 @@ nav #settings-overlay .content-right input {
     width: 100px;
 }
 
-nav #settings-overlay .close,
-nav #devices-overlay .close {
+nav #settings-overlay .close {
     position: absolute;
     top: 3px;
     right: 3px;
@@ -316,70 +300,11 @@ nav #devices-overlay .close {
     z-index: 1;
 }
 
-nav #settings-overlay .close:after,
-nav #devices-overlay .close:after {
+nav #settings-overlay .close:after {
     position: relative;
     top: -16px;
     left: 2px;
     font-size: 1.2em;
-}
-
-nav #devices-overlay ul {
-    position: relative;
-    margin: 38px auto;
-}
-
-nav #devices-overlay ul li {
-    position: relative;
-    margin: 0 auto;
-    padding: 8px;
-    width: 438px;
-    height: 60px;
-    text-align: left;
-    border-top: 1px solid rgba(100, 100, 100, 0.4);
-}
-
-nav #devices-overlay ul li:hover,
-nav #devices-overlay ul li.selected {
-    color: #fff;
-    background-color: #333;
-}
-
-nav #devices-overlay ul li:nth-child(1) { border-top: 0; }
-
-nav #devices-overlay ul li div {
-    position: relative;
-    margin: 0 auto;
-    vertical-align: top;
-    height: 28px;
-    text-align: left;
-    line-height: 1.8em;
-    text-transform: none;
-    display: inline-block;
-}
-
-nav #devices-overlay ul li div.dev-name {
-    width: 220px;
-}
-
-nav #devices-overlay ul li div.dev-status {
-    width: 80px;
-    text-align: center;
-    text-transform: uppercase;
-}
-
-nav #devices-overlay ul li div.dev-temp {
-    width: 120px;
-    /*color: rgba(178, 18, 18, 1);*/
-    color: #4a8bf5;
-    text-align: center;
-}
-
-nav #devices-overlay ul li div.dev-file {
-    margin-top: -24px;
-    width: 426px;
-    font-style: italic;
-    color: #999;
 }
 
 #print-area {

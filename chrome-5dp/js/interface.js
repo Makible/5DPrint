@@ -306,7 +306,6 @@ var ui = {
     loadJobBtn:   document.querySelector('#file-picker'),
     jobActionBtn: document.querySelector('#print-pause'),
     jobResetBtn:  document.querySelector('#reset'),
-    devicesBtn:   document.querySelector('#devices'),
     adnameEl:     document.querySelector('#active-dname'),
 
     settings: {
@@ -324,7 +323,6 @@ var ui = {
             basic: document.querySelector('#basic'),
         }
     },
-    devices:  document.querySelector('#devices-overlay'),
 
     pa: new PrintArea(),
 
@@ -341,29 +339,6 @@ var ui = {
     paths: [],
     xTrim: 0,
     yTrim: 0,
-
-    deviceTpl: function() {
-        var li = document.createElement('li');
-        li.dataset['dn'] = '';
-        li.className = 'btn';
-
-        var dn = document.createElement('div'),
-            ds = document.createElement('div');
-            dt = document.createElement('div');
-            df = document.createElement('div');
-
-        dn.className = 'dev-name';
-        ds.className = 'dev-status';
-        dt.className = 'dev-temp icon-celcius';
-        df.className = 'dev-file';
-
-        li.appendChild(dn);
-        li.appendChild(ds);
-        li.appendChild(dt);
-        li.appendChild(df);
-
-        return li;
-    },
 
     displayGrid: function() {
         //  display grid
@@ -391,7 +366,6 @@ var ui = {
     attachActionListeners: function() {
         var _navSelected = function() {
             if(ui.settings.button.classList.contains('selected') ||
-                ui.devicesBtn.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return !0;
             }
@@ -400,17 +374,6 @@ var ui = {
 
         //
         //  Nav Handlers
-        ui.devicesBtn.onclick = function(evt) {
-            if(_navSelected()) return;
-
-            evt.target.classList.add('selected');
-            ui.devices.style.display = 'block';
-            document.querySelector('#devices-close').onclick = function(evt) {
-                ui.devices.style.display = 'none';
-                ui.devicesBtn.classList.remove('selected');
-            };
-        };
-
         ui.loadJobBtn.onclick = function(evt) {
             if(_navSelected()) return;
 
@@ -692,7 +655,6 @@ var ui = {
     },
 
     detachActionListeners: function() {
-        ui.devicesBtn.onclick = undefined;
         ui.loadJobBtn.onclick = undefined;
         ui.jobActionBtn.onclick = undefined;
         ui.jobResetBtn.onclick = undefined;
@@ -730,30 +692,7 @@ var ui = {
     },
 
     attachDevice: function(device) {
-        var _li = ui.deviceTpl();
-
-        _li.dataset.dn = device.name;
-        _li.querySelector('.dev-name').innerHTML = device.name;
-        _li.querySelector('.dev-status').innerHTML = device.job.status;
-        _li.querySelector('.dev-temp').innerHTML = 'E:0 / B:0';
-        _li.querySelector('.dev-file').innerHTML = 'no print loaded';
-
-        _li.onclick = function(evt) {
-            var _d = evt.currentTarget;
-            if(_d.classList.contains('selected')) return;
-
-            ui.settings.querySelector('.selected')[0].classList.remove('selected');
-            _d.classList.add('selected');
-            document.querySelector('#devices-close').click();
-
-            active = devices[_d.dataset.dn];
-            ui.adnameEl.innerHTML = active.name;
-        };
-
-        ui.devices.getElementsByTagName('ul')[0].appendChild(_li);
-
         if(ui.adnameEl.innerHTML === 'no device') {
-            _li.classList.add('selected');
             ui.setAsActiveDevice(device);
             Slider.attachDraggers();
         }
@@ -772,42 +711,29 @@ var ui = {
     },
 
     detachDevice: function(device) {
-        var _d,
-            _dns = ui.devices.getElementsByTagName('li');
-        for(var i = 0; i < _dns.length; i++) {
-            if(_dns[i].dataset.dn == device) {
-                _dns[i].remove();
-                break;
-            }
-        }
-
         if(active.name == device) {
-            if(ui.devices.getElementsByTagName('li').length > 0) {
+            active = undefined;
+            ui.adnameEl.innerHTML = 'no device';
+            ui.adnameEl.classList.add('no-device');
 
-            } else {
-                active = undefined;
-                ui.adnameEl.innerHTML = 'no device';
-                ui.adnameEl.classList.add('no-device');
+            ui.pa.eTempRequested.value = 0;
+            ui.pa.eTempActual.innerHTML = 0;
 
-                ui.pa.eTempRequested.value = 0;
-                ui.pa.eTempActual.innerHTML = 0;
+            ui.pa.zTempRequested.value = 0;
+            ui.pa.zTempActual.innerHTML = 0;
 
-                ui.pa.zTempRequested.value = 0;
-                ui.pa.zTempActual.innerHTML = 0;
-
-                if(ui.pa.zOn.classList.contains('selected')) {
-                    ui.pa.zOn.classList.remove('selected');
-                    ui.pa.zOff.classList.add('selected');
-                }
-
-                if(ui.pa.eOn.classList.contains('selected')) {
-                    ui.pa.eOn.classList.remove('selected');
-                    ui.pa.eOff.classList.add('selected');
-                }
-
-                ui.detachActionListeners();
-                ui.disableMovers();
+            if(ui.pa.zOn.classList.contains('selected')) {
+                ui.pa.zOn.classList.remove('selected');
+                ui.pa.zOff.classList.add('selected');
             }
+
+            if(ui.pa.eOn.classList.contains('selected')) {
+                ui.pa.eOn.classList.remove('selected');
+                ui.pa.eOff.classList.add('selected');
+            }
+
+            ui.detachActionListeners();
+            ui.disableMovers();
         }
 
         ui.settings.configuration.clear();
@@ -991,30 +917,6 @@ var ui = {
         ui.pa.eTempActual.innerHTML = active.ETemp;
         ui.pa.zTempActual.innerHTML = active.BTemp;
 
-        //  update device list info
-        var lis = document.querySelectorAll('#devices-overlay > ul > li');
-        for(var i = 0; i < lis.length; i++) {
-            var li = lis[i],
-                d  = devices[li.dataset.dn];
-
-            if(d === undefined) {
-                document.querySelector('#devices-overlay > ul').removeChild(li);
-                return;
-            }
-
-            var _stat = li.querySelector('.dev-status');
-            if(_stat.innerHTML != d.job.status)
-                _stat.innerHTML = d.job.status;
-
-            var _df = li.querySelector('.dev-file');
-            if(d.job.filename !== '')
-                _df.innerHTML = d.job.filename;
-            else
-                _df.innerHTML = 'no pending / running prints';
-
-            li.querySelector('.dev-temp').innerHTML = 'E:' + d.ETemp + ' / B:' + d.BTemp;
-        }
-
         //  process full stat list
         if(stats.indexOf('--FULL STATS') > -1) {
             var rows = stats.split('\n'),
@@ -1115,7 +1017,6 @@ var ui = {
 
         ui.settings.button.onclick = function(evt) {
             if(ui.settings.button.classList.contains('selected') ||
-                ui.devicesBtn.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return;
             }
