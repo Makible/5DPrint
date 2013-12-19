@@ -306,6 +306,7 @@ var ui = {
     loadJobBtn:   document.querySelector('#file-picker'),
     jobActionBtn: document.querySelector('#print-pause'),
     jobResetBtn:  document.querySelector('#reset'),
+    moffBtn:   document.querySelector('#moff'),
     adnameEl:     document.querySelector('#active-dname'),
 
     settings: {
@@ -472,6 +473,11 @@ var ui = {
             ui.paths = [];
             ui.pa.hlLayer.clear();
             ui.pa.objLayer.clear();
+        };
+
+        ui.moffBtn.onclick = function(evt) {
+            if(_navSelected()) return;
+            active.sendStdCmd('M84' + CMD_TERMINATOR);
         };
 
         //
@@ -658,6 +664,7 @@ var ui = {
         ui.loadJobBtn.onclick = undefined;
         ui.jobActionBtn.onclick = undefined;
         ui.jobResetBtn.onclick = undefined;
+        ui.moffBtn.onclick = undefined;
         ui.pa.phLayer.canvas.onclick = undefined;
         ui.pa.phLayer.canvas.onmousemove = undefined;
         ui.pa.phLayer.canvas.onmouseout = undefined;
