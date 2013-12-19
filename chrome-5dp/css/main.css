@@ -114,9 +114,9 @@ nav,
 #tools .wrapper .move-wrapper div,
 #tools .wrapper .power-wrapper div,
 #canvas-wrapper .wrapper div {
-    -webkit-user-select: none;  
-    -moz-user-select: none;    
-    -ms-user-select: none;      
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     user-select: none;
 }
 
@@ -128,7 +128,7 @@ input::-webkit-inner-spin-button {
 
 .btn { cursor: pointer; }
 .icon-celcius:after {
-    margin-right: -18px; 
+    margin-right: -18px;
     font-size: 1.3em;
 }
 
@@ -143,7 +143,7 @@ nav {
         0px 3px 3px rgba(0, 0, 0, 0.4);
 }
 
-nav > div { 
+nav > div {
     position: relative;
     float: left;
     margin: 2px auto;
@@ -154,12 +154,12 @@ nav > div {
     text-transform: uppercase;
     line-height: 3.3em;
 
-    display: inline-block; 
+    display: inline-block;
 }
 
 nav div.btn:hover,
 /*nav #print-actions .btn:hover,*/
-nav div.selected { 
+nav div.selected {
     background-color: rgba(20, 20, 20, 0.4);
     box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.4);
 }
@@ -167,12 +167,10 @@ nav div.selected {
 nav > div.btn:active, nav #print-actions .btn:hover, { box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.8); }
 nav > div.btn, nav #print-actions .btn { border-right: 1px solid #2a2a2a; }
 
-nav #devices {
+nav #moff {
     margin-left: -2px;
-    line-height: 2.8em;
-    font-size: 1.2em;
     border-right: 0;
-    border-radius: 0 8px 8px 0; 
+    border-radius: 0 8px 8px 0;
 }
 
 nav #settings {
@@ -197,7 +195,7 @@ nav #print-actions div {
 }
 
 nav #settings:after,
-nav #devices:after,
+nav #moff:after,
 nav #print-actions #file-picker:after,
 nav #print-actions #print-pause:after,
 nav #print-actions #reset:after,
@@ -211,20 +209,15 @@ nav #print-actions #reset:after,
     text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.1);
 }
 
-nav #settings:after, 
+nav #settings:after,
+nav #moff:after,
 nav #print-actions #file-picker:after,
 nav #print-actions #print-pause:after,
 nav #print-actions #reset:after {
-    font-size: 1.4em; 
+    font-size: 1.4em;
 }
 
-nav #devices:after {
-    top: 1px;
-    font-size: 1.2em;
-}
-
-nav #settings-overlay,
-nav #devices-overlay { 
+nav #settings-overlay {
     position: relative;
     margin-top: 24px;
     margin-left: -80px;
@@ -248,26 +241,27 @@ nav #settings-overlay .panel {
 }
 
 nav #settings-overlay .nav-left { width: 130px; }
-nav #settings-overlay .nav-left ul { 
+nav #settings-overlay .nav-left ul {
     width: 100%;
     padding: 0;
-} 
+}
 
-nav #settings-overlay .nav-left ul li { 
+nav #settings-overlay .nav-left ul li {
     margin: 4px 0 4px 0;
-    text-align: center; 
+    text-align: center;
 }
 
 nav #settings-overlay .nav-left ul li:hover,
-nav #settings-overlay .nav-left ul li.selected { 
+nav #settings-overlay .nav-left ul li.selected {
     background-color: #333;
     color: #fff;
 }
 
-nav #settings-overlay .content-right { 
+nav #settings-overlay .content-right {
     width: 324px;
     border-left: 1px solid rgba(200, 200, 200, 0.6);
     padding: 8px;
+    overflow: scroll;
 }
 
 nav #settings-overlay .content-right div {
@@ -278,7 +272,7 @@ nav #settings-overlay .content-right div {
     line-height: 1.2em;
 }
 
-nav #settings-overlay .content-right div.author { 
+nav #settings-overlay .content-right div.author {
     font-weight: 700;
     font-size: 1.8em;
 }
@@ -297,8 +291,15 @@ nav #settings-overlay .content-right div.ver {
     font-size: .8em;
 }
 
-nav #settings-overlay .close,
-nav #devices-overlay .close {
+nav #settings-overlay .content-right ul {
+    line-height: 2.5em;
+}
+
+nav #settings-overlay .content-right input {
+    width: 100px;
+}
+
+nav #settings-overlay .close {
     position: absolute;
     top: 3px;
     right: 3px;
@@ -307,70 +308,11 @@ nav #devices-overlay .close {
     z-index: 1;
 }
 
-nav #settings-overlay .close:after,
-nav #devices-overlay .close:after { 
+nav #settings-overlay .close:after {
     position: relative;
     top: -16px;
     left: 2px;
     font-size: 1.2em;
-}
-
-nav #devices-overlay ul {
-    position: relative;
-    margin: 38px auto;
-}
-
-nav #devices-overlay ul li {
-    position: relative;
-    margin: 0 auto;
-    padding: 8px;
-    width: 438px;
-    height: 60px;
-    text-align: left;
-    border-top: 1px solid rgba(100, 100, 100, 0.4);
-}
-
-nav #devices-overlay ul li:hover, 
-nav #devices-overlay ul li.selected { 
-    color: #fff;
-    background-color: #333; 
-}
-
-nav #devices-overlay ul li:nth-child(1) { border-top: 0; } 
-
-nav #devices-overlay ul li div {
-    position: relative;
-    margin: 0 auto;
-    vertical-align: top;
-    height: 28px;
-    text-align: left;
-    line-height: 1.8em;
-    text-transform: none;
-    display: inline-block;
-}
-
-nav #devices-overlay ul li div.dev-name {
-    width: 220px;
-}
-
-nav #devices-overlay ul li div.dev-status {
-    width: 80px;
-    text-align: center;
-    text-transform: uppercase;
-}
-
-nav #devices-overlay ul li div.dev-temp {
-    width: 120px;
-    /*color: rgba(178, 18, 18, 1);*/
-    color: #4a8bf5;
-    text-align: center;
-}
-
-nav #devices-overlay ul li div.dev-file {
-    margin-top: -24px;
-    width: 426px;
-    font-style: italic;
-    color: #999;
 }
 
 #print-area {
@@ -486,7 +428,7 @@ nav #devices-overlay ul li div.dev-file {
     border-radius: 0 0 4px 4px;
     border: 1px solid #2e2e2e;
     border-bottom: 0;
-    box-shadow: 
+    box-shadow:
         inset 0px 0px 3px rgba(0, 0, 0, 0.4),
         inset 0px -1px 2px rgba(200, 200, 200, 0.4),
         0px 3px 3px rgba(0, 0, 0, 0.4);
@@ -498,9 +440,9 @@ nav #devices-overlay ul li div.dev-file {
     z-index: 1;
 }
 
-#active-dname.no-device { 
+#active-dname.no-device {
     color: #fff;
-    background-color: rgba(178, 18, 18, 1); 
+    background-color: rgba(178, 18, 18, 1);
 }
 
 #canvas-wrapper #homing {
@@ -531,7 +473,7 @@ nav #devices-overlay ul li div.dev-file {
 
 #canvas-wrapper #homing div:nth-child(5) { border-radius: 0 0 4px 0 }
 #canvas-wrapper #homing div.not-homed { background-color: rgba(178, 18, 18, 1); }
-#canvas-wrapper #homing div#ico-home { 
+#canvas-wrapper #homing div#ico-home {
     width: 38px;
     cursor: default;
 }
@@ -540,7 +482,7 @@ nav #devices-overlay ul li div.dev-file {
 #canvas-wrapper #homing div#ico-home:hover { box-shadow: none; }
 #canvas-wrapper #homing div#ico-home:active { box-shadow: none; }
 
-#canvas-wrapper #homing div#all-home { 
+#canvas-wrapper #homing div#all-home {
     margin-left: 0px;
     width: 36px;
 }
@@ -578,28 +520,28 @@ nav #devices-overlay ul li div.dev-file {
     width: 100%;
 }
 
-#tools .wrapper .move-wrapper div { 
+#tools .wrapper .move-wrapper div {
     margin-top: 1px;
     margin-left: -4px;
     width: 37px;
     height: 24px;
-    display: inline-block; 
+    display: inline-block;
 }
 
-#tools .wrapper .move-wrapper div:hover, 
-#tools .wrapper .power-wrapper div:hover, 
-#tools .wrapper .power-wrapper div.selected { 
+#tools .wrapper .move-wrapper div:hover,
+#tools .wrapper .power-wrapper div:hover,
+#tools .wrapper .power-wrapper div.selected {
     background-color: #444;
     color: #fff;
 }
 
-#tools .wrapper .move-wrapper div:active, 
+#tools .wrapper .move-wrapper div:active,
 #tools .wrapper .power-wrapper div:active {
     box-shadow: inset 0px 0px 3px rgba(0, 0, 0, 0.4);
 }
 
-#tools .wrapper .move-wrapper div.minus, 
-#tools .wrapper .power-wrapper div.off { 
+#tools .wrapper .move-wrapper div.minus,
+#tools .wrapper .power-wrapper div.off {
     margin-left: 0px;
     border-right: 1px solid #888;
     border-radius: 4px 0 0 4px;
@@ -631,7 +573,7 @@ nav #devices-overlay ul li div.dev-file {
 }
 
 #tools .wrapper .temp:hover .actual { display: none; }
-#tools .wrapper .temp .actual { 
+#tools .wrapper .temp .actual {
     position: absolute;
     top: 0;
     left: 0;
@@ -639,10 +581,10 @@ nav #devices-overlay ul li div.dev-file {
     height: 64px;
     background-color: #fff;
     line-height: 3em;
-    opacity: 1; 
+    opacity: 1;
 }
 
-#tools .wrapper .temp.icon-celcius:after { 
+#tools .wrapper .temp.icon-celcius:after {
     position: absolute;
     top: 12px;
     right: 16px;
@@ -685,9 +627,9 @@ nav #devices-overlay ul li div.dev-file {
     width: 680px;
 }
 
-#console-area { 
+#console-area {
     margin-top: 64px;
-    box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.4); 
+    box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.4);
 }
 
 #console-area .wrapper {

@@ -11,8 +11,8 @@ var w,
     phLayer,
     loadLayer,
     paths,
-    devTpl, 
-    xTrim, 
+    devTpl,
+    xTrim,
     yTrim,
     prevTemp = 0,
     pfPrepd = 0,
@@ -32,7 +32,7 @@ UI.prototype.init = function() {
     $('#devices-overlay > ul > li').remove();
 
     $('body')[0].onkeydown = function(evt) {
-        if(evt.keyCode == 27) { 
+        if(evt.keyCode == 27) {
             if($('#console-area > .output').is(':visible'))
                 collapseConsoleOutput();
             else
@@ -173,9 +173,9 @@ var attachBtnHandlers = function() {
             $(offSwitch).addClass('selected');
         }
 
-        active.setTemp({ 
+        active.setTemp({
             Name:   $(evt.target).parent().parent().attr('id'),
-            Value:  temp 
+            Value:  temp
         });
     }).on('click', function(evt) {
         prevTemp = parseInt($(evt.target).val(), 10);
@@ -186,9 +186,9 @@ var attachBtnHandlers = function() {
     $('#console-nav').on('click', consoleNavClickHandler);
 
     var inp = $('#console-area > .wrapper > input');
-    $(inp).on('blur', function(evt) { 
-        $(inp).addClass('ghost').val(''); 
-    }).on('focus', function(evt) { 
+    $(inp).on('blur', function(evt) {
+        $(inp).addClass('ghost').val('');
+    }).on('focus', function(evt) {
         $(evt.target).val('');
         if($(evt.target).hasClass('ghost'))
             $(evt.target).removeClass('ghost');
@@ -196,7 +196,7 @@ var attachBtnHandlers = function() {
 
     $('#tools > .wrapper > .power-wrapper > div').on('click', powerToggleClickHandler);
 
-    //  
+    //
     //  jQuery.on('keydown', ...) breaks the standard input func
     $('#console-area > .wrapper > input')[0].onkeydown = function(evt) {
         if(evt.keyCode == 13) {
@@ -240,8 +240,8 @@ var attachSliderHandlers = function() {
         }
     });
 
-    $('#y > .handle').draggable({ 
-        axis: 'x', 
+    $('#y > .handle').draggable({
+        axis: 'x',
         containment: [ylb, 0, yrb, 0],
         drag: function(evt) {
             mouseDownHandler = evt.target;
@@ -274,7 +274,7 @@ var updateStatsUI = function(stats) {
 
         if(d.job.filename !== '')
             $(li).children('.dev-file').html(d.job.filename);
-        else 
+        else
             $(li).children('.dev-file').html('no pending / running prints');
 
         $(li).children('.dev-temp').html('E:' + d.ETemp + ' / B:' + d.BTemp);
@@ -361,7 +361,7 @@ var updatePrintUI = function(pcmd) {
 
             //  plot prev layer and draw
             for(var i = 1; i < paths.length; i++) {
-                hlLayer.drawPathTo(paths[i].x, paths[i].y, 
+                hlLayer.drawPathTo(paths[i].x, paths[i].y,
                     (paths[i].e !== undefined) ? RED_IND_GHOST : BLU_IND_GHOST);
                 hlLayer.startPath();
             }
@@ -390,7 +390,7 @@ var updatePrintUI = function(pcmd) {
         ph.x = mx, ph.y = my;
 
         //  only draw the new path here
-        objLayer.drawPathTo(mx, my, 
+        objLayer.drawPathTo(mx, my,
             (me !== undefined) ? RED_INDICATOR : BLU_INDICATOR);
         objLayer.startPath();
 
@@ -407,7 +407,7 @@ var updatePrintUI = function(pcmd) {
     if(pcmd.indexOf(cmd.HOME) > -1)
         homeDeviceUI('all');
 
-    if(pcmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
+    if(pcmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 ||
         pcmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
 
         var axis = (pcmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1) ? '#z' : '#e';
@@ -442,7 +442,7 @@ var loadContentToUI = function(content) {
     //  x / y coords into the paths array, ignoring the commented rows
     for(var i = 0; i < content.length; i++) {
         if(content[i] && content[i] !== undefined
-            && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1) 
+            && (content[i].indexOf(';') == -1 || content[i].indexOf(';') > 1)
             && (content[i].indexOf('G1 X') > -1 || content[i].indexOf('G1 Y') > -1)) {
 
             var mx, my, me, move = content[i].split(' ');
@@ -545,9 +545,9 @@ var stgClickHandler = function(evt) {
                     + 'detected and connected to. Moving the extruder around has '
                     + 'never been easier with the interactive print area.';
 
-                str += '<div class="author">' + m.author + '</div>'; 
-                str += '<div class="desc">' + desc + '</div>'; 
-                str += '<div class="ver">v' + m.version + '</div>'; 
+                str += '<div class="author">' + m.author + '</div>';
+                str += '<div class="desc">' + desc + '</div>';
+                str += '<div class="ver">v' + m.version + '</div>';
 
                 $('#settings-overlay > .panel.content-right').html(str);
                 break;
@@ -603,7 +603,7 @@ var paClickHandler = function(evt) {
         break;
     case 'print-pause':
         if(!active.job.filename || active.job.filename === '') {
-            notify({ 
+            notify({
                 title: "No File",
                 message: "Please load a valid gcode file to print"
             });
@@ -622,7 +622,7 @@ var paClickHandler = function(evt) {
             paths = [];
             resetAndDrawPaths();
             break;
-        } 
+        }
 
         //  since we update active.job.status here
         //  the print queue will see this and send
@@ -640,7 +640,7 @@ var paClickHandler = function(evt) {
             $('#print-pause')
                 .removeClass('icon-play')
                 .addClass('icon-pause');
-            
+
             active.job.status = 'running';
             active.resumeJob();
             break;
@@ -662,7 +662,7 @@ var paClickHandler = function(evt) {
         $('#progress').css('height', '0');
 
         paths = [];
-        
+
         hlLayer.clear();
         objLayer.clear();
 
@@ -687,7 +687,7 @@ var devsClickHandler = function(evt) {
 var canvasClickHandler = function(evt) {
     if((evt.offsetX == ph.y && evt.offsetY == ph.x)
         || evt.offsetX < 0 || evt.offsetX > w
-        || evt.offsetY < 0 || evt.offsetY > h) 
+        || evt.offsetY < 0 || evt.offsetY > h)
             return;  //  don't need to do anything
 
     detachMovers();
@@ -706,7 +706,7 @@ var canvasClickHandler = function(evt) {
     pp.y = osy;
     pp.color = RED_IND_GHOST;
 
-    movePrintHead(osx, osy);   
+    movePrintHead(osx, osy);
 };
 
 var consoleClickHandler = function(evt) {
@@ -745,17 +745,17 @@ var powerToggleClickHandler = function(evt) {
     //
     //  default to off but if the evt is via the 'on'
     //  button, get the temp and send it to the device.
-    //  if evt is the 'off' button, then update the 
+    //  if evt is the 'off' button, then update the
     //  .req value to 0
     var temp = 0;
-    if($(evt.target).hasClass('on')) 
+    if($(evt.target).hasClass('on'))
         temp = parseInt($(p).parent().find('.req').val(), 10);
-    else 
+    else
         $(p).parent().find('.req').removeAttr('value');
 
-    active.setTemp({ 
+    active.setTemp({
         Name:   $(p).parent().attr('id'),
-        Value:  temp 
+        Value:  temp
     });
 };
 
@@ -809,12 +809,12 @@ var updateConsoleOutput = function(data) {
         opTxt = data + '<br>';
     else {
         if(nlen < LINE_COUNT) {
-            if(olen + nlen <= LINE_COUNT) 
+            if(olen + nlen <= LINE_COUNT)
                 opTxt += data + '<br>';
             else {
                 var tmp = '',
                     ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
-                for(var i in ots) 
+                for(var i in ots)
                     tmp += ots[i] + '<br>';
                 opTxt = tmp + data;
             }
@@ -870,7 +870,7 @@ var movePrintHead = function(offsetX, offsetY) {
     //  WARNING ::
     //  The following code is very resource
     //  heavy. It does allow for a proper path to be
-    //  draw tho the animation speed algorithm needs 
+    //  draw tho the animation speed algorithm needs
     //  work. ATM it is hard-coded to 12
 
     // var dx, dy, sx, sy, err;
@@ -945,7 +945,7 @@ UI.prototype.redrawIndicators = function() {
 };
 
 UI.prototype.home = function(axis) {
-    var ox = ph.x, 
+    var ox = ph.x,
         oy = ph.y;
 
     if(axis == 'all') {

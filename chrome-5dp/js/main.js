@@ -4,7 +4,7 @@ var fdp = {
     devicePollTimer: undefined,
     connTimer: -1,
 
-    //  
+    //
     //  currently only listening for MakiBox devices
     //  though this will change in the near future
     //  as device support increases
@@ -12,26 +12,26 @@ var fdp = {
         if(fdp.devicePollTimer !== undefined)
             window.clearInterval(fdp.devicePollTimer);
 
-        if(devices === undefined) 
+        if(devices === undefined)
             devices = {};
-            
+
         var conncb = function(device, valid) {
             if(valid) {
                 notify({ title: "Device Attached", message: device.name + " attached" });
                 devices[device.name] = device;
                 launcher.devIds.push(device.conn);
                 ui.attachDevice(device);
-                device.getFullStats();
+                device.getFullStats(function(stats) { ui.settings.configuration.set(stats); });
             } else {
                 serial.flush(device.conn, function(){});
                 serial.close(device.conn, function(){});
-            }      
+            }
         };
 
         //  pulls the list of devices according to the prefix
         //  and attempts to open and set the device if it is
         //  indeed a 5dprint compatable device (i.e. MakiBox A6)
-        connTimer = window.setInterval(function() { 
+        connTimer = window.setInterval(function() {
             serial.getPorts(function(ports) {
                 for(var i=0; i < ports.length; i++) {
                     if(ports[i].indexOf(util.serialPrefix) > -1 && devices[ports[i]] === undefined)
@@ -42,7 +42,7 @@ var fdp = {
     }
 };
 
-//  
+//
 //  generic notifications using the chrome api
 var notify = function(conf) {
     conf.type    = 'basic';
@@ -64,7 +64,7 @@ window.onresize = function(evt) {
     }
 };
 
-//  
+//
 //  entry point here, because we need
 //  OS info in order to proceed
 chrome.runtime.getPlatformInfo(function(info) {
@@ -73,15 +73,15 @@ chrome.runtime.getPlatformInfo(function(info) {
     ui.init();
 
     if(typeof util[info.os] !== 'function') {
-        notify({ 
-            title: "Unsupported OS", 
-            message: "Unfortunately, your OS is not supported at this time." 
+        notify({
+            title: "Unsupported OS",
+            message: "Unfortunately, your OS is not supported at this time."
         });
         return;
-    } else 
+    } else
         util[info.os]();
 
-    chrome.runtime.getBackgroundPage(function(bg) { 
+    chrome.runtime.getBackgroundPage(function(bg) {
         launcher = bg.window;
         fdp.initDevicePolling();
     });

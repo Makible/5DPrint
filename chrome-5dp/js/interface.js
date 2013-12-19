@@ -46,17 +46,17 @@ Slider.prototype.init = function() {
 
     _sl.handle.onmouseup = function(evt) {
         if(!_sl.enabled) return;
-        
+
         _sl.mdh = undefined;
         ui.disableMovers();
 
-        var dist = util.pixelToMillimeter(ui.pa.phi.y) + 
+        var dist = util.pixelToMillimeter(ui.pa.phi.y) +
                     ',' + util.pixelToMillimeter(ui.pa.phi.x);
         active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
         ui.enableMovers();
     };
 
-    //  
+    //
     //  will trigger mouseup event from anywhere on the page
     //  if the mouse is in a space far outside the handles bounds
     document.onmouseup = function(evt) {
@@ -90,8 +90,8 @@ Slider.attachDraggers = function() {
         }
     });
 
-    jQuery(ui.pa.ySlider.handle).draggable({ 
-        axis: 'x', 
+    jQuery(ui.pa.ySlider.handle).draggable({
+        axis: 'x',
         containment: [ylb, 0, yrb, 0],
         drag: function(evt) {
             var _mdh = evt.target;
@@ -212,7 +212,7 @@ PrintArea.prototype.redrawIndicators = function() {
     this.phLayer.clear();
     this.phi.drawHEFill();
 
-    if(this.ct !== undefined) 
+    if(this.ct !== undefined)
         this.ct.drawHEStroke();
 };
 
@@ -225,17 +225,105 @@ PrintArea.prototype.moveSliders = function(offsetX, offsetY) {
     this.ySlider.handle.style.left = l +'px';
 };
 
+function DeviceConfiguration() {
+    this.fields = [
+        ['steps', 'M92', ['x', 'y', 'z', 'e'], /M92 X(\d+) Y(\d+) Z(\d+) E(\d+)/],
+        ['feedrate', 'M202', ['x', 'y', 'z', 'e'], /M202 X(\d+\.\d+) Y(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
+        ['max-acceleration', 'M201', ['x', 'y', 'z', 'e'], /M201 X(\d+) Y(\d+) Z(\d+) E(\d+)/],
+        ['acceleration', 'M204', ['s', 't'], /M204 S(\d+\.\d+) T(\d+\.\d+)/],
+        ['advanced', 'M205', ['s', 't', 'x', 'z', 'e'], /M205 S(\d+\.\d+) T(\d+\.\d+) XY(\d+\.\d+) Z(\d+\.\d+) E(\d+\.\d+)/],
+        ['pid', 'M301', ['p', 'i', 'd'], /M301 P(\d+) I(\d+) D(\d+)/]
+    ];
+    this.settings = this.fields.map(function(attrs) {
+        return new Setting(attrs[0], attrs[1], attrs[2], attrs[3]);
+    });
+};
+
+DeviceConfiguration.prototype.set = function(deviceStats) {
+    // console.log("Enabling settings");
+    this.settings.forEach(function(e) {
+        e.enable(deviceStats);
+    });
+    document.querySelector('#settings-basic-submit').disabled = false;
+    document.querySelector('#settings-advanced-submit').disabled = false;
+}
+
+DeviceConfiguration.prototype.clear = function() {
+    // console.log("Clearing settings");
+    this.settings.forEach(function(e) {
+        e.disable();
+    });
+    document.querySelector('#settings-basic-submit').disabled = true;
+    document.querySelector('#settings-advanced-submit').disabled = true;
+}
+
+DeviceConfiguration.prototype.persist = function() {
+    this.settings.forEach(function(e) {
+        e.persist();
+    });
+    active.sendStdCmd('M500');
+}
+
+function Setting(id, devCmd, params, regExp) {
+    // console.log("Creating a new Setting with ID " + id + " cmd " + devCmd + " regex " + regExp);
+    this.id = id;
+    this.devCmd = devCmd;
+    this.regExp = regExp;
+    this.params = params;
+    this.fields = this.params.map(function(e) {
+        return document.querySelector('#settings-' + this.id + '-' + e);
+    }, this);
+}
+
+Setting.prototype.enable = function(deviceStats) {
+    // console.log("Enabling fields for " + this.id)
+    var values = this.regExp.exec(deviceStats);
+    this.fields.forEach(function(field, index) {
+        // console.log("Enabling field " + field + " at index " + index);
+        field.value = values[index + 1];
+        field.disabled = false;
+    });
+};
+
+Setting.prototype.disable = function() {
+    // console.log("Disabling fields for " + this.id)
+    this.fields.forEach(function(field) {
+        // console.log("Disabling field " + field);
+        field.value = '';
+        field.disabled = true;
+    });
+};
+
+Setting.prototype.persist = function() {
+    args = [this.devCmd].concat(this.params.map(function(param, index) {
+        return param + this.fields[index].value;
+    }, this));
+    active.sendStdCmd(args.join(' ').toUpperCase() + CMD_TERMINATOR);
+};
+
 var ui = {
     //  header controls
-    settingsBtn:  document.querySelector('#settings'),
     loadJobBtn:   document.querySelector('#file-picker'),
     jobActionBtn: document.querySelector('#print-pause'),
     jobResetBtn:  document.querySelector('#reset'),
-    devicesBtn:   document.querySelector('#devices'),
+    moffBtn:   document.querySelector('#moff'),
     adnameEl:     document.querySelector('#active-dname'),
 
-    settings: document.querySelector('#settings-overlay'),
-    devices:  document.querySelector('#devices-overlay'),
+    settings: {
+        button: document.querySelector('#settings'),
+        configuration: new DeviceConfiguration(),
+        overlay: document.querySelector('#settings-overlay'),
+        pane: {
+            about: document.querySelector('#settings-about'),
+            advanced: document.querySelector('#settings-advanced'),
+            basic: document.querySelector('#settings-basic'),
+        },
+        tab: {
+            about: document.querySelector('#about'),
+            advanced: document.querySelector('#advanced'),
+            basic: document.querySelector('#basic'),
+        }
+    },
 
     pa: new PrintArea(),
 
@@ -252,29 +340,6 @@ var ui = {
     paths: [],
     xTrim: 0,
     yTrim: 0,
-
-    deviceTpl: function() {
-        var li = document.createElement('li');
-        li.dataset['dn'] = '';
-        li.className = 'btn';
-
-        var dn = document.createElement('div'),
-            ds = document.createElement('div');
-            dt = document.createElement('div');
-            df = document.createElement('div');
-
-        dn.className = 'dev-name';
-        ds.className = 'dev-status';
-        dt.className = 'dev-temp icon-celcius';
-        df.className = 'dev-file';
-
-        li.appendChild(dn);
-        li.appendChild(ds);
-        li.appendChild(dt);
-        li.appendChild(df);
-
-        return li;
-    },
 
     displayGrid: function() {
         //  display grid
@@ -301,28 +366,16 @@ var ui = {
 
     attachActionListeners: function() {
         var _navSelected = function() {
-            if(ui.settingsBtn.classList.contains('selected') ||
-                ui.devicesBtn.classList.contains('selected') ||
+            if(ui.settings.button.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return !0;
             }
             return 0;
         };
 
-        //  
+        //
         //  Nav Handlers
-        ui.devicesBtn.onclick = function(evt) { 
-            if(_navSelected()) return;
-
-            evt.target.classList.add('selected');
-            ui.devices.style.display = 'block';
-            document.querySelector('#devices-close').onclick = function(evt) {
-                ui.devices.style.display = 'none';
-                ui.devicesBtn.classList.remove('selected');
-            };
-        };
-
-        ui.loadJobBtn.onclick = function(evt) { 
+        ui.loadJobBtn.onclick = function(evt) {
             if(_navSelected()) return;
 
             var inp = document.querySelector('#fl');
@@ -354,9 +407,9 @@ var ui = {
             ui.pa.resetAndDrawPaths();
         };
 
-        ui.jobActionBtn.onclick = function(evt) { 
+        ui.jobActionBtn.onclick = function(evt) {
             if(!active.job.filename || active.job.filename === '') {
-                notify({ 
+                notify({
                     title: "No File",
                     message: "Please load a valid gcode file to print"
                 });
@@ -369,6 +422,7 @@ var ui = {
             if(active.job.status == 'pending') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
+                _pbtn.title = "Pause Print Job"
 
                 active.job.status = 'running';
                 active.startPendingJob();
@@ -376,7 +430,7 @@ var ui = {
                 ui.paths = [];
                 ui.pa.resetAndDrawPaths();
                 return;
-            } 
+            }
 
             //  since we update active.job.status here
             //  the print queue will see this and send
@@ -384,6 +438,7 @@ var ui = {
             if(active.job.status == 'running') {
                 _pbtn.classList.remove('icon-pause');
                 _pbtn.classList.add('icon-play');
+                _pbtn.title = "Restart Print Job"
 
                 active.job.status = 'paused';
                 return;
@@ -392,7 +447,8 @@ var ui = {
             if(active.job.status == 'paused') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
-                
+                _pbtn.title = "Pause Print Job"
+
                 active.job.status = 'running';
                 active.resumeJob();
                 return;
@@ -420,6 +476,11 @@ var ui = {
             ui.paths = [];
             ui.pa.hlLayer.clear();
             ui.pa.objLayer.clear();
+        };
+
+        ui.moffBtn.onclick = function(evt) {
+            if(_navSelected()) return;
+            active.sendStdCmd('M84' + CMD_TERMINATOR);
         };
 
         //
@@ -458,14 +519,14 @@ var ui = {
             ui.pa.movePrintHead(ui.pa.phi.x, 0);
             active.home(evt.target.innerHTML);
         };
-        
+
         ui.pa.homeYBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
             ui.pa.movePrintHead(0, ui.pa.phi.y);
             active.home(evt.target.innerHTML);
         };
-        
+
         ui.pa.homeZBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
@@ -499,7 +560,7 @@ var ui = {
                 axis = 'z';
                 temp = ui.pa.zTempRequested.value;
                 ui.pa.zOff.classList.remove('selected');
-            } else { 
+            } else {
                 if(ui.pa.eTempRequested.value < 0) return;
 
                 axis = 'e';
@@ -520,7 +581,7 @@ var ui = {
                 axis = 'z';
                 ui.pa.zTempRequested.value = 0;
                 ui.pa.zOn.classList.remove('selected');
-            } else { 
+            } else {
                 axis = 'e';
                 ui.pa.eTempRequested.value = 0;
                 ui.pa.eOn.classList.remove('selected');
@@ -603,10 +664,10 @@ var ui = {
     },
 
     detachActionListeners: function() {
-        ui.devicesBtn.onclick = undefined;
         ui.loadJobBtn.onclick = undefined;
         ui.jobActionBtn.onclick = undefined;
         ui.jobResetBtn.onclick = undefined;
+        ui.moffBtn.onclick = undefined;
         ui.pa.phLayer.canvas.onclick = undefined;
         ui.pa.phLayer.canvas.onmousemove = undefined;
         ui.pa.phLayer.canvas.onmouseout = undefined;
@@ -641,30 +702,7 @@ var ui = {
     },
 
     attachDevice: function(device) {
-        var _li = ui.deviceTpl();
-
-        _li.dataset.dn = device.name;
-        _li.querySelector('.dev-name').innerHTML = device.name;
-        _li.querySelector('.dev-status').innerHTML = device.job.status;
-        _li.querySelector('.dev-temp').innerHTML = 'E:0 / B:0';
-        _li.querySelector('.dev-file').innerHTML = 'no print loaded';
-
-        _li.onclick = function(evt) {
-            var _d = evt.currentTarget;
-            if(_d.classList.contains('selected')) return;
-
-            ui.settings.querySelector('.selected')[0].classList.remove('selected');
-            _d.classList.add('selected');
-            document.querySelector('#devices-close').click();
-
-            active = devices[_d.dataset.dn];
-            ui.adnameEl.innerHTML = active.name;
-        };
-
-        ui.devices.getElementsByTagName('ul')[0].appendChild(_li);
-
         if(ui.adnameEl.innerHTML === 'no device') {
-            _li.classList.add('selected');
             ui.setAsActiveDevice(device);
             Slider.attachDraggers();
         }
@@ -683,43 +721,32 @@ var ui = {
     },
 
     detachDevice: function(device) {
-        var _d,
-            _dns = ui.devices.getElementsByTagName('li');
-        for(var i = 0; i < _dns.length; i++) {
-            if(_dns[i].dataset.dn == device) {
-                _dns[i].remove();
-                break;
-            }
-        }
-
         if(active.name == device) {
-            if(ui.devices.getElementsByTagName('li').length > 0) {
+            active = undefined;
+            ui.adnameEl.innerHTML = 'no device';
+            ui.adnameEl.classList.add('no-device');
 
-            } else {
-                active = undefined;
-                ui.adnameEl.innerHTML = 'no device';
-                ui.adnameEl.classList.add('no-device');
+            ui.pa.eTempRequested.value = 0;
+            ui.pa.eTempActual.innerHTML = 0;
 
-                ui.pa.eTempRequested.value = 0;
-                ui.pa.eTempActual.innerHTML = 0;
+            ui.pa.zTempRequested.value = 0;
+            ui.pa.zTempActual.innerHTML = 0;
 
-                ui.pa.zTempRequested.value = 0;
-                ui.pa.zTempActual.innerHTML = 0;
-
-                if(ui.pa.zOn.classList.contains('selected')) {
-                    ui.pa.zOn.classList.remove('selected');
-                    ui.pa.zOff.classList.add('selected');
-                }
-
-                if(ui.pa.eOn.classList.contains('selected')) {
-                    ui.pa.eOn.classList.remove('selected');
-                    ui.pa.eOff.classList.add('selected');
-                }
-
-                ui.detachActionListeners();
-                ui.disableMovers();
+            if(ui.pa.zOn.classList.contains('selected')) {
+                ui.pa.zOn.classList.remove('selected');
+                ui.pa.zOff.classList.add('selected');
             }
+
+            if(ui.pa.eOn.classList.contains('selected')) {
+                ui.pa.eOn.classList.remove('selected');
+                ui.pa.eOff.classList.add('selected');
+            }
+
+            ui.detachActionListeners();
+            ui.disableMovers();
         }
+
+        ui.settings.configuration.clear();
     },
 
     loadContentToPrintArea: function(gcode) {
@@ -730,7 +757,7 @@ var ui = {
         //  x / y coords into the paths array, ignoring the commented rows
         for(var i = 0; i < gcode.length; i++) {
             if(gcode[i] && gcode[i] !== undefined
-                && (gcode[i].indexOf(';') == -1 || gcode[i].indexOf(';') > 1) 
+                && (gcode[i].indexOf(';') == -1 || gcode[i].indexOf(';') > 1)
                 && (gcode[i].indexOf('G1 X') > -1 || gcode[i].indexOf('G1 Y') > -1)) {
 
                 var mx, my, me, move = gcode[i].split(' ');
@@ -813,7 +840,7 @@ var ui = {
             ui.pa.movePrintHead(0, 0);
         }
 
-        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 || 
+        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 ||
             prCmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
 
             //  toggle the on switch and set the requested temp
@@ -853,8 +880,8 @@ var ui = {
                 'padding-top':      '0px',
                 'padding-bottom':   '0px',
                 top:                '-1px'
-            }, 140, function() { 
-                jQuery(ui.consoleOut).hide(); 
+            }, 140, function() {
+                jQuery(ui.consoleOut).hide();
             });
         });
     },
@@ -873,12 +900,12 @@ var ui = {
             opTxt = _data + '<br>';
         else {
             if(nlen < LINE_COUNT) {
-                if(olen + nlen <= LINE_COUNT) 
+                if(olen + nlen <= LINE_COUNT)
                     opTxt += _data + '<br>';
                 else {
                     var tmp = '',
                         ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
-                    for(var i in ots) 
+                    for(var i in ots)
                         tmp += ots[i] + '<br>';
                     opTxt = tmp + _data;
                 }
@@ -899,30 +926,6 @@ var ui = {
         //  update active dev UI temps
         ui.pa.eTempActual.innerHTML = active.ETemp;
         ui.pa.zTempActual.innerHTML = active.BTemp;
-
-        //  update device list info
-        var lis = document.querySelectorAll('#devices-overlay > ul > li');
-        for(var i = 0; i < lis.length; i++) {
-            var li = lis[i],
-                d  = devices[li.dataset.dn];
-
-            if(d === undefined) {
-                document.querySelector('#devices-overlay > ul').removeChild(li);
-                return;
-            }
-
-            var _stat = li.querySelector('.dev-status');
-            if(_stat.innerHTML != d.job.status)
-                _stat.innerHTML = d.job.status;
-
-            var _df = li.querySelector('.dev-file');
-            if(d.job.filename !== '')
-                _df.innerHTML = d.job.filename;
-            else 
-                _df.innerHTML = 'no pending / running prints';
-
-            li.querySelector('.dev-temp').innerHTML = 'E:' + d.ETemp + ' / B:' + d.BTemp;
-        }
 
         //  process full stat list
         if(stats.indexOf('--FULL STATS') > -1) {
@@ -1003,73 +1006,66 @@ var ui = {
         //  uses the completed job content
         ui.jobActionBtn.classList.remove('icon-pause');
         ui.jobActionBtn.classList.add('icon-play');
+        ui.jobActionBtn.title = "Start Print Job"
         ui.loadContentToPrintArea(active.job.content);
     },
 
     init: function() {
-        ui.settingsBtn.onclick = function(evt) {
-            if(ui.settingsBtn.classList.contains('selected') ||
-                ui.devicesBtn.classList.contains('selected') ||
+        // Set the active settings tab and pane
+        ui.settings.tab.active = ui.settings.tab.basic;
+        ui.settings.pane.active = ui.settings.pane.basic;
+
+        // Hide inactive settings panes
+        ui.settings.pane.advanced.style.display = 'none';
+        ui.settings.pane.about.style.display = 'none';
+
+        ui.settings.configuration.clear();
+
+        // Set the about pane's dynamic information
+        var manifest = chrome.runtime.getManifest();
+        document.querySelector('.author').innerHTML = manifest.author;
+        document.querySelector('.ver').innerHTML = 'v' + manifest.version;
+
+        ui.settings.button.onclick = function(evt) {
+            if(ui.settings.button.classList.contains('selected') ||
                 document.querySelector('#print-actions > .selected') !== null) {
                 return;
             }
 
             evt.target.classList.add('selected');
-            ui.settings.style.display = 'block';
+            ui.settings.overlay.style.display = 'block';
 
             document.querySelector('#settings-close').onclick = function(evt) {
-                ui.settings.style.display = 'none';
-                ui.settingsBtn.classList.remove('selected');
+                ui.settings.overlay.style.display = 'none';
+                ui.settings.button.classList.remove('selected');
             };
-
-            var _settingsClickHandler = function(evt) {
-                if(evt.target.classList.contains('selected'))
-                    return;
-
-                //  remove selected class on previous item
-                ui.settings.querySelector('.selected').classList.remove('selected');
-
-                evt.target.classList.add('selected');
-                ui.settings.children[1].innerHTML = '';
-
-                switch(evt.target.id) {
-                case 'basic':
-                    break;
-                case 'advanced':
-                    break;
-                case 'profiles':
-                    break;
-                case 'about':
-                    var m    = chrome.runtime.getManifest(),
-                        str  = '',
-                        desc = '';
-
-                    desc = '<strong>5DPrint <i>/ fai·di·print /</i> </strong>is '
-                        + 'tailor-made for the MakiBox A6 and modern 3D printing. '
-                        + 'The UI is designed for simplicity and letting the user '
-                        + 'get straight to printing. Devices are automatically '
-                        + 'detected and connected to. Moving the extruder around has '
-                        + 'never been easier with the interactive print area.';
-
-                    str += '<div class="author">' + m.author + '</div>'; 
-                    str += '<div class="desc">' + desc + '</div>'; 
-                    str += '<div class="ver">v' + m.version + '</div>';
-
-                    ui.settings.children[1].innerHTML = str; 
-                    break;
-                default:
-                    //  shouldn't really get here
-                    break;
-                }
-            };
-
-            var _lis = ui.settings.getElementsByTagName('li');
-            for(var j = 0; j < _lis.length; j++)
-                _lis[j].onclick = _settingsClickHandler;
-
-            //  start with the basics
-            document.querySelector('#basic').click();
         };
+
+        var _settingsClickHandler = function(evt) {
+            if(evt.target.classList.contains('selected'))
+                return;
+
+            // Hide the inactive settings tab and pane
+            ui.settings.tab.active.classList.remove('selected');
+            ui.settings.pane.active.style.display = 'none';
+
+            // Show the active settings tab and pane
+            ui.settings.tab.active = evt.target;
+            ui.settings.tab.active.classList.add('selected');
+            ui.settings.pane.active = ui.settings.pane[evt.target.id];
+            ui.settings.pane.active.style.display = 'block';
+        };
+
+        var _lis = [ui.settings.tab.basic, ui.settings.tab.advanced,
+                    ui.settings.tab.about];
+        for(var j = 0; j < _lis.length; j++)
+            _lis[j].onclick = _settingsClickHandler;
+
+        var _settingsUpdateHandler = function(evt) {
+            ui.settings.configuration.persist();
+        };
+        document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
+        document.querySelector('#settings-advanced-submit').onclick = _settingsUpdateHandler;
 
         ui.consoleIn.onkeydown = function(evt) {
             //  enter / return
@@ -1085,12 +1081,12 @@ var ui = {
             }
         };
 
-        ui.consoleIn.onblur = function(evt) { 
+        ui.consoleIn.onblur = function(evt) {
             evt.target.classList.add('ghost');
             evt.target.value = '';
         };
 
-        ui.consoleIn.onfocus = function(evt) { 
+        ui.consoleIn.onfocus = function(evt) {
             evt.target.value = '';
             if(evt.target.classList.contains('ghost'))
                 evt.target.classList.remove('ghost');
@@ -1103,18 +1099,17 @@ var ui = {
             if(!jQuery(ui.consoleOut).is(':visible'))
                 ui.expandConsoleOutput();
             else
-                ui.collapseConsoleOutput(); 
+                ui.collapseConsoleOutput();
         };
 
         ui.consoleTop.onclick = function(evt) {
             jQuery(ui.consoleOut).animate({ scrollTop: 0 }, 800);
         };
 
-        ui.consoleBottom.onclick = function(evt) { 
+        ui.consoleBottom.onclick = function(evt) {
             jQuery(ui.consoleOut).animate({ scrollTop: ui.consoleOut.scrollHeight }, 800);
         };
 
         ui.displayGrid();
     }
 };
-
