@@ -68,10 +68,10 @@ window.onresize = function(evt) {
 //  entry point here, because we need
 //  OS info in order to proceed
 chrome.runtime.getPlatformInfo(function(info) {
-    dbg = notifyId = 0;
+    dbg = 0;
+    notifyId = 0;
 
     ui.init();
-
     if(typeof util[info.os] !== 'function') {
         notify({
             title: "Unsupported OS",

@@ -41,7 +41,6 @@ Device.prototype.onopen = function(info) {
     var device = this;
 
     device.conn = info.connectionId;
-
     device.write(cmd.FMWARE_INFO, function() {});
     device.readall(function(info) {
         if(info.toLowerCase().indexOf(MKB_FLAG.toLowerCase()) > -1 && device.callbacks.connect)
@@ -471,9 +470,6 @@ Device.prototype.runAtIdx = function(idx) {
                 device.readall(function(data) {
                     device.updateDeviceStats(data);
 
-                    if(device.name == active.name)
-                        ui.digestCmd(_cmd);
-
                     if(_cmd.indexOf(CMD_TERMINATOR) < 0)
                         _cmd += CMD_TERMINATOR;
 
@@ -489,6 +485,9 @@ Device.prototype.runAtIdx = function(idx) {
                         } else {
                             device.readall(function(data) {
                                 ui.updateConsole(data);
+                                if(device.name == active.name)
+                                    ui.digestCmd(_cmd);
+                                
                                 device.runAtIdx(idx);
                             });
                         }
