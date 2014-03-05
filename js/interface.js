@@ -52,7 +52,7 @@ Slider.prototype.init = function() {
 
         var dist = util.pixelToMillimeter(ui.pa.phi.y) +
                     ',' + util.pixelToMillimeter(ui.pa.phi.x);
-        active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+        fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
         ui.enableMovers();
     };
 
@@ -179,7 +179,6 @@ function PrintArea() {
     this.phi.color = RED_INDICATOR;
     this.phi.x = 0;
     this.phi.y = 0;
-
 };
 
 PrintArea.prototype.resetAndDrawPaths = function() {
@@ -258,10 +257,8 @@ DeviceConfiguration.prototype.clear = function() {
 }
 
 DeviceConfiguration.prototype.persist = function() {
-    this.settings.forEach(function(e) {
-        e.persist();
-    });
-    active.sendStdCmd('M500');
+    this.settings.forEach(function(e) { e.persist(); });
+    fdp.device.send('M500');
 }
 
 function Setting(id, devCmd, params, regExp) {
@@ -298,7 +295,7 @@ Setting.prototype.persist = function() {
     args = [this.devCmd].concat(this.params.map(function(param, index) {
         return param + this.fields[index].value;
     }, this));
-    active.sendStdCmd(args.join(' ').toUpperCase() + CMD_TERMINATOR);
+    fdp.device.send(args.join(' ').toUpperCase() + CMD_TERMINATOR);
 };
 
 var ui = {
@@ -306,7 +303,7 @@ var ui = {
     loadJobBtn:   document.querySelector('#file-picker'),
     jobActionBtn: document.querySelector('#print-pause'),
     jobResetBtn:  document.querySelector('#reset'),
-    moffBtn:   document.querySelector('#moff'),
+    moffBtn:      document.querySelector('#moff'),
     adnameEl:     document.querySelector('#active-dname'),
 
     settings: {
@@ -314,14 +311,14 @@ var ui = {
         configuration: new DeviceConfiguration(),
         overlay: document.querySelector('#settings-overlay'),
         pane: {
-            about: document.querySelector('#settings-about'),
+            about:    document.querySelector('#settings-about'),
             advanced: document.querySelector('#settings-advanced'),
-            basic: document.querySelector('#settings-basic'),
+            basic:    document.querySelector('#settings-basic'),
         },
         tab: {
-            about: document.querySelector('#about'),
+            about:    document.querySelector('#about'),
             advanced: document.querySelector('#advanced'),
-            basic: document.querySelector('#basic'),
+            basic:    document.querySelector('#basic'),
         }
     },
 
@@ -393,9 +390,9 @@ var ui = {
                     var fname   = f.name,
                         content = evt.target.result.split('\n');
 
-                    active.job.filename = fname;
-                    active.job.content  = content;
-                    active.job.status   = 'pending';
+                    fdp.device.job.filename = fname;
+                    fdp.device.job.content  = content;
+                    fdp.device.job.status   = 'pending';
 
                     ui.loadContentToPrintArea(content);
                     notify({ title: "File Loaded", message: "File loaded and ready for printing" });
@@ -408,7 +405,7 @@ var ui = {
         };
 
         ui.jobActionBtn.onclick = function(evt) {
-            if(!active.job.filename || active.job.filename === '') {
+            if(!fdp.device.job.filename || fdp.device.job.filename === '') {
                 notify({
                     title: "No File",
                     message: "Please load a valid gcode file to print"
@@ -419,50 +416,65 @@ var ui = {
             var _pbtn = document.querySelector('#print-pause');
 
             //  do it
-            if(active.job.status == 'pending') {
+            if(fdp.device.job.status == 'pending') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
                 _pbtn.title = "Pause Print Job"
 
-                active.job.status = 'running';
-                active.startPendingJob();
+                fdp.device.job.status = 'running';
+                var msg = 'The warming process can take some time. Please be patient.'
+                        + ' During the print, your display may go to sleep (depending'
+                        + ' on your OS settings) though your system will not. Once'
+                        + ' the print is complete, your system will resume using the'
+                        + ' OS settings previously set.';
+                notify({ title: "Starting Print", message: msg });
+
+                chrome.power.requestKeepAwake('system');
+
+                ui.midPrintQueue = new Array();
 
                 ui.paths = [];
                 ui.pa.resetAndDrawPaths();
+
+                fdp.device.job.start = new Date().getTime();
+                fdp.device.runAtIdx(0);
+
                 return;
             }
 
-            //  since we update active.job.status here
-            //  the print queue will see this and send
-            //  over the pause cmd and leave the queue
-            if(active.job.status == 'running') {
+            //  since we update fdp.device.job.status here the print queue should 
+            //  see this and send over the pause cmd, leaving the queue
+            if(fdp.device.job.status == 'running') {
                 _pbtn.classList.remove('icon-pause');
                 _pbtn.classList.add('icon-play');
                 _pbtn.title = "Restart Print Job"
 
-                active.job.status = 'paused';
+                fdp.device.job.status = 'paused';
                 return;
             }
 
-            if(active.job.status == 'paused') {
+            if(fdp.device.job.status == 'paused') {
                 _pbtn.classList.remove('icon-play');
                 _pbtn.classList.add('icon-pause');
                 _pbtn.title = "Pause Print Job"
 
-                active.job.status = 'running';
-                active.resumeJob();
+                fdp.device.job.status = 'running';
+                fdp.device.send(commands.JOB_RESUME);
                 return;
             }
         };
 
         ui.jobResetBtn.onclick = function(evt) {
-            if(active.job.status == 'running')
-                active.hardStop = !0;
+            if(fdp.device.job.status == 'running')
+                fdp.device.hardStop = !0;
 
-            if(active.job.status == 'paused')
-                active.resetJob();
+            if(fdp.device.job.status == 'paused')
+                fdp.device.send(commands.JOB_ABDN, function(sendInfo) {
+                    if(sendInfo.bytesSent > 0)
+                        notify({ title: 'Print Abandoned', message: 'Abandon request sent to device' });
+                });
 
-            active.job = new Job();
+            fdp.device.job = new Job();
 
             var _pbtn = document.querySelector('#print-pause');
             if(_pbtn.classList.contains('icon-pause')) {
@@ -480,7 +492,7 @@ var ui = {
 
         ui.moffBtn.onclick = function(evt) {
             if(_navSelected()) return;
-            active.sendStdCmd('M84' + CMD_TERMINATOR);
+            fdp.device.send('M84' + CMD_TERMINATOR);
         };
 
         //
@@ -510,36 +522,36 @@ var ui = {
                     _nh[i].classList.remove('not-homed');
             }
             ui.pa.movePrintHead(0, 0);
-            active.home(evt.target.innerHTML);
+            fdp.device.home(evt.target.innerHTML);
         };
 
         ui.pa.homeXBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
             ui.pa.movePrintHead(ui.pa.phi.x, 0);
-            active.home(evt.target.innerHTML);
+            fdp.device.home(evt.target.innerHTML);
         };
 
         ui.pa.homeYBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
             ui.pa.movePrintHead(0, ui.pa.phi.y);
-            active.home(evt.target.innerHTML);
+            fdp.device.home(evt.target.innerHTML);
         };
 
         ui.pa.homeZBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
-            active.home(evt.target.innerHTML);
+            fdp.device.home(evt.target.innerHTML);
         };
 
         //  E / Z mover handler
         var _ezmov = function(evt) {
             var mvr, axis = evt.target.dataset.axis;
 
-            active.pos[axis] += (evt.target.classList.contains('minus')) ? ZEDIST * -1: ZEDIST;
-            mvr = { Axis: axis, Distance: active.pos[axis], Speed: DEFSPEED };
-            active.sendMovement(mvr);
+            fdp.device.pos[axis] += (evt.target.classList.contains('minus')) ? ZEDIST * -1: ZEDIST;
+            mvr = { Axis: axis, Distance: fdp.device.pos[axis], Speed: DEFSPEED };
+            fdp.device.sendMovement(mvr);
         };
 
         ui.pa.ePlus.onclick  = _ezmov;
@@ -569,7 +581,7 @@ var ui = {
             }
 
             evt.target.classList.add('selected');
-            active.setTemp({ Name: axis, Value: temp });
+            fdp.device.setTemp({ Name: axis, Value: temp });
         };
 
         var _poff = function(evt) {
@@ -588,7 +600,7 @@ var ui = {
             }
 
             evt.target.classList.add('selected');
-            active.setTemp({ Name: axis, Value: 0 });
+            fdp.device.setTemp({ Name: axis, Value: 0 });
         };
 
         var _inb  = function(evt) {
@@ -616,7 +628,7 @@ var ui = {
                 }
             }
 
-            active.setTemp({ Name: axis, Value: temp });
+            fdp.device.setTemp({ Name: axis, Value: temp });
         };
 
         var _okd  = function(evt) {
@@ -653,7 +665,7 @@ var ui = {
         osy = evt.offsetY - POINTER_OFFSET;
 
         var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
-        active.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+        fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
 
         ui.pa.pp = new Indicator();
         ui.pa.pp.x = osx;
@@ -702,49 +714,53 @@ var ui = {
     },
 
     attachDevice: function(device) {
-        if(ui.adnameEl.innerHTML === 'no device') {
+        if(ui.adnameEl.classList.contains('no-device')) {
             ui.setAsActiveDevice(device);
             Slider.attachDraggers();
         }
     },
 
     setAsActiveDevice: function(device) {
-        ui.adnameEl.innerHTML = device.name;
+        ui.adnameEl.innerHTML = fdp.device.path;
         if(ui.adnameEl.classList.contains('no-device'))
             ui.adnameEl.classList.remove('no-device');
-
-        active = device;
 
         ui.detachActionListeners();
         ui.attachActionListeners();
         ui.pa.movePrintHead(0, 0);
     },
 
-    detachDevice: function(device) {
-        if(active.name == device) {
-            active = undefined;
-            ui.adnameEl.innerHTML = 'no device';
-            ui.adnameEl.classList.add('no-device');
+    detachDevice: function() {
+        fdp.device = undefined;
 
-            ui.pa.eTempRequested.value = 0;
-            ui.pa.eTempActual.innerHTML = 0;
+        ui.adnameEl.innerHTML = 'looking for device';
+        ui.adnameEl.classList.add('no-device');
 
-            ui.pa.zTempRequested.value = 0;
-            ui.pa.zTempActual.innerHTML = 0;
+        ui.pa.eTempRequested.value = 0;
+        ui.pa.eTempActual.innerHTML = 0;
 
-            if(ui.pa.zOn.classList.contains('selected')) {
-                ui.pa.zOn.classList.remove('selected');
-                ui.pa.zOff.classList.add('selected');
-            }
+        ui.pa.zTempRequested.value = 0;
+        ui.pa.zTempActual.innerHTML = 0;
 
-            if(ui.pa.eOn.classList.contains('selected')) {
-                ui.pa.eOn.classList.remove('selected');
-                ui.pa.eOff.classList.add('selected');
-            }
-
-            ui.detachActionListeners();
-            ui.disableMovers();
+        if(ui.pa.zOn.classList.contains('selected')) {
+            ui.pa.zOn.classList.remove('selected');
+            ui.pa.zOff.classList.add('selected');
         }
+
+        if(ui.pa.eOn.classList.contains('selected')) {
+            ui.pa.eOn.classList.remove('selected');
+            ui.pa.eOff.classList.add('selected');
+        }
+
+        if(!ui.pa.homeXBtn.classList.contains('not-homed'))
+            ui.pa.homeXBtn.classList.add('not-homed');
+        if(!ui.pa.homeYBtn.classList.contains('not-homed'))
+            ui.pa.homeYBtn.classList.add('not-homed');
+        if(!ui.pa.homeZBtn.classList.contains('not-homed'))
+            ui.pa.homeZBtn.classList.add('not-homed');
+
+        ui.detachActionListeners();
+        ui.disableMovers();
 
         ui.settings.configuration.clear();
     },
@@ -781,7 +797,7 @@ var ui = {
     },
 
     digestCmd: function(prCmd) {
-        if(prCmd.indexOf(cmd.MOVE) > -1) {
+        if(prCmd.indexOf(commands.MOVE) > -1) {
             var _pa = ui.pa;
             if(prCmd.indexOf('Z') > -1) {
                 //  clear prev++ layer and prep
@@ -833,18 +849,18 @@ var ui = {
             _pa.redrawIndicators();
         }
 
-        if(prCmd.indexOf(cmd.HOME) > -1) {
+        if(prCmd.indexOf(commands.HOME) > -1) {
             ui.pa.homeXBtn.classList.remove('not-homed');
             ui.pa.homeYBtn.classList.remove('not-homed');
             ui.pa.homeZBtn.classList.remove('not-homed');
             ui.pa.movePrintHead(0, 0);
         }
 
-        if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1 ||
-            prCmd.indexOf(cmd.SET_WAIT_EXTEMP) > -1) {
+        if(prCmd.indexOf(commands.SET_WAIT_BDTEMP) > -1 ||
+            prCmd.indexOf(commands.SET_WAIT_EXTEMP) > -1) {
 
             //  toggle the on switch and set the requested temp
-            if(prCmd.indexOf(cmd.SET_WAIT_BDTEMP) > -1) {
+            if(prCmd.indexOf(commands.SET_WAIT_BDTEMP) > -1) {
                 if(!ui.pa.zOn.classList.contains('selected')) {
                     ui.pa.zOn.classList.add('selected');
                     ui.pa.zOff.classList.remove('selected');
@@ -924,8 +940,8 @@ var ui = {
         ui.updateConsole(stats);
 
         //  update active dev UI temps
-        ui.pa.eTempActual.innerHTML = active.ETemp;
-        ui.pa.zTempActual.innerHTML = active.BTemp;
+        ui.pa.eTempActual.innerHTML = fdp.device.ETemp;
+        ui.pa.zTempActual.innerHTML = fdp.device.BTemp;
 
         //  process full stat list
         if(stats.indexOf('--FULL STATS') > -1) {
@@ -1007,7 +1023,7 @@ var ui = {
         ui.jobActionBtn.classList.remove('icon-pause');
         ui.jobActionBtn.classList.add('icon-play');
         ui.jobActionBtn.title = "Start Print Job"
-        ui.loadContentToPrintArea(active.job.content);
+        ui.loadContentToPrintArea(fdp.device.job.content);
     },
 
     init: function() {
@@ -1071,7 +1087,7 @@ var ui = {
             //  enter / return
             if(evt.which == 13) {
                 if(evt.target.value !== '' && evt.target.value.length > 2) {
-                    active.console(evt.target.value.toUpperCase());
+                    fdp.device.console(evt.target.value.toUpperCase());
                     ui.consoleBottom.click();
                 }
 
@@ -1111,5 +1127,79 @@ var ui = {
         };
 
         ui.displayGrid();
+    },
+
+    digestDeviceResponse: function(cmd, data) {
+        this.updateConsole(data);
+        
+        switch(cmd + CMD_TERMINATOR) {
+        case commands.MOVE:
+            console.log(data);
+            break;
+
+        case commands.HOME:
+            break;
+            
+        case commands.SET_POS:
+            break;
+            
+        case commands.ENABLE_TEMP_MONITOR:
+            //  no need to anything ui yet
+            break;
+            
+        case commands.DISABLE_TEMP_MONITOR:
+            console.error('no implementation to trigger this at the moment');
+            break;
+            
+        case commands.POSITION:
+        case commands.GET_TEMP:
+            fdp.device.updateDeviceStats(data);
+            break;
+            
+        case commands.SET_BDTEMP:
+            break;
+            
+        case commands.SET_EXTEMP:
+            break;
+
+        case commands.CAPABILITIES:
+            break;
+            
+        case commands.ENDSTOP_STATE:
+            break;
+            
+        case commands.MEM_SETTINGS:
+            break;
+            
+        case commands.FREE_RAM:
+            break;
+            
+        case commands.FMWARE_INFO:
+            break;
+            
+        case commands.MOTORS_OFF:
+            break;
+            
+        case commands.SET_WAIT_BDTEMP:
+            break;
+            
+        case commands.SET_WAIT_EXTEMP:
+            break;
+            
+        case commands.JOB_PAUSE:
+            break;
+            
+        case commands.JOB_RESUME:
+            break;
+            
+        case commands.JOB_ABDN:
+            break;
+            
+        default:
+            console.log('cmd: ' + cmd);
+            console.log('data: ' + data);
+            break;
+        }
+        
     }
 };

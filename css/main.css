@@ -572,7 +572,9 @@ nav #settings-overlay .close:after {
     font-size: 1.4em;
 }
 
-#tools .wrapper .temp:hover .actual { display: none; }
+#tools .wrapper .temp:hover .actual,
+#tools .wrapper .temp input:active .actual { display: none; }
+
 #tools .wrapper .temp .actual {
     position: absolute;
     top: 0;

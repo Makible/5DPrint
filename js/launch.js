@@ -7,15 +7,18 @@ chrome.app.runtime.onLaunched.addListener(function() {
             'left': 0,
             'top': 0
         }
-    }, function(w) { w.onClosed.addListener(cleanup); });
+    }, function(_window) { _window.onClosed.addListener(cleanup); });
 });
 
-var devIds = [];
+var connection = undefined;
 var cleanup = function() {
     console.log("Main 5DPrint window closed, cleaning up");
     chrome.power.releaseKeepAwake();
-    for(var i = 0; i < devIds.length; i++) {
-        chrome.serial.flush(devIds[i], function(info) { });
-        chrome.serial.close(devIds[i], function(info) { });
+    if(device !== undefined) {
+        console.log('closing connection ID: ');
+        console.log(connection);
+
+        chrome.serial.flush(connection, function(info) {});
+        chrome.serial.disconnect(connection, function(info) { connection = undefined; });
     }
 };
