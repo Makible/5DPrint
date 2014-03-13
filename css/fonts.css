@@ -1,6 +1,17 @@
 @charset "UTF-8";
 
 @font-face {
+  font-family: 'terminal';
+  src: url('/fonts/terminal.eot?49915920');
+  src: url('/fonts/terminal.eot?49915920#iefix') format('embedded-opentype'),
+       url('/fonts/terminal.woff?49915920') format('woff'),
+       url('/fonts/terminal.ttf?49915920') format('truetype'),
+       url('/fonts/terminal.svg?49915920#terminal') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
     font-family: 'OpenSansLight';
     src: url('/fonts/OpenSans-Light-webfont.eot');
     src: url('/fonts/OpenSans-Light-webfont.eot?#iefix') format('embedded-opentype'),
@@ -37,6 +48,22 @@
     -webkit-font-smoothing: antialiased;
 }
 
+[class^="icon-"]:before, [class*=" icon-"]:before {
+    font-family: "terminal";
+    font-style: normal;
+    font-weight: normal;
+    speak: none;
+    display: inline-block;
+    text-decoration: inherit;
+    width: 1em;
+    margin-right: .4em;
+    text-align: center;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1em;
+    font-size: .6em;
+}
+
 .ion-spin, 
 .ion-loading-a,
 .ion-loading-b,
@@ -58,6 +85,8 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(359deg); }
 }
+
+.icon-terminal:before { content: '\e800'; } /* '' */
 
 .ion-alert:before { content: "\f101"; }
 .ion-alert-circled:before { content: "\f100"; }

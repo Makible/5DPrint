@@ -2,9 +2,9 @@ chrome.app.runtime.onLaunched.addListener(function() {
     console.log("Launching 5DPrint");
     chrome.app.window.create('index.html', {
         'bounds': {
-            'width': 768,
+            'width': 900,
             'height': 800,
-            'left': 0,
+            'left': 8,
             'top': 0
         }
     }, function(_window) { _window.onClosed.addListener(cleanup); });

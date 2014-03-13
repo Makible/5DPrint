@@ -4,8 +4,8 @@ const MKB_FLAG ='MakiBox Firmware';
 const NATURALS = {
     'DROP':  'G1 Z80 F2000\r\n',
     'RAISE': 'G1 Z0 F2000\r\n',
-    'LOAD':  'G92 E0\r\nG1 F2000 E250\r\nM84\r\n',
-    'EJECT': 'G92 E0\r\nG1 F2000 E-250\r\nM84\r\n',
+    'LOAD':  'G92 E0\r\nG1 F2000 E250\r\n',
+    'EJECT': 'G92 E0\r\nG1 F2000 E-250\r\n',
     'MOFF':  'M84\r\n'
 };
 
@@ -21,6 +21,7 @@ var commands = {
     MOVE: 'G1',
     HOME: 'G28',
     SET_POS: 'G92',
+    SET_ABS_EXT: 'M82',
 
     ENABLE_TEMP_MONITOR: 'M203 P1' + CMD_TERMINATOR,
     DISABLE_TEMP_MONITOR: 'M203 P0' + CMD_TERMINATOR,
@@ -42,12 +43,14 @@ var commands = {
     JOB_RESUME: 'M226 P0' + CMD_TERMINATOR,
     JOB_ABDN:   'M226 P-255' + CMD_TERMINATOR,
 
-    GET_FSTATS: []
+    BOOT: []
 };
 
-commands.GET_FSTATS[0] = commands.GET_TEMP;
-commands.GET_FSTATS[1] = commands.POSITION;
-commands.GET_FSTATS[2] = commands.CAPABILITIES;
-commands.GET_FSTATS[3] = commands.ENDSTOP_STATE;
-commands.GET_FSTATS[4] = commands.MEM_SETTINGS;
-commands.GET_FSTATS[5] = commands.FREE_RAM;
+commands.BOOT[0] = commands.ENABLE_TEMP_MONITOR;
+commands.BOOT[1] = commands.SET_ABS_EXT;
+commands.BOOT[2] = commands.GET_TEMP;
+commands.BOOT[3] = commands.POSITION;
+commands.BOOT[4] = commands.CAPABILITIES;
+commands.BOOT[5] = commands.ENDSTOP_STATE;
+commands.BOOT[6] = commands.MEM_SETTINGS;
+commands.BOOT[7] = commands.FREE_RAM;

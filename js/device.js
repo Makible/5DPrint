@@ -17,14 +17,15 @@ function Job() {
 }
 
 Job.prototype.processNext = function() {
+    ui.digestCmd(this.prevcmd);
     fdp.device.runAtIdx(this.nextidx);
 };
 
 function Position() {
-    this.x = 0;
-    this.y = 0;
-    this.z = 0;
-    this.e = 0;
+    this.x = 0.0;
+    this.y = 0.0;
+    this.z = 0.0;
+    this.e = 0.0;
 }
 
 function Device(port) {
@@ -32,8 +33,8 @@ function Device(port) {
     this.vendorId       = port.vendorId;
     this.productId      = port.productId;
     this.connection     = null;
-    this.e              = 0;    //  extruder temp
-    this.b              = 0;    //  bed temp
+    this.extTemp        = 0;
+    this.bedTemp        = 0;
     this.pos            = new Position();
     this.job            = new Job();
     this.statPollTimer  = -1;
@@ -95,18 +96,18 @@ Device.prototype.disconnect = function() {
     });
 };
 
-Device.prototype.getFullStats = function() {
+Device.prototype.runBoot = function() {
     var device = this,
         result = '';
 
     var get = function(idx) {
-        device.send(commands.GET_FSTATS[idx], function(sendInfo) {
+        device.send(commands.BOOT[idx], function(sendInfo) {
             if(sendInfo.error) {
                 if(dbg)
-                    notify({ title: 'DEBUG - device.getFullStats', message: 'sendInfo.error: ' + sendInfo.error });
+                    notify({ title: 'DEBUG - device.runBoot', message: 'sendInfo.error: ' + sendInfo.error });
                 device.destroy();
             } else {
-                if(++idx < commands.GET_FSTATS.length)
+                if(++idx < commands.BOOT.length)
                     get(idx);
             }
         });
@@ -115,7 +116,9 @@ Device.prototype.getFullStats = function() {
 };
 
 Device.prototype.setTemp = function(temp) {
-    var _cmd = ((temp.Name === 'e') ? commands.SET_EXTEMP : commands.SET_BDTEMP) + temp.Value;
+    var _cmd = (temp.Name === 'ext') ? commands.SET_EXTEMP : commands.SET_BDTEMP;
+    _cmd += temp.Value;
+
     this.send(_cmd + CMD_TERMINATOR);
 };
 
@@ -147,12 +150,12 @@ Device.prototype.updateDeviceStats = function(stats) {
     if(temp && temp !== undefined) {
         for(var j = 0; j < temp.length; j++) {
             if(temp[j].indexOf('T') > -1) {
-                this.ETemp = temp[j].split(':')[1];
+                this.extTemp = temp[j].split(':')[1];
                 continue;
             }
 
             if(temp[j].indexOf('B') > -1) {
-                this.BTemp = temp[j].split(':')[1];
+                this.bedTemp = temp[j].split(':')[1];
                 continue;
             }
         }
@@ -163,7 +166,7 @@ Device.prototype.updateDeviceStats = function(stats) {
             if(pos[k].indexOf(':') == -1) continue;
 
             var c = pos[k].split(':'),
-                p = util.millimeterToPixel(c[1]);
+                p = c[1];
 
             if(c[0].toLowerCase() == 'e') this.pos.e = parseFloat(p);
             if(c[0].toLowerCase() == 'z') this.pos.z = parseFloat(p);
@@ -193,12 +196,13 @@ Device.prototype.sendMovement = function(mv) {
         var axes  = mv.Axis.split(','),
             dists = mv.Distance.split(',');
 
-        _cmd += ' ' + axes[0] + dists[0];
-        _cmd += ' ' + axes[1] + dists[1];
+        for(var i=0; i < axes.length; i++)
+            _cmd += ' ' + axes[i] + dists[i];
+
         _cmd += ' F' + mv.Speed + CMD_TERMINATOR;
     } else
-        _cmd += ' ' + ((mv.Axis == 'e') ? 'E1' : mv.Axis.toUpperCase())
-            + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
+        _cmd += ' ' + mv.Axis.toUpperCase() + mv.Distance + ' F' + mv.Speed + CMD_TERMINATOR;
+
     this.send(_cmd);
 };
 
@@ -207,20 +211,29 @@ Device.prototype.home = function(axis) {
         _axis = axis.toLowerCase();
 
     if(_axis === 'all') {
-        this.pos.x = 0;
-        this.pos.y = 0;
-        this.pos.z = 0;
+        this.pos.x = 0.0;
+        this.pos.y = 0.0;
+        this.pos.z = 0.0;
     } else {
         _cmd += ' ' + _axis.toUpperCase() + '0';
-        this.pos[_axis] = 0;
+        this.pos[_axis] = 0.0;
     }
 
-    console.log(_cmd);
     this.send(_cmd + CMD_TERMINATOR);
 };
 
-Device.prototype.console = function(input, callback) {
-    var cmd = (NATURALS[input] !== undefined) ? NATURALS[input] : input;
+Device.prototype.manual = function(input, callback) {
+    var cmd;
+    if(NATURALS[input] !== undefined) {
+        cmd = NATURALS[input];
+        
+        if(input == 'LOAD')
+            this.pos.e = 250.0;
+        if(input == 'EJECT')
+            this.pos.e = -250.0;
+    } else
+        cmd = input;
+
     if(cmd.indexOf(CMD_TERMINATOR) < 0)
         cmd += CMD_TERMINATOR;
     this.send(cmd);
@@ -281,6 +294,15 @@ Device.prototype.runAtIdx = function(idx) {
         //  include pause duration in msg
         msg = 'Print Time [hh:mm] ' + hh + ':' + mm + '\n\nyour system has now '
             + 'returned to the normal power settings';
+
+        //  reset in order to allow for a new Job
+        device.job = new Job();
+        device.pos.x = 0.0;
+        device.pos.y = 0.0;
+        device.pos.e = 0.0;
+        device.send(commands.SET_POS + ' E0' + CMD_TERMINATOR);
+
+        setTimeout(function() { jQuery(ui.progress).animate({ width: '0px' }, 3000); }, 3000);
 
         chrome.power.releaseKeepAwake();
         notify({ title: "Print Complete", message: msg });

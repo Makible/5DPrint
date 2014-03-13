@@ -12,16 +12,20 @@
         <script src="/js/vendor/modernizr-2.7.1.min.js"></script>
     </head>
     <body>
+        <div id="progress"></div>
+        <div id="active-dname" class="no-device">looking for device</div> 
+
         <nav>
             <div id="file-picker" class="btn ion-folder" title="Open File"></div>
             <div id="print-pause" class="btn ion-play" title="Start Print Job"></div>
             <div id="reset" class="btn ion-refresh" title="Restart Print Job"></div>
             <div id="moff" class="btn ion-flash-off" title="Turn Off Motors"></div>
+            <div id="console" class="btn icon-terminal" title="Show Console Output"></div>
             <div id="settings" class="btn logo ion-gear-b" title="Settings"></div>
         </nav>
-        <!--
+
         <div id="settings-overlay">
-            <div class="panel nav-left">
+            <div class="panel content-left">
                 <ul>
                     <li id="basic" class="btn selected">Basic</li>
                     <li id="advanced" class="btn">Advanced</li>
@@ -94,7 +98,7 @@
                             </li>
                         </ul>
                     </fieldset>
-                    <input id="settings-basic-submit" type="submit" />
+                    <input id="settings-basic-submit" type="submit">
                 </div>
                 <div id="settings-advanced">
                     <fieldset>
@@ -139,7 +143,7 @@
                             </li>
                         </ul>
                     </fieldset>
-                    <input id="settings-advanced-submit" type="submit" />
+                    <input id="settings-advanced-submit" type="submit">
                 </div>
                 <div id="settings-about">
                     <div class="author"></div>
@@ -155,12 +159,9 @@
                     <div class="ver"></div>
                 </div>
             </div>
-            <div id="settings-close" class="btn close icon-cancel"></div>
+            <!-- <div id="settings-close" class="btn close ion-close"></div> -->
         </div>
-        <div id="active-dname" class="no-device">no device</div> 
-        -->
 
-        <!--
         <div id="print-area">
             <div id="sliders">
                 <div id="x" class="slider">
@@ -168,6 +169,9 @@
                 </div>
                 <div id="y" class="slider">
                     <div class="handle">y</div>
+                </div>
+                <div id="z" class="slider">
+                    <div class="handle">z</div>
                 </div>
             </div>
             <div id="canvas-wrapper">
@@ -178,62 +182,67 @@
                 <canvas id="ph-layer" width="567" height="415"></canvas>
 
                 <div id="homing" class="wrapper">
-                    <div id="ico-home" class="icon-home"></div>
-                    <div id="all-home">all</div>
+                    <div id="ico-home" class="ion-home"></div>
                     <div id="x-home" class="not-homed">x</div>
                     <div id="y-home" class="not-homed">y</div>
                     <div id="z-home" class="not-homed">z</div>
                 </div>
             </div>
             <div id="tools">
-                <div id="e" class="wrapper">
-                    <div class="move-wrapper">
-                        <div id="e-minus" class="minus btn" data-axis="e">&ndash;</div>
-                        <div id="e-plus" class="plus btn" data-axis="e">+</div>
+                <div id="ext-temp" class="wrapper">
+                    <div class="primary-label">Extruder 1</div>
+                    <div class="temp-values">
+                        <div class="label">Actual: </div>
+                        <div class="actual temp">0&deg;</div>
+
+                        <div class="label">Requested: </div>
+                        <input type="number" class="temp ext-set" value="" min="0" max="300" placeholder="0&deg;">
                     </div>
-                    <div class="label">ext</div>
-                    <div class="temp icon-celcius">
-                        <div id="e-actual" class="actual">0</div>
-                        <input id="e-requested" type="number" class="value" max="300" min="0" placeholder="0">
+
+                    <div class="pwr-controls">
+                        <div class="btn ext-off">Off</div>
+                        <div class="btn ext-set">Set</div>
                     </div>
-                    <div class="power-wrapper">
-                        <div id="e-off" class="off btn selected">off</div>
-                        <div id="e-on" class="on btn">on</div>
+
+                    <div class="extrusion">
+                        <div id="ext-rev" class="btn">Reverse</div>
+                        <input type="number" class="" value="" placeholder="0 mm">
+                        <div id="ext-fwd" class="btn">Forward</div>
                     </div>
                 </div>
-                <div id="z" class="wrapper">
-                    <div class="move-wrapper">
-                        <div id="z-minus" class="minus btn" data-axis="z">&ndash;</div>
-                        <div id="z-plus" class="plus btn" data-axis="z">+</div>
+
+                <div id="bed-temp" class="wrapper">
+                    <div class="primary-label">Bed</div>
+                    <div class="temp-values">
+                        <div class="label">Actual: </div>
+                        <div class="actual temp">0&deg;</div>
+
+                        <div class="label">Requested: </div>
+                        <input type="number" class="temp bed-set" value="" min="0" max="200" placeholder="0&deg;">
                     </div>
-                    <div class="label">bed</div>
-                    <div class="temp icon-celcius">
-                        <div id="z-actual" class="actual">0</div>
-                        <input id="z-requested" type="number" class="value" max="200" min="0" placeholder="0">
-                    </div>
-                    <div class="power-wrapper">
-                        <div id="z-off" class="off btn selected">off</div>
-                        <div id="z-on" class="on btn">on</div>
+
+                    <div class="pwr-controls">
+                        <div class="btn bed-off">Off</div>
+                        <div class="btn bed-set">Set</div>
                     </div>
                 </div>
             </div>
         </div>
+
 
         <div id="console-area">
-            <div class="wrapper">
-                <input id="console-input" class="ghost" value="" placeholder="enter manual commands here" />
-                <div id="console-handle" class="handle icon-th"></div>
-            </div>
             <div id="console-output"></div>
             <div id="console-nav">
-                <div class="up icon-up-open-big"></div>
-                <div class="down icon-down-open-big"></div>
+                <div class="up ion-chevron-up"></div>
+                <div class="down ion-chevron-down"></div>
             </div>
         </div>
-        -->
 
-        <!-- <div id="progress"></div> -->
-        <!-- <input id="fl" type="file" accept=".gcode,.gc" class="fi" /> -->
+        <div id="commands">
+            <input id="command-input" class="ghost" vale="" placeholder="enter commands here">
+        </div>
+
+        <input id="fl" type="file" accept=".gcode,.gc" class="fi" />
 
         <script src="/js/vendor/jquery-1.11.0.min.js"></script>
         <script src="/js/vendor/jquery-ui-1.10.3.custom.min.js"></script>

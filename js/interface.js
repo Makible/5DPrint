@@ -33,42 +33,37 @@ function Slider(el) {
 }
 
 Slider.prototype.init = function() {
-    var _sl = this;
-    // _sl.el.onclick = function(evt) {
-    //     if(!_sl.enabled || evt.target.classList.contains('slider')) return;
+    var _sl = this,
+        mu = function(evt) {
+            if(!_sl.enabled) return;
 
-    //     if(evt.target.id == 'y')
-    //         evt.offsetY = ui.pa.phi.x + POINTER_OFFSET;
-    //     else
-    //         evt.offsetX = ui.pa.phi.y + POINTER_OFFSET;
-    //     ui.canvasCl(evt);
-    // };
+            _sl.mdh = undefined;
+            ui.disableMovers();
 
-    _sl.handle.onmouseup = function(evt) {
-        if(!_sl.enabled) return;
+            var dist = util.pixelToMillimeter(ui.pa.phi.y) +
+                        ',' + util.pixelToMillimeter(ui.pa.phi.x) +
+                        ',' + util.pixelToMillimeter(ui.pa.zSlider.handle.offsetTop + 14);
 
-        _sl.mdh = undefined;
-        ui.disableMovers();
+            fdp.device.sendMovement({ Axis: 'X,Y,Z', Distance: dist, Speed: DEFSPEED });
+            ui.enableMovers();
+        };
 
-        var dist = util.pixelToMillimeter(ui.pa.phi.y) +
-                    ',' + util.pixelToMillimeter(ui.pa.phi.x);
-        fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
-        ui.enableMovers();
+    _sl.handle.onmousedown = function(evt) {
+        _sl.mdh = evt.currentTarget;
     };
 
-    //
     //  will trigger mouseup event from anywhere on the page
     //  if the mouse is in a space far outside the handles bounds
     document.onmouseup = function(evt) {
-        if(_sl.mdh && _sl.mdh !== undefined) {
+        if(_sl.mdh && _sl.mdh !== undefined)
             _sl.mdh.onmouseup();
-            _sl.mdh = undefined;
-        }
     };
+
+    _sl.handle.onmouseup = mu;
 };
 
 Slider.attachDraggers = function() {
-    var xtb, xbb, ylb, yrb;
+    var xtb, xbb, ylb, yrb, ztb, zbb;
 
     //  x draggable limits
     xtb = ui.pa.xSlider.el.offsetTop + ui.xTrim;
@@ -77,6 +72,10 @@ Slider.attachDraggers = function() {
     //  y draggable limits
     ylb = ui.pa.ySlider.el.offsetLeft + ui.yTrim;
     yrb = ylb + ui.pa.ySlider.el.offsetWidth;
+
+    //  x draggable limits
+    ztb = ui.pa.zSlider.el.offsetTop + ui.zTrim;
+    zbb = ztb + ui.pa.zSlider.el.offsetHeight;
 
     jQuery(ui.pa.xSlider.handle).draggable({
         axis: 'y',
@@ -100,6 +99,11 @@ Slider.attachDraggers = function() {
             ui.pa.ySlider.mdh = _mdh;
             ui.pa.redrawIndicators();
         }
+    });
+
+    jQuery(ui.pa.zSlider.handle).draggable({
+        axis: 'y',
+        containment: [0, ztb, 0, zbb]
     });
 };
 
@@ -134,12 +138,14 @@ function PrintArea() {
     //  sliders
     this.xSlider = new Slider(document.querySelector('#x'));
     this.ySlider = new Slider(document.querySelector('#y'));
+    this.zSlider = new Slider(document.querySelector('#z'));
 
     this.xSlider.init();
     this.ySlider.init();
+    this.zSlider.init();
 
     //  home buttons
-    this.homeAllBtn = document.querySelector('#all-home');
+    this.homeAllBtn = document.querySelector('#ico-home');
     this.homeXBtn = document.querySelector('#x-home');
     this.homeYBtn = document.querySelector('#y-home');
     this.homeZBtn = document.querySelector('#z-home');
@@ -151,23 +157,20 @@ function PrintArea() {
     this.objLayer = new Layer(document.querySelector('#obj-layer'));
     this.phLayer  = new Layer(document.querySelector('#ph-layer'));
 
-    //  Z / E controllers
-    this.ePlus  = document.querySelector('#e-plus');
-    this.eMinus = document.querySelector('#e-minus');
-    this.eOn  = document.querySelector('#e-on');
-    this.eOff = document.querySelector('#e-off');
+    //  extrusion controllers
+    this.extFwd = document.querySelector('#ext-fwd');
+    this.extRev = document.querySelector('#ext-rev');
+    this.extValue = document.querySelector('.extrusion input');
 
-    this.zPlus  = document.querySelector('#z-plus');
-    this.zMinus = document.querySelector('#z-minus');
-    this.zOn  = document.querySelector('#z-on');
-    this.zOff = document.querySelector('#z-off');
+    this.extTempActual    = document.querySelector('#ext-temp .actual');
+    this.extTempRequested = document.querySelector('#ext-temp input');
+    this.extTempOff       = document.querySelector('.ext-off');
+    this.extTempSet       = document.querySelector('.ext-set');
 
-    //  temperature inputs
-    this.eTempRequested = document.querySelector('#e-requested');
-    this.eTempActual    = document.querySelector('#e-actual');
-
-    this.zTempRequested = document.querySelector('#z-requested');
-    this.zTempActual    = document.querySelector('#z-actual');
+    this.bedTempActual    = document.querySelector('#bed-temp .actual');
+    this.bedTempRequested = document.querySelector('#bed-temp input');
+    this.bedTempOff       = document.querySelector('.bed-off');
+    this.bedTempSet       = document.querySelector('.bed-set');
 
     this.width  = this.bgLayer.width;
     this.height = this.bgLayer.height;
@@ -175,10 +178,10 @@ function PrintArea() {
     this.ct  = undefined;
     this.pp  = undefined;
 
-    this.phi = new Indicator();
-    this.phi.color = RED_INDICATOR;
+    this.phi   = new Indicator();
     this.phi.x = 0;
     this.phi.y = 0;
+    this.phi.color = RED_INDICATOR;
 };
 
 PrintArea.prototype.resetAndDrawPaths = function() {
@@ -202,7 +205,7 @@ PrintArea.prototype.movePrintHead = function(offsetX, offsetY) {
     this.phi.y = offsetY;
 
     ui.disableMovers();
-    this.moveSliders(offsetX, offsetY);
+    this.moveXYSliders();
     this.redrawIndicators();
     ui.enableMovers();
 };
@@ -215,13 +218,18 @@ PrintArea.prototype.redrawIndicators = function() {
         this.ct.drawHEStroke();
 };
 
-PrintArea.prototype.moveSliders = function(offsetX, offsetY) {
+PrintArea.prototype.moveXYSliders = function() {
     var t, l;
-    t = this.phi.y - Math.floor(this.xSlider.handle.offsetHeight / 2) + Math.floor(POINTER_OFFSET / 2);
-    this.xSlider.handle.style.top = t+'px';
+    t = this.phi.y - Math.floor(this.xSlider.handle.offsetHeight / 2);
+    this.xSlider.handle.style.top = t + 'px';
 
-    l = this.phi.x - Math.floor(this.xSlider.handle.offsetWidth / 2) + Math.floor(POINTER_OFFSET / 2) + 11;
+    l = this.phi.x - Math.floor(this.xSlider.handle.offsetWidth / 2);
     this.ySlider.handle.style.left = l +'px';
+};
+
+PrintArea.prototype.moveZSlider = function(offset) {
+    var val = offset - (this.zSlider.handle.offsetHeight / 2);
+    this.zSlider.handle.style.top =  val + 'px';
 };
 
 function DeviceConfiguration() {
@@ -239,30 +247,27 @@ function DeviceConfiguration() {
 };
 
 DeviceConfiguration.prototype.set = function(deviceStats) {
-    // console.log("Enabling settings");
     this.settings.forEach(function(e) {
         e.enable(deviceStats);
     });
     document.querySelector('#settings-basic-submit').disabled = false;
     document.querySelector('#settings-advanced-submit').disabled = false;
-}
+};
 
 DeviceConfiguration.prototype.clear = function() {
-    // console.log("Clearing settings");
     this.settings.forEach(function(e) {
         e.disable();
     });
     document.querySelector('#settings-basic-submit').disabled = true;
     document.querySelector('#settings-advanced-submit').disabled = true;
-}
+};
 
 DeviceConfiguration.prototype.persist = function() {
     this.settings.forEach(function(e) { e.persist(); });
     fdp.device.send('M500');
-}
+};
 
 function Setting(id, devCmd, params, regExp) {
-    // console.log("Creating a new Setting with ID " + id + " cmd " + devCmd + " regex " + regExp);
     this.id = id;
     this.devCmd = devCmd;
     this.regExp = regExp;
@@ -270,22 +275,18 @@ function Setting(id, devCmd, params, regExp) {
     this.fields = this.params.map(function(e) {
         return document.querySelector('#settings-' + this.id + '-' + e);
     }, this);
-}
+};
 
 Setting.prototype.enable = function(deviceStats) {
-    // console.log("Enabling fields for " + this.id)
     var values = this.regExp.exec(deviceStats);
     this.fields.forEach(function(field, index) {
-        // console.log("Enabling field " + field + " at index " + index);
         field.value = values[index + 1];
         field.disabled = false;
     });
 };
 
 Setting.prototype.disable = function() {
-    // console.log("Disabling fields for " + this.id)
     this.fields.forEach(function(field) {
-        // console.log("Disabling field " + field);
         field.value = '';
         field.disabled = true;
     });
@@ -307,8 +308,8 @@ var ui = {
     adnameEl:     document.querySelector('#active-dname'),
 
     settings: {
-        button: document.querySelector('#settings'),
         configuration: new DeviceConfiguration(),
+        button:  document.querySelector('#settings'),
         overlay: document.querySelector('#settings-overlay'),
         pane: {
             about:    document.querySelector('#settings-about'),
@@ -324,12 +325,14 @@ var ui = {
 
     pa: new PrintArea(),
 
-    //  console area
-    consoleIn:      document.querySelector('#console-input'),
-    consoleOut:     document.querySelector('#console-output'),
-    consoleToggle:  document.querySelector('#console-handle'),
-    consoleTop:     document.querySelector('#console-nav').children[0],
-    consoleBottom:  document.querySelector('#console-nav').children[1],
+    //  command area
+    commandIn:     document.querySelector('#command-input'),
+
+    //  console output
+    console:       document.querySelector('#console-output'),
+    consoleTop:    document.querySelector('#console-nav .up'),
+    consoleBottom: document.querySelector('#console-nav .down'),
+    consoleToggle: document.querySelector('#console'),
 
     //  progress indicator
     progress: document.querySelector('#progress'),
@@ -337,6 +340,7 @@ var ui = {
     paths: [],
     xTrim: 0,
     yTrim: 0,
+    zTrim: 0,
 
     displayGrid: function() {
         //  display grid
@@ -359,6 +363,7 @@ var ui = {
         var shim = 14;
         ui.xTrim = ui.pa.el.offsetTop - shim;
         ui.yTrim = ui.pa.el.offsetLeft - shim;
+        ui.zTrim = ui.pa.el.offsetTop - shim;
     },
 
     attachActionListeners: function() {
@@ -370,18 +375,16 @@ var ui = {
             return 0;
         };
 
-        //
         //  Nav Handlers
         ui.loadJobBtn.onclick = function(evt) {
-            if(_navSelected()) return;
-
             var inp = document.querySelector('#fl');
+            inp.value = '';
             inp.onchange = function(evt) {
                 var f = evt.target.files[0],
                     fr = new FileReader();
 
                 fr.readAsText(f, 'UTF-8');
-                fr.onload = function(evt) { };
+                fr.onload = function(evt) { console.log('loading'); };
                 fr.onerror = function(err) {
                     notify({ title: "File Load Issue", message: "Error loading file. Please try again." });
                 };
@@ -401,6 +404,8 @@ var ui = {
             inp.click();
 
             ui.paths = [];
+            ui.pa.hlLayer.clear();
+            ui.pa.objLayer.clear();
             ui.pa.resetAndDrawPaths();
         };
 
@@ -417,8 +422,8 @@ var ui = {
 
             //  do it
             if(fdp.device.job.status == 'pending') {
-                _pbtn.classList.remove('icon-play');
-                _pbtn.classList.add('icon-pause');
+                _pbtn.classList.remove('ion-play');
+                _pbtn.classList.add('ion-pause');
                 _pbtn.title = "Pause Print Job"
 
                 fdp.device.job.status = 'running';
@@ -426,7 +431,7 @@ var ui = {
                         + ' During the print, your display may go to sleep (depending'
                         + ' on your OS settings) though your system will not. Once'
                         + ' the print is complete, your system will resume using the'
-                        + ' OS settings previously set.';
+                        + ' OS settings previously set.\n';
                 notify({ title: "Starting Print", message: msg });
 
                 chrome.power.requestKeepAwake('system');
@@ -445,8 +450,8 @@ var ui = {
             //  since we update fdp.device.job.status here the print queue should 
             //  see this and send over the pause cmd, leaving the queue
             if(fdp.device.job.status == 'running') {
-                _pbtn.classList.remove('icon-pause');
-                _pbtn.classList.add('icon-play');
+                _pbtn.classList.remove('ion-pause');
+                _pbtn.classList.add('ion-play');
                 _pbtn.title = "Restart Print Job"
 
                 fdp.device.job.status = 'paused';
@@ -454,8 +459,8 @@ var ui = {
             }
 
             if(fdp.device.job.status == 'paused') {
-                _pbtn.classList.remove('icon-play');
-                _pbtn.classList.add('icon-pause');
+                _pbtn.classList.remove('ion-play');
+                _pbtn.classList.add('ion-pause');
                 _pbtn.title = "Pause Print Job"
 
                 fdp.device.job.status = 'running';
@@ -468,18 +473,21 @@ var ui = {
             if(fdp.device.job.status == 'running')
                 fdp.device.hardStop = !0;
 
-            if(fdp.device.job.status == 'paused')
+            if(fdp.device.job.status == 'paused') {
                 fdp.device.send(commands.JOB_ABDN, function(sendInfo) {
                     if(sendInfo.bytesSent > 0)
                         notify({ title: 'Print Abandoned', message: 'Abandon request sent to device' });
                 });
+            }
 
             fdp.device.job = new Job();
+            fdp.device.pos.e = 0;
+            fdp.device.send(commands.SET_POS + ' E0' + CMD_TERMINATOR);
 
             var _pbtn = document.querySelector('#print-pause');
-            if(_pbtn.classList.contains('icon-pause')) {
-                _pbtn.classList.remove('icon-pause');
-                _pbtn.classList.add('icon-play');
+            if(_pbtn.classList.contains('ion-pause')) {
+                _pbtn.classList.remove('ion-pause');
+                _pbtn.classList.add('ion-play');
             }
 
             //  reset progress bar
@@ -495,9 +503,28 @@ var ui = {
             fdp.device.send('M84' + CMD_TERMINATOR);
         };
 
-        //
-        //  PrintArea Handlers
-        ui.pa.phLayer.canvas.onclick = ui.canvasCl;
+        ui.pa.phLayer.canvas.onclick = function(evt) {
+            if((evt.offsetX == ui.pa.phi.y && evt.offsetY == ui.pa.phi.x) ||
+                evt.offsetX < 0 || evt.offsetX > ui.pa.width ||
+                evt.offsetY < 0 || evt.offsetY > ui.pa.height) return;  //  don't need to do anything
+
+            ui.disableMovers();
+
+            var osx, osy;
+            osx = evt.offsetX - POINTER_OFFSET;
+            osy = evt.offsetY - POINTER_OFFSET;
+
+            var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
+            fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+
+            ui.pa.pp = new Indicator();
+            ui.pa.pp.x = osx;
+            ui.pa.pp.y = osy;
+            ui.pa.pp.color = RED_IND_GHOST;
+
+            ui.pa.movePrintHead(osx, osy);
+        };
+
         ui.pa.phLayer.canvas.onmousemove = function(evt) {
             if(ui.pa.ct === undefined) {
                 ui.pa.ct = new Indicator();
@@ -516,12 +543,14 @@ var ui = {
 
         //  homing handlers
         ui.pa.homeAllBtn.onclick = function(evt) {
-            var _nh = document.querySelector('.not-homed');
+            var _nh = document.querySelectorAll('.not-homed');
             if(_nh && _nh !== undefined) {
                 for(var i = 0; i < _nh.length; i++)
                     _nh[i].classList.remove('not-homed');
             }
+            
             ui.pa.movePrintHead(0, 0);
+            ui.pa.moveZSlider(0);
             fdp.device.home(evt.target.innerHTML);
         };
 
@@ -542,137 +571,60 @@ var ui = {
         ui.pa.homeZBtn.onclick = function(evt) {
             if(evt.target.classList.contains('not-homed'))
                 evt.target.classList.remove('not-homed');
+            ui.pa.moveZSlider(0);
             fdp.device.home(evt.target.innerHTML);
         };
 
-        //  E / Z mover handler
-        var _ezmov = function(evt) {
-            var mvr, axis = evt.target.dataset.axis;
+        //  extrusion handler
+        var _extrude = function(evt) {
+            if(ui.pa.extValue.value.length > 0) {
+                var val = parseFloat(ui.pa.extValue.value);
 
-            fdp.device.pos[axis] += (evt.target.classList.contains('minus')) ? ZEDIST * -1: ZEDIST;
-            mvr = { Axis: axis, Distance: fdp.device.pos[axis], Speed: DEFSPEED };
-            fdp.device.sendMovement(mvr);
-        };
+                if(typeof val != 'number')
+                    return;
 
-        ui.pa.ePlus.onclick  = _ezmov;
-        ui.pa.eMinus.onclick = _ezmov;
-        ui.pa.zPlus.onclick  = _ezmov;
-        ui.pa.zMinus.onclick = _ezmov;
+                if(evt.currentTarget.id === 'ext-rev')
+                    val *= -1;
 
-        //  E / Z power toggle handlers
-        var _pon  = function(evt) {
-            if(evt.target.classList.contains('selected')) return;
-
-            var temp = 0,
-                axis;
-
-            if(evt.target.id.indexOf('z-') > -1) {
-                if(ui.pa.zTempRequested.value < 0) return;
-
-                axis = 'z';
-                temp = ui.pa.zTempRequested.value;
-                ui.pa.zOff.classList.remove('selected');
-            } else {
-                if(ui.pa.eTempRequested.value < 0) return;
-
-                axis = 'e';
-                temp = ui.pa.eTempRequested.value;
-                ui.pa.eOff.classList.remove('selected');
+                fdp.device.pos.e += val;
+                fdp.device.sendMovement({ Axis: 'e', Distance: fdp.device.pos.e, Speed: DEFSPEED });
             }
-
-            evt.target.classList.add('selected');
-            fdp.device.setTemp({ Name: axis, Value: temp });
         };
 
-        var _poff = function(evt) {
-            if(evt.target.classList.contains('selected')) return;
-
-            var axis;
-
-            if(evt.target.id.indexOf('z-') > -1) {
-                axis = 'z';
-                ui.pa.zTempRequested.value = 0;
-                ui.pa.zOn.classList.remove('selected');
-            } else {
-                axis = 'e';
-                ui.pa.eTempRequested.value = 0;
-                ui.pa.eOn.classList.remove('selected');
-            }
-
-            evt.target.classList.add('selected');
-            fdp.device.setTemp({ Name: axis, Value: 0 });
+        var _pwr = function(evt) {
+            var heater = (evt.currentTarget.classList.contains('bed-off')) ? 'bed' : 'ext';
+            document.querySelector('#' + heater + '-temp input.temp').value = '';
+            fdp.device.setTemp({ Name: heater, Value: 0 });
         };
 
-        var _inb  = function(evt) {
-            var temp = parseInt(evt.target.value, 10),
-                max  = parseInt(evt.target.max, 10),
-                axis;
+        var _setTemp = function(evt) {
+            var heater = (evt.currentTarget.classList.contains('bed-set')) ? 'bed' : 'ext';
+            var val = parseInt(document.querySelector('#' + heater + '-temp input.temp').value);
 
-
-            if(isNaN(temp) || temp < 0 || temp > max) {
-                evt.target.value = '';
+            if(typeof val != 'number' || val < 0)
                 return;
-            }
 
-            if(evt.target.id.indexOf('z-') > -1) {
-                axis = 'z';
-                if(!ui.pa.zOn.classList.contains('selected')) {
-                    ui.pa.zOff.classList.remove('selected');
-                    ui.pa.zOn.classList.add('selected');
-                }
-            } else {
-                axis = 'e';
-                if(!ui.pa.eOn.classList.contains('selected')) {
-                    ui.pa.eOff.classList.remove('selected');
-                    ui.pa.eOn.classList.add('selected');
-                }
-            }
-
-            fdp.device.setTemp({ Name: axis, Value: temp });
+            fdp.device.setTemp({ Name: heater, Value: val });
         };
 
-        var _okd  = function(evt) {
+        var _keyedSetTemp = function(evt) {
             if(evt.which == 13) {
-                evt.preventDefault();
-                evt.target.blur();
+                _setTemp(evt);
+                evt.currentTarget.blur();
             }
         };
 
-        ui.pa.eOn.onclick  = _pon;
-        ui.pa.eOff.onclick = _poff;
-        ui.pa.zOn.onclick  = _pon;
-        ui.pa.zOff.onclick = _poff;
+        ui.pa.extFwd.onclick = _extrude;
+        ui.pa.extRev.onclick = _extrude;
 
-        ui.pa.eTempRequested.onclick = function(evt) { evt.target.value = ''; };
-        ui.pa.zTempRequested.onclick = function(evt) { evt.target.value = ''; };
+        ui.pa.extTempOff.onclick = _pwr;
+        ui.pa.bedTempOff.onclick = _pwr;
 
-        ui.pa.eTempRequested.onblur = _inb;
-        ui.pa.zTempRequested.onblur = _inb;
+        ui.pa.extTempSet.onclick = _setTemp;
+        ui.pa.bedTempSet.onclick = _setTemp;
 
-        ui.pa.eTempRequested.onkeydown = _okd;
-        ui.pa.zTempRequested.onkeydown = _okd;
-    },
-
-    canvasCl: function(evt) {
-        if((evt.offsetX == ui.pa.phi.y && evt.offsetY == ui.pa.phi.x) ||
-            evt.offsetX < 0 || evt.offsetX > ui.pa.width ||
-            evt.offsetY < 0 || evt.offsetY > ui.pa.height) return;  //  don't need to do anything
-
-        ui.disableMovers();
-
-        var osx, osy;
-        osx = evt.offsetX - POINTER_OFFSET;
-        osy = evt.offsetY - POINTER_OFFSET;
-
-        var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
-        fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
-
-        ui.pa.pp = new Indicator();
-        ui.pa.pp.x = osx;
-        ui.pa.pp.y = osy;
-        ui.pa.pp.color = RED_IND_GHOST;
-
-        ui.pa.movePrintHead(osx, osy);
+        ui.pa.extTempSet.onkeydown = _keyedSetTemp;
+        ui.pa.bedTempSet.onkeydown = _keyedSetTemp;
     },
 
     detachActionListeners: function() {
@@ -687,47 +639,40 @@ var ui = {
         ui.pa.homeXBtn.onclick = undefined;
         ui.pa.homeYBtn.onclick = undefined;
         ui.pa.homeZBtn.onclick = undefined;
-        ui.pa.ePlus.onclick = undefined;
-        ui.pa.eMinus.onclick = undefined;
-        ui.pa.zPlus.onclick = undefined;
-        ui.pa.zMinus.onclick = undefined;
-        ui.pa.eOn.onclick = undefined;
-        ui.pa.eOff.onclick = undefined;
-        ui.pa.zOn.onclick = undefined;
-        ui.pa.zOff.onclick = undefined;
-        ui.pa.eTempRequested.onclick = undefined;
-        ui.pa.eTempRequested.onblur = undefined;
-        ui.pa.zTempRequested.onclick = undefined;
-        ui.pa.zTempRequested.onblur = undefined;
+        ui.pa.extFwd.onclick = undefined;
+        ui.pa.extRev.onclick = undefined;
+        ui.pa.extTempOff.onclick = undefined;
+        ui.pa.bedTempOff.onclick = undefined;
+        ui.pa.extTempSet.onclick = undefined;
+        ui.pa.bedTempSet.onclick = undefined;
     },
 
     enableMovers: function() {
         ui.pa.xSlider.enabled = !0;
         ui.pa.ySlider.enabled = !0;
+        ui.pa.zSlider.enabled = !0;
         Slider.attachDraggers();
     },
 
     disableMovers: function() {
         ui.pa.xSlider.enabled = 0;
         ui.pa.ySlider.enabled = 0;
+        ui.pa.zSlider.enabled = 0;
         jQuery('.handle:ui-draggable').draggable('destroy');
     },
 
     attachDevice: function(device) {
         if(ui.adnameEl.classList.contains('no-device')) {
-            ui.setAsActiveDevice(device);
+            ui.adnameEl.innerHTML = fdp.device.path;
+            if(ui.adnameEl.classList.contains('no-device'))
+                ui.adnameEl.classList.remove('no-device');
+
+            ui.detachActionListeners();
+            ui.attachActionListeners();
+            ui.pa.movePrintHead(0, 0);
+
             Slider.attachDraggers();
         }
-    },
-
-    setAsActiveDevice: function(device) {
-        ui.adnameEl.innerHTML = fdp.device.path;
-        if(ui.adnameEl.classList.contains('no-device'))
-            ui.adnameEl.classList.remove('no-device');
-
-        ui.detachActionListeners();
-        ui.attachActionListeners();
-        ui.pa.movePrintHead(0, 0);
     },
 
     detachDevice: function() {
@@ -736,21 +681,10 @@ var ui = {
         ui.adnameEl.innerHTML = 'looking for device';
         ui.adnameEl.classList.add('no-device');
 
-        ui.pa.eTempRequested.value = 0;
-        ui.pa.eTempActual.innerHTML = 0;
-
-        ui.pa.zTempRequested.value = 0;
-        ui.pa.zTempActual.innerHTML = 0;
-
-        if(ui.pa.zOn.classList.contains('selected')) {
-            ui.pa.zOn.classList.remove('selected');
-            ui.pa.zOff.classList.add('selected');
-        }
-
-        if(ui.pa.eOn.classList.contains('selected')) {
-            ui.pa.eOn.classList.remove('selected');
-            ui.pa.eOff.classList.add('selected');
-        }
+        ui.pa.extTempActual.innerHTML = '0&deg;';
+        ui.pa.bedTempActual.innerHTML = '0&deg;';
+        ui.pa.extTempRequested.value = '';
+        ui.pa.bedTempRequested.value = '';
 
         if(!ui.pa.homeXBtn.classList.contains('not-homed'))
             ui.pa.homeXBtn.classList.add('not-homed');
@@ -816,6 +750,14 @@ var ui = {
                 //  reset "active" layer
                 _pa.objLayer.clear();
                 ui.paths = [];
+
+                //  move the z slider
+                var _prCmd = prCmd.split(' ');
+                for(var i = 0; i < _prCmd.length; i++) {
+                    if(_prCmd[i].indexOf('Z') > -1)
+                        fdp.device.pos.z = parseFloat(_prCmd[i].substring(1));
+                }
+                ui.pa.moveZSlider(Math.floor(util.millimeterToPixel(fdp.device.pos.z)));
             }
 
             //  need to flip the X and Y here because of the way the
@@ -860,157 +802,84 @@ var ui = {
             prCmd.indexOf(commands.SET_WAIT_EXTEMP) > -1) {
 
             //  toggle the on switch and set the requested temp
-            if(prCmd.indexOf(commands.SET_WAIT_BDTEMP) > -1) {
-                if(!ui.pa.zOn.classList.contains('selected')) {
-                    ui.pa.zOn.classList.add('selected');
-                    ui.pa.zOff.classList.remove('selected');
-                }
-
-                ui.pa.zTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
-            } else {
-                if(!ui.pa.eOn.classList.contains('selected')) {
-                    ui.pa.eOn.classList.add('selected');
-                    ui.pa.eOff.classList.remove('selected');
-                }
-                ui.pa.eTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
-            }
+            if(prCmd.indexOf(commands.SET_WAIT_BDTEMP) > -1)
+                ui.pa.bedTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
+            else
+                ui.pa.extTempRequested.value = parseInt(prCmd.split(' ')[1].split('S')[1], 10);
         }
-    },
-
-    expandConsoleOutput: function() {
-        jQuery(ui.consoleOut).show().animate({
-            height:             '330px',
-            'padding-top':      '8px',
-            'padding-bottom':   '8px',
-            top:                '-347px'
-        }, 140, function() {
-            jQuery('#console-nav').fadeIn(800);
-            ui.consoleBottom.click();
-        });
-    },
-
-    collapseConsoleOutput: function() {
-        jQuery('#console-nav').fadeOut(200, function() {
-            jQuery(ui.consoleOut).animate({
-                height:             '0px',
-                'padding-top':      '0px',
-                'padding-bottom':   '0px',
-                top:                '-1px'
-            }, 140, function() {
-                jQuery(ui.consoleOut).hide();
-            });
-        });
-    },
-
-    updateConsole: function(data) {
-        var _data = data.replace(/\n/g, '<br>');
-
-        //  truncate output after ~200 rows (ignoring extra <br>)
-        var LINE_COUNT = 200;
-
-        var opTxt = ui.consoleOut.innerHTML,
-            olen  = opTxt.split('<br>').length,
-            nlen  = _data.split('<br>').length;
-
-        if(nlen == LINE_COUNT)
-            opTxt = _data + '<br>';
-        else {
-            if(nlen < LINE_COUNT) {
-                if(olen + nlen <= LINE_COUNT)
-                    opTxt += _data + '<br>';
-                else {
-                    var tmp = '',
-                        ots = opTxt.split('<br>').slice((olen + nlen) - LINE_COUNT - 1);
-                    for(var i in ots)
-                        tmp += ots[i] + '<br>';
-                    opTxt = tmp + _data;
-                }
-            } else {
-                opTxt = '';
-                var extra = nlen - LINE_COUNT;
-                for(var j = extra; j < nlen; j++)
-                    opTxt += _data.split('<br>')[j];
-                opTxt += '<br>';
-            }
-        }
-        ui.consoleOut.innerHTML = opTxt;
     },
 
     updateStats: function(stats) {
-        ui.updateConsole(stats);
-
         //  update active dev UI temps
-        ui.pa.eTempActual.innerHTML = fdp.device.ETemp;
-        ui.pa.zTempActual.innerHTML = fdp.device.BTemp;
+        ui.pa.extTempActual.innerHTML = fdp.device.extTemp + '&deg;';
+        ui.pa.bedTempActual.innerHTML = fdp.device.bedTemp + '&deg;';
 
-        //  process full stat list
-        if(stats.indexOf('--FULL STATS') > -1) {
-            var rows = stats.split('\n'),
-                homedData,
-                posData,
-                fwData,
-                limits,
-                esteps;
+        var rows = stats.split('\n'),
+            homedData,
+            posData,
+            fwData,
+            limits,
+            esteps;
 
-            for(var i = 0; i < rows.length; i++) {
-                var row     = rows[i],
-                    ahFlag  = '-- Axes Homed',
-                    posFlag = '-- C:',
-                    fwFlag  = 'Firmware Version',
-                    lmtFlag = '// X_MAX_LENGTH',
-                    esFlag  = 'Steps per unit:';
+        for(var i = 0; i < rows.length; i++) {
+            var row     = rows[i],
+                ahFlag  = '-- Axes Homed',
+                posFlag = '-- C:',
+                fwFlag  = 'Firmware Version',
+                lmtFlag = '// X_MAX_LENGTH',
+                esFlag  = 'Steps per unit:';
 
-                if(row.indexOf(ahFlag) > -1) {
-                    homedData = row.substring(row.indexOf(ahFlag) + ahFlag.length + 1).split(' ');
-                    continue;
-                }
-
-                if(row.indexOf(posFlag) > -1) {
-                    posData = row.substring(row.indexOf(posFlag) + posFlag.length + 1).split(' ');
-                    continue;
-                }
-
-                if(row.indexOf(fwFlag) > -1) {
-                    fwData = row;
-                    continue;
-                }
-
-                if(row.indexOf(lmtFlag) > -1) {
-                    limits = row.substring(2).split(' ');
-                    continue;
-                }
-
-                if(row.indexOf(esFlag) > -1) {
-                    esteps = rows[i+1].split(' ')[4];
-                    continue;
-                }
+            if(row.indexOf(ahFlag) > -1) {
+                homedData = row.substring(row.indexOf(ahFlag) + ahFlag.length + 1).split(' ');
+                continue;
             }
 
-            if(homedData && homedData !== undefined) {
-                for(var j = 0; j < homedData.length; j++) {
-                    var axis = homedData[j].replace(/\s/g, '').split(':'),
-                        el   = document.getElementById(axis[0].toLowerCase() + '-home');
-                    if(axis[1] == '0' && !el.classList.contains('not-homed'))
-                        el.classList.add('not-homed');
-
-                    if(axis[1] == '1' && el.classList.contains('not-homed'))
-                        el.classList.remove('not-homed');
-                }
+            if(row.indexOf(posFlag) > -1) {
+                posData = row.substring(row.indexOf(posFlag) + posFlag.length + 1).split(' ');
+                continue;
             }
 
-            if(posData && posData !== undefined) {
-                for(var k = 0; k < posData.length; k++) {
-                    if(posData[k].indexOf(':') == -1) continue;
-
-                    var coord = posData[k].split(':'),
-                        pos   = util.millimeterToPixel(coord[1]);
-
-                    if(coord[0].toLowerCase() == 'x') ui.pa.phi.y = pos;
-                    if(coord[0].toLowerCase() == 'y') ui.pa.phi.x = pos;
-                }
-
-                ui.pa.movePrintHead(ui.pa.phi.x, ui.pa.phi.y);
+            if(row.indexOf(fwFlag) > -1) {
+                fwData = row;
+                continue;
             }
+
+            if(row.indexOf(lmtFlag) > -1) {
+                limits = row.substring(2).split(' ');
+                continue;
+            }
+
+            if(row.indexOf(esFlag) > -1) {
+                esteps = rows[i+1].split(' ')[4];
+                continue;
+            }
+        }
+
+        if(homedData && homedData !== undefined) {
+            for(var j = 0; j < homedData.length; j++) {
+                var axis = homedData[j].replace(/\s/g, '').split(':'),
+                    el   = document.getElementById(axis[0].toLowerCase() + '-home');
+                if(axis[1] == '0' && !el.classList.contains('not-homed'))
+                    el.classList.add('not-homed');
+
+                if(axis[1] == '1' && el.classList.contains('not-homed'))
+                    el.classList.remove('not-homed');
+            }
+        }
+
+        if(posData && posData !== undefined) {
+            for(var k = 0; k < posData.length; k++) {
+                if(posData[k].indexOf(':') == -1) continue;
+
+                var coord = posData[k].split(':'),
+                    pos   = util.millimeterToPixel(coord[1]);
+
+                if(coord[0].toLowerCase() == 'x') ui.pa.phi.y = pos;
+                if(coord[0].toLowerCase() == 'y') ui.pa.phi.x = pos;
+                if(coord[0].toLowerCase() == 'z') ui.pa.moveZSlider(pos);
+            }
+
+            ui.pa.movePrintHead(ui.pa.phi.x, ui.pa.phi.y);
         }
     },
 
@@ -1020,9 +889,9 @@ var ui = {
 
     resetWithContent: function() {
         //  uses the completed job content
-        ui.jobActionBtn.classList.remove('icon-pause');
-        ui.jobActionBtn.classList.add('icon-play');
-        ui.jobActionBtn.title = "Start Print Job"
+        ui.jobActionBtn.classList.remove('ion-pause');
+        ui.jobActionBtn.classList.add('ion-play');
+        ui.jobActionBtn.title = "Start Print Job";
         ui.loadContentToPrintArea(fdp.device.job.content);
     },
 
@@ -1043,18 +912,10 @@ var ui = {
         document.querySelector('.ver').innerHTML = 'v' + manifest.version;
 
         ui.settings.button.onclick = function(evt) {
-            if(ui.settings.button.classList.contains('selected') ||
-                document.querySelector('#print-actions > .selected') !== null) {
-                return;
-            }
-
             evt.target.classList.add('selected');
-            ui.settings.overlay.style.display = 'block';
 
-            document.querySelector('#settings-close').onclick = function(evt) {
-                ui.settings.overlay.style.display = 'none';
-                ui.settings.button.classList.remove('selected');
-            };
+            var _mt = (ui.settings.overlay.offsetTop <= 0) ? '10em' : '-54em';
+            jQuery(ui.settings.overlay).animate({ 'margin-top': _mt }, 600, function() {});
         };
 
         var _settingsClickHandler = function(evt) {
@@ -1077,129 +938,54 @@ var ui = {
         for(var j = 0; j < _lis.length; j++)
             _lis[j].onclick = _settingsClickHandler;
 
-        var _settingsUpdateHandler = function(evt) {
-            ui.settings.configuration.persist();
-        };
-        document.querySelector('#settings-basic-submit').onclick = _settingsUpdateHandler;
-        document.querySelector('#settings-advanced-submit').onclick = _settingsUpdateHandler;
+        document.querySelector('#settings-basic-submit').onclick = ui.settings.configuration.persist;
+        document.querySelector('#settings-advanced-submit').onclick = ui.settings.configuration.persist;
 
-        ui.consoleIn.onkeydown = function(evt) {
-            //  enter / return
+        ui.commandIn.onfocus = function(evt) { evt.currentTarget.value = ''; }
+        ui.commandIn.onkeydown = function(evt) {
             if(evt.which == 13) {
-                if(evt.target.value !== '' && evt.target.value.length > 2) {
-                    fdp.device.console(evt.target.value.toUpperCase());
-                    ui.consoleBottom.click();
-                }
+                var t = evt.currentTarget;
+                if(t.value !== '' && t.value.length > 2)
+                    fdp.device.manual(t.value.toUpperCase());
 
-                evt.target.value = '';
-                evt.target.focus();
-                return;
+                t.value = '';
+                t.focus();
             }
         };
 
-        ui.consoleIn.onblur = function(evt) {
-            evt.target.classList.add('ghost');
-            evt.target.value = '';
-        };
-
-        ui.consoleIn.onfocus = function(evt) {
-            evt.target.value = '';
-            if(evt.target.classList.contains('ghost'))
-                evt.target.classList.remove('ghost');
-
-            if(!jQuery(ui.consoleOut).is(':visible'))
-                ui.expandConsoleOutput();
-        };
-
         ui.consoleToggle.onclick = function(evt) {
-            if(!jQuery(ui.consoleOut).is(':visible'))
-                ui.expandConsoleOutput();
-            else
-                ui.collapseConsoleOutput();
+            var _mt = (ui.settings.overlay.offsetTop == -1512) ? '-54em' : '-126em';
+            jQuery(ui.settings.overlay).animate({ 'margin-top': _mt }, 600);
         };
 
         ui.consoleTop.onclick = function(evt) {
-            jQuery(ui.consoleOut).animate({ scrollTop: 0 }, 800);
+            jQuery(ui.console).animate({ scrollTop: 0 }, 600);
         };
 
         ui.consoleBottom.onclick = function(evt) {
-            jQuery(ui.consoleOut).animate({ scrollTop: ui.consoleOut.scrollHeight }, 800);
+            jQuery(ui.console).animate({ scrollTop: ui.console.scrollHeight }, 600);
         };
 
+        ui.settings.overlay.style.display = 'block';
         ui.displayGrid();
     },
 
-    digestDeviceResponse: function(cmd, data) {
-        this.updateConsole(data);
-        
-        switch(cmd + CMD_TERMINATOR) {
-        case commands.MOVE:
-            console.log(data);
-            break;
+    //  needed ??
+    // digestDeviceResponse: function(cmd, data) {
+    //     ui.prependToConsole(data);
+    //     if(cmd + CMD_TERMINATOR == commands.POSITION ||
+    //         cmd + CMD_TERMINATOR == commands.GET_TEMP) {
+    //         fdp.device.updateDeviceStats(data);
+    //     }
+    // },
 
-        case commands.HOME:
-            break;
-            
-        case commands.SET_POS:
-            break;
-            
-        case commands.ENABLE_TEMP_MONITOR:
-            //  no need to anything ui yet
-            break;
-            
-        case commands.DISABLE_TEMP_MONITOR:
-            console.error('no implementation to trigger this at the moment');
-            break;
-            
-        case commands.POSITION:
-        case commands.GET_TEMP:
-            fdp.device.updateDeviceStats(data);
-            break;
-            
-        case commands.SET_BDTEMP:
-            break;
-            
-        case commands.SET_EXTEMP:
-            break;
+    prependToConsole: function(data) {
+        data = data.replace(/\r\n/g, '<br>');
+        var p = '<p>' + data + '</p>';
 
-        case commands.CAPABILITIES:
-            break;
-            
-        case commands.ENDSTOP_STATE:
-            break;
-            
-        case commands.MEM_SETTINGS:
-            break;
-            
-        case commands.FREE_RAM:
-            break;
-            
-        case commands.FMWARE_INFO:
-            break;
-            
-        case commands.MOTORS_OFF:
-            break;
-            
-        case commands.SET_WAIT_BDTEMP:
-            break;
-            
-        case commands.SET_WAIT_EXTEMP:
-            break;
-            
-        case commands.JOB_PAUSE:
-            break;
-            
-        case commands.JOB_RESUME:
-            break;
-            
-        case commands.JOB_ABDN:
-            break;
-            
-        default:
-            console.log('cmd: ' + cmd);
-            console.log('data: ' + data);
-            break;
-        }
-        
+        ui.console.innerHTML = p + ui.console.innerHTML;
+
+        // if(ui.console.scrollTop > 0)
+        //     ui.console.scrollTop += (jQuery(p).height() * 2);
     }
 };

@@ -62,12 +62,14 @@ chrome.runtime.getPlatformInfo(function(info) {
     });
 
     //  DEBUG
-    dbg=!0;
+    // dbg=!0;
 });
 
 chrome.serial.onReceive.addListener(function(info) {
     if(info.data) {
         var data = util.ab2str(info.data);
+
+        // console.log(data);
 
         if(data.indexOf('rs') === 0) {
             if(dbg)
@@ -84,35 +86,40 @@ chrome.serial.onReceive.addListener(function(info) {
             return;
         }
 
-        if(data.indexOf('T:') > -1 && data.indexOf('B:') > -1 && data.indexOf('ok') === -1)
+        if(data.indexOf('--') === 0 && data.indexOf('T:') > -1 && 
+            data.indexOf('B:') > -1 && data.indexOf('ok') === -1) {
+            ui.prependToConsole(data);
             fdp.device.updateDeviceStats(data);
+        }
 
         if(data.indexOf('ok') > -1) {
             if(data.indexOf(commands.FMWARE_INFO.replace('\r\n', '')) > -1 && ui.adnameEl.classList.contains('no-device')) {
                 //  should indicate new connection
                 notify({ title: 'Device Attached', message: fdp.device.path + ' attached' });
                 ui.attachDevice();
-
-                fdp.device.getFullStats();
-                fdp.device.send(commands.ENABLE_TEMP_MONITOR);
+                fdp.device.runBoot();
             } else {
-                var exec = 'execut';
+                var exec = 'executing';
                 if(data.indexOf(exec) > -1) {
                     var cmd = data.split('\n')[0],
                         dat = data.substring(data.indexOf(cmd) + cmd.length);
 
                     cmd = cmd.substring(cmd.indexOf(exec) + exec.length);
                     cmd = cmd.split(')')[0].trim();
-                    ui.digestDeviceResponse(cmd, dat);
+                    // ui.digestDeviceResponse(cmd, dat);
+                    
+                    ui.prependToConsole(dat)
+                    if(cmd + CMD_TERMINATOR == commands.POSITION ||
+                        cmd + CMD_TERMINATOR == commands.GET_TEMP) {
+                        fdp.device.updateDeviceStats(data);
+                    }
                 } else {
-                    console.warn('some other shit came through:');
-                    console.warn(data);
+                    // console.warn('some other shit came through:');
+                    // console.warn(data);
                 }
 
-                if(fdp.device.job && fdp.device.job.status === 'running') {
-                    ui.digestCmd(fdp.device.job.prevcmd);
+                if(fdp.device.job && fdp.device.job.status === 'running')
                     fdp.device.job.processNext();
-                }
             }
         }
     }
@@ -144,17 +151,18 @@ window.onresize = function(evt) {
         ui.setSlideTrimmers();
         if($('.handle').is(':ui-draggable')) {
             $('.handle:ui-draggable').draggable('destroy');
-            ui.attachSliderHandlers();
+            ui.enableMovers();
         }
     }
 };
 
 //  show / hide console output on esc
 document.body.onkeydown = function(evt) {
-    if(evt.which == 27) {
-        if(jQuery(ui.consoleOut).is(':visible'))
-            ui.collapseConsoleOutput();
-        else
-            ui.expandConsoleOutput();
-    }
+    // console.log(evt.which);
+    if(evt.which == 13 && evt.metaKey)
+        ui.commandIn.focus();
+
+    //  dev helper
+    if(evt.which == 82 && evt.metaKey)
+        chrome.runtime.reload();
 };

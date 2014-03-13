@@ -1,0 +1,12 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg">
+<metadata>Copyright (C) 2014 by original authors @ fontello.com</metadata>
+<defs>
+<font id="terminal" horiz-adv-x="1000" >
+<font-face font-family="terminal" font-weight="400" font-stretch="normal" units-per-em="1000" ascent="850" descent="-150" />
+<missing-glyph horiz-adv-x="1000" />
+<glyph glyph-name="terminal" unicode="&#xe800;" d="m1360 849v-1000h-1360v1000h1360z m-838-600h318v77h-318v-77z m-362 77l317 135v96l-317 134v-99l209-84l-209-83v-99z" horiz-adv-x="1360" />
+</font>
+</defs>
+</svg>

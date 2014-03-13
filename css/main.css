@@ -98,6 +98,8 @@ body {
     font-weight: 300;
 }
 
+ul { list-style: none; }
+
 nav {
     position: absolute;
     top: 0;
@@ -113,29 +115,428 @@ nav .btn {
     margin: 34px auto;
     width: 100%;
     height: 60px;
-    font-size: 3.4em;
+    font-size: 3.0em;
     text-align: center;
-    line-height: 1.5em;
+    line-height: 1.7em;
     cursor: pointer;
 }
 
+.btn { cursor: pointer; }
 #file-picker { margin-top: 18px; }
+#console { line-height: 1.4em; }
 
 #settings { 
     position: absolute;
     margin: 0;
-    bottom: 10px;
+    bottom: 0px;
 }
 
+#settings-overlay {
+    position: relative;
+    margin: -54em 15em 24em 15em;
+    width: 680px;
+    height: 480px;
+    display: none;
+}
 
+#settings-overlay .panel {
+    position: relative;
+    display: inline-block;
+    height: 100%;
+    vertical-align: top;
+}
 
+#settings-overlay .content-left {
+    position: relative;
+    width: 100px;
+}
 
+#settings-overlay .content-right {
+    position: relative;
+    padding: 0 5em;
+}
 
+#settings-overlay #settings-close {
+    position: absolute;
+}
 
+#settings-overlay ul { padding: 0; }
 
+#settings-overlay .content-left li {
+    position: relative;
+    margin: .1em auto;
+    padding-right: .5em;
+    height: 40px;
+    line-height: 3.5em;
+    text-align: right;
+    text-transform: uppercase;
+    font-weight: 700;
+}
 
+#settings-overlay .content-left li.selected,
+#settings-overlay .content-left li:hover { background-color: #4a8bf5; }
 
+#settings-overlay .content-right fieldset { margin: 2em auto; }
 
+#settings-overlay .content-right fieldset legend {
+    position: relative;
+    margin: .3em;
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+#settings-overlay .content-right fieldset ul { padding-top: .3em; }
+#settings-overlay .content-right fieldset li { margin: 1em auto; }
+#settings-overlay .content-right fieldset li label { 
+    margin: 1em 0.3em;
+    font-size: 1.2em;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+#settings-overlay .content-right input[type="submit"] {
+    position: relative;
+    float: right;
+    width: 90px;
+    height: 30px;
+    background-color: #4a8bf5;
+    text-transform: uppercase;
+    color: #fff;
+    font-family: 'OpenSansLight';
+    border: 0;
+    padding: 0;
+}
+
+#settings-overlay .content-right input[type="submit"]:after { clear: both; }
+#settings-overlay .content-right #settings-about { width: 420px; }
+
+#settings-overlay .content-right #settings-about div.author {
+    font-weight: 700;
+    font-size: 1.8em;
+}
+
+#settings-overlay .content-right #settings-about div.desc {
+    margin-top: 8px;
+    padding: 14px;
+}
+
+#settings-overlay .content-right #settings-about div.ver {
+    margin-top: 24px;
+    margin-right: 10px;
+    vertical-align: bottom;
+    float: right;
+    font-style: italic;
+    font-size: .8em;
+}
+
+#progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 4px;
+    background-color: rgba(178, 18, 18, 0.8);
+    z-index: 45;
+}
+
+#active-dname {
+    position: absolute;
+    right: 0;
+    top: 12px;
+    width: 228px;
+    height: 24px;
+    background-color: #212121;
+    border-radius: 0.3em 0 0 0.3em;
+    border: 1px solid #2e2e2e;
+    border-right: 0;
+    box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.4);
+    color: #999;
+    text-transform: none;
+    text-align: center;
+    line-height: 2em;
+    cursor: auto;
+    z-index: 1;
+}
+
+#active-dname.no-device {
+    color: #fff;
+    background-color: rgba(178, 18, 18, 1);
+}
+
+#print-area {
+    position: relative;
+    margin: 38px 88px;
+    width: 800px;
+    height: 720px;
+}
+
+.slider {
+    position: absolute;
+    background-color: #4a8bf5;
+    /*background-color: #000;*/
+}
+
+#x {
+    top: 2px;
+    left: 50px;
+    height: 415px;
+    width: 2px;
+}
+
+#y {
+    top: -24px;
+    left: 72px;
+    width: 567px;
+    height: 2px;
+}
+
+#z {
+    top: 80px;
+    right: 58px;
+    width: 2px;
+    height: 340px;
+}
+
+.handle {
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    background-color: #fff;
+    border-radius: 2em;
+    border: 1px solid #eee;
+    font-size: 1em;
+    line-height: 2.2em;
+    text-align: center;
+    text-transform: uppercase;
+    color: #222;
+    cursor: pointer;
+}
+
+#x .handle {
+    top: -15px;
+    left: -13px;
+}
+
+#y .handle {
+    top: -12px;
+    left: -13px;
+}
+
+#z .handle {
+    top: -15px;
+    left: -12px;
+}
+
+#canvas-wrapper {
+    position: relative;
+    margin: 120px 70px;
+    width: 568px;
+    height: 415px;
+    border: 2px solid #aaa;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#canvas-wrapper canvas {
+    position: absolute;
+    margin: 0 auto;
+    border-radius: 8px;
+}
+
+#canvas-wrapper #homing {
+    position: absolute;
+    height: 144px;
+    width: 30px;
+    right: -33px;
+    top: 25px;
+    text-align: center;
+    line-height: 2.8em;
+    border: 1px solid #aaa;
+    border-radius: 0 4px 4px 0;
+    background-color: #212121;
+    cursor: auto;
+    z-index: 1;
+}
+
+#canvas-wrapper #homing div {
+    width: 30px;
+    height: 35px;
+    display: inline-block;
+    vertical-align: top;
+    text-align: center;
+    border-bottom: 1px solid rgba(100, 100, 100, 0.4);
+    cursor: pointer;
+}
+
+#canvas-wrapper #homing div:nth-child(4) { border-bottom-right-radius: 0.3em; }
+#canvas-wrapper #homing div.not-homed { background-color: rgba(178, 18, 18, 1); }
+
+#canvas-wrapper #homing div#ico-home { 
+     font-size: 1.8em;
+     line-height: 1.6em;
+}
+
+#canvas-wrapper #homing div#ico-home:hover { box-shadow: none; }
+#canvas-wrapper #homing div#ico-home:active { box-shadow: none; }
+
+#canvas-wrapper #homing div:hover,
+#tools .btn:hover { box-shadow: inset 0px 0px 6px rgba(0, 0, 0, 0.4); }
+
+#canvas-wrapper #homing div:active,
+#tools .btn:active { box-shadow: inset 0px 0px 6px rgba(0, 0, 0, 0.8); }
+
+#canvas-wrapper #homing div:nth-child(5) { border: 0; }
+
+#grid-layer { z-index: 5; }
+#highlight-layer { z-index: 6; }
+#obj-layer { z-index: 7; }
+#ph-layer { z-index: 8; }
+
+#tools {
+    position: absolute;
+    bottom: 120px;
+    left: 48px;
+    width: 580px;
+}
+
+#tools > .wrapper {
+    position: relative;
+    display: inline-block;
+    margin: 0 8px;
+    width: 220px;
+    vertical-align: top;
+}
+
+#tools .primary-label {
+    position: relative;
+    margin: 8px auto;
+    text-align: center;
+    text-transform: uppercase;
+    border: 1px solid #4a8bf5;
+    border-radius:  .3em;
+}
+
+#tools .extrusion { margin-top: 30px; }
+#tools #ext-fwd, 
+#tools #ext-rev {
+    margin: 0 4px;
+    width: 64px; 
+}
+
+#tools .extrusion div,
+#tools .extrusion input {
+    margin: 0 8px;
+    display: inline-block;
+}
+
+#tools input {
+    width: 42px;
+    text-align: center;
+}
+
+#tools .temp-values {
+    display: inline-block;
+    width: 158px;
+}
+
+#tools .pwr-controls {
+    display: inline-block;
+    width: 48px;
+}
+
+#tools .label {
+    position: relative;
+    display: inline-block;
+    width: 88px;
+}
+
+#tools .temp {
+    display: inline-block;
+    margin-top: 3px;
+    width: 42px;
+}
+
+#tools .btn {
+    position: relative;
+    display: inline-block;
+    margin: 3px auto;
+    width: 48px;
+    height: 20px;
+    background-color: #4a8bf5;
+    border-radius: .3em;
+    line-height: 2.2em;
+    font-size: .8em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+#commands {
+    position: absolute;
+    right: 0;
+    bottom: 3px;
+    left: 80px;
+    z-index: 45;
+}
+
+#command-input {
+    border: 0;
+    width: 100%;
+    height: 2.2em;
+    background-color: #212121;
+    box-shadow: 0px -3px 3px rgba(0, 0, 0, 0.4);
+    border-top: 1px solid #333;
+    color: #fff;
+    font-size: 1.4em;
+    padding-left: 1em;
+    font-weight: 300;
+    font-family: 'OpenSansLight';
+}
+
+#console-area {
+    position: relative;
+    margin: 68px 148px;
+    width: 680px;
+    height: 680px;
+}
+
+#console-output {
+    position: relative;
+    margin: 8px;
+    padding: 8px;
+    height: 650px;
+    overflow-y: scroll;
+}
+
+#console-output p {
+    position: relative;
+    min-height: 24px;
+}
+
+#console-nav {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 30px;
+    height: 90px;
+    text-align: center;
+    color: #4a8bf5;
+    z-index: 31;
+}
+
+#console-nav div {
+    position: relative;
+    margin: 8px auto;
+    width: 30px;
+    height: 30px;
+    font-size: 0.8em;
+    line-height: 3em;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(100, 100, 100, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#fl { display: none; }
 
 
 
