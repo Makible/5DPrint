@@ -106,8 +106,10 @@ chrome.serial.onReceive.addListener(function(info) {
 
                     cmd = cmd.substring(cmd.indexOf(exec) + exec.length);
                     cmd = cmd.split(')')[0].trim();
-                    // ui.digestDeviceResponse(cmd, dat);
                     
+                    ui.settings.configuration.set(data);
+                    // console.log(data);
+
                     ui.prependToConsole(dat)
                     if(cmd + CMD_TERMINATOR == commands.POSITION ||
                         cmd + CMD_TERMINATOR == commands.GET_TEMP) {

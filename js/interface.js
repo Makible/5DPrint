@@ -263,7 +263,7 @@ DeviceConfiguration.prototype.clear = function() {
 };
 
 DeviceConfiguration.prototype.persist = function() {
-    this.settings.forEach(function(e) { e.persist(); });
+    ui.settings.configuration.settings.forEach(function(e) { e.persist(); });
     fdp.device.send('M500');
 };
 
@@ -279,10 +279,12 @@ function Setting(id, devCmd, params, regExp) {
 
 Setting.prototype.enable = function(deviceStats) {
     var values = this.regExp.exec(deviceStats);
-    this.fields.forEach(function(field, index) {
-        field.value = values[index + 1];
-        field.disabled = false;
-    });
+    if(values != null) {
+        this.fields.forEach(function(field, index) {
+            field.value = values[index + 1];
+            field.disabled = false;
+        });
+    }
 };
 
 Setting.prototype.disable = function() {
