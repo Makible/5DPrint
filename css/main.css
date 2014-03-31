@@ -716,4 +716,8 @@ nav .btn {
     #tools .extrusion {
         margin-top: 20px;
     }
+
+    .console-nav {
+        bottom: 54px;
+    }
 }
