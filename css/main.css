@@ -721,3 +721,22 @@ nav .btn {
         bottom: 54px;
     }
 }
+
+@media only screen  and (min-height: 800px) {
+    #canvas-wrapper {
+        margin-bottom: 0;
+    }
+
+    #tools {
+        bottom: 120px;
+    }
+
+    #tools .extrusion {
+        margin-top: 30px;
+    }
+
+    #console-nav {
+        bottom: 24px;
+    }
+}
+
