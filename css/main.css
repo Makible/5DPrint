@@ -125,6 +125,8 @@ nav .btn {
 #file-picker { margin-top: 18px; }
 #console { line-height: 1.4em; }
 
+
+/* Settings */
 #settings { 
     position: absolute;
     margin: 0;
@@ -228,6 +230,8 @@ nav .btn {
     font-style: italic;
     font-size: .8em;
 }
+
+/* End Settings */
 
 #progress {
     position: absolute;
@@ -336,6 +340,8 @@ nav .btn {
     border-radius: 4px;
     cursor: pointer;
 }
+
+
 
 #canvas-wrapper canvas {
     position: absolute;
@@ -694,5 +700,20 @@ nav .btn {
     h2,
     h3 {
         page-break-after: avoid;
+    }
+}
+
+
+@media only screen  and (max-height: 800px) {
+    #canvas-wrapper {
+        margin-bottom: 0;
+    }
+
+    #tools {
+        bottom: 160px;
+    }
+
+    #tools .extrusion {
+        margin-top: 20px;
     }
 }
