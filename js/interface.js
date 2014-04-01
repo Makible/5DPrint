@@ -264,6 +264,7 @@ DeviceConfiguration.prototype.clear = function() {
 
 DeviceConfiguration.prototype.persist = function() {
     ui.settings.configuration.settings.forEach(function(e) { e.persist(); });
+    // we're sending the settings all at once, we need to loop through each setting and save per item
     fdp.device.send('M500');
 };
 
@@ -914,9 +915,12 @@ var ui = {
         document.querySelector('.ver').innerHTML = 'v' + manifest.version;
 
         ui.settings.button.onclick = function(evt) {
+            
+            // console.log(evt);
+            // console.log(ui.settings);
+            
             evt.target.classList.add('selected');
-
-            var _mt = (ui.settings.overlay.offsetTop <= 0) ? '10em' : '-54em';
+            var _mt = (ui.settings.overlay.offsetTop <= 0) ? '3em' : '-54em';
             jQuery(ui.settings.overlay).animate({ 'margin-top': _mt }, 600, function() {});
         };
 
@@ -956,6 +960,10 @@ var ui = {
         };
 
         ui.consoleToggle.onclick = function(evt) {
+
+            // console.log(evt);
+            // console.log(ui.settings);
+
             var _mt = (ui.settings.overlay.offsetTop == -1512) ? '-54em' : '-126em';
             jQuery(ui.settings.overlay).animate({ 'margin-top': _mt }, 600);
         };
