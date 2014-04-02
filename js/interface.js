@@ -1,5 +1,5 @@
-var ZEDIST = 3;
-var DEFSPEED = 2000;
+var ZEDIST = 3
+    DEFSPEED = 800;
 
 function Indicator() {
     this.r = POINTER_OFFSET;
@@ -502,7 +502,6 @@ var ui = {
         };
 
         ui.moffBtn.onclick = function(evt) {
-            if(_navSelected()) return;
             fdp.device.send('M84' + CMD_TERMINATOR);
         };
 
