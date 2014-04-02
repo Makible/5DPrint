@@ -88,7 +88,7 @@ chrome.serial.onReceive.addListener(function(info) {
 
         if(data.indexOf('--') === 0 && data.indexOf('T:') > -1 && 
             data.indexOf('B:') > -1 && data.indexOf('ok') === -1) {
-            ui.prependToConsole(data);
+            // ui.prependToConsole(data);
             fdp.device.updateDeviceStats(data);
         }
 
@@ -110,7 +110,7 @@ chrome.serial.onReceive.addListener(function(info) {
                     ui.settings.configuration.set(data);
                     // console.log(data);
 
-                    ui.prependToConsole(dat)
+                    // ui.prependToConsole(dat)
                     if(cmd + CMD_TERMINATOR == commands.POSITION ||
                         cmd + CMD_TERMINATOR == commands.GET_TEMP) {
                         fdp.device.updateDeviceStats(data);

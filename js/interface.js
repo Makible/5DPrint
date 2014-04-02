@@ -387,7 +387,7 @@ var ui = {
                     fr = new FileReader();
 
                 fr.readAsText(f, 'UTF-8');
-                fr.onload = function(evt) { console.log('loading'); };
+                fr.onload = function(evt) { /*console.log('loading');*/ };
                 fr.onerror = function(err) {
                     notify({ title: "File Load Issue", message: "Error loading file. Please try again." });
                 };
