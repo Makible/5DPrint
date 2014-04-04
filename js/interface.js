@@ -1,5 +1,6 @@
 var ZEDIST = 3
-    DEFSPEED = 800;
+    DEFAULT_EXTRUDE_SPEED = 800,
+    DEFAULT_TRAVEL_SPEED = 2000;
 
 function Indicator() {
     this.r = POINTER_OFFSET;
@@ -44,7 +45,7 @@ Slider.prototype.init = function() {
                         ',' + util.pixelToMillimeter(ui.pa.phi.x) +
                         ',' + util.pixelToMillimeter(ui.pa.zSlider.handle.offsetTop + 14);
 
-            fdp.device.sendMovement({ Axis: 'X,Y,Z', Distance: dist, Speed: DEFSPEED });
+            fdp.device.sendMovement({ Axis: 'X,Y,Z', Distance: dist, Speed: DEFAULT_TRAVEL_SPEED });
             ui.enableMovers();
         };
 
@@ -517,7 +518,7 @@ var ui = {
             osy = evt.offsetY - POINTER_OFFSET;
 
             var dist = util.pixelToMillimeter(osy) + ',' + util.pixelToMillimeter(osx);
-            fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFSPEED });
+            fdp.device.sendMovement({ Axis: 'X,Y', Distance: dist, Speed: DEFAULT_TRAVEL_SPEED });
 
             ui.pa.pp = new Indicator();
             ui.pa.pp.x = osx;
@@ -589,7 +590,7 @@ var ui = {
                     val *= -1;
 
                 fdp.device.pos.e += val;
-                fdp.device.sendMovement({ Axis: 'e', Distance: fdp.device.pos.e, Speed: DEFSPEED });
+                fdp.device.sendMovement({ Axis: 'e', Distance: fdp.device.pos.e, Speed: DEFAULT_EXTRUDE_SPEED });
             }
         };
 
@@ -979,20 +980,21 @@ var ui = {
         ui.displayGrid();
     },
 
-    //  needed ??
-    // digestDeviceResponse: function(cmd, data) {
-    //     ui.prependToConsole(data);
-    //     if(cmd + CMD_TERMINATOR == commands.POSITION ||
-    //         cmd + CMD_TERMINATOR == commands.GET_TEMP) {
-    //         fdp.device.updateDeviceStats(data);
-    //     }
-    // },
-
     prependToConsole: function(data) {
         data = data.replace(/\r\n/g, '<br>');
-        var p = '<p>' + data + '</p>';
 
-        ui.console.innerHTML = p + ui.console.innerHTML;
+        var nodeCount = 199;
+            p = '<p>' + data + '</p>',
+            _console = Array.prototype.slice.call(ui.console.querySelectorAll('p'));
+
+        ui.console.innerHTML = p;
+        if(_console.length > 0) {
+            var limit = (_console.length < nodeCount) ? _console.length : nodeCount;
+            //  if too much data is appended, the application begins to slow causing
+            //  the print to stutter and potentially stop all together
+            for(var i=0; i < limit; i++)
+                ui.console.appendChild(_console[i]);
+        }
 
         // if(ui.console.scrollTop > 0)
         //     ui.console.scrollTop += (jQuery(p).height() * 2);
