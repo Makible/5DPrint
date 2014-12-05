@@ -14,6 +14,6 @@ var cleanup = function() {
     chrome.power.releaseKeepAwake();
     for(var i = 0; i < devIds.length; i++) {
         chrome.serial.flush(devIds[i], function(info) { });
-        chrome.serial.close(devIds[i], function(info) { });
+        chrome.serial.disconnect(devIds[i], function(info) { });
     }
 };

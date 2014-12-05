@@ -8,6 +8,8 @@ var fdp = {
     //  currently only listening for MakiBox devices
     //  though this will change in the near future
     //  as device support increases
+
+    // remove polling switch to chrome.serial.onRecieve.addListener();
     initDevicePolling: function() {
         if(fdp.devicePollTimer !== undefined)
             window.clearInterval(fdp.devicePollTimer);
@@ -24,7 +26,7 @@ var fdp = {
                 device.getFullStats();
             } else {
                 serial.flush(device.conn, function(){});
-                serial.close(device.conn, function(){});
+                serial.disconnect(device.conn, function(){});
             }      
         };
 
@@ -32,10 +34,15 @@ var fdp = {
         //  and attempts to open and set the device if it is
         //  indeed a 5dprint compatable device (i.e. MakiBox A6)
         connTimer = window.setInterval(function() { 
-            serial.getPorts(function(ports) {
+            serial.getDevices(function(ports) {
                 for(var i=0; i < ports.length; i++) {
-                    if(ports[i].indexOf(util.serialPrefix) > -1 && devices[ports[i]] === undefined)
-                        new Device(ports[i]).connect(conncb);
+                    if(ports[i].path.indexOf(util.serialPrefix) > -1 && devices[ports[i].path] === undefined) {
+                        var deviceObject = new Device(ports[i].path);
+                        chrome.serial.onReceive.addListener(function (data) {
+                            deviceObject.onread(deviceObject, data);
+                        });
+                        deviceObject.connect(conncb);
+                    }
                 }
             });
         }, 1200);

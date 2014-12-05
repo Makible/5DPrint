@@ -1,6 +1,7 @@
 const CMD_TERMINATOR = '\r\n';
 const NOTIFY_ICON = 'img/icon_128.png';
-const MKB_FLAG ='MakiBox Firmware';
+const MKB_FLAG ='5DPrint Firmware';
+const MKB_ALTN = 'MakiBox Firmware';
 const NATURALS = { 
     'DROP':  'G1 Z80 F2000\r\n', 
     'RAISE': 'G1 Z0 F2000\r\n', 
