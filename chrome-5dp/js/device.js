@@ -33,7 +33,7 @@ function Device(name) {
 }
 
 Device.prototype.connect = function(callback) {
-    serial.open(this.name, this.onopen.bind(this));
+    serial.connect(this.name, this.onopen.bind(this));
     this.callbacks.connect = callback;
 };
 
@@ -44,7 +44,7 @@ Device.prototype.onopen = function(info) {
 
     device.write(cmd.FMWARE_INFO, function() {});
     device.readall(function(info) {
-        if(info.toLowerCase().indexOf(MKB_FLAG.toLowerCase()) > -1 && device.callbacks.connect)
+        if((info.toLowerCase().indexOf(MKB_FLAG.toLowerCase()) > -1 || info.toLowerCase().indexOf(MKB_ALTN.toLowerCase()) > -1) && device.callbacks.connect)
             device.callbacks.connect(device, !0);
         else
             device.callbacks.connect(device, 0);
@@ -54,14 +54,12 @@ Device.prototype.onopen = function(info) {
 Device.prototype.read = function(callback) {
     if(this.conn < 0) 
         throw 'Device not connected';
-
-    serial.read(this.conn, 255, this.onread.bind(this));
     this.callbacks.read = callback;
 };
 
-Device.prototype.onread = function(info) {
-    if(this.callbacks.read)
-        this.callbacks.read(info);
+Device.prototype.onread = function(device, info) {
+    if(device.callbacks.read)
+        device.callbacks.read(info);
 };
 
 Device.prototype.readall = function(callback) {
@@ -71,6 +69,7 @@ Device.prototype.readall = function(callback) {
 
         data = this.ab2str(info.data);
         result += data;
+        console.log(data);
 
         // if(dbg && result.length > 1) 
             // console.log(result);
@@ -101,7 +100,7 @@ Device.prototype.write = function(msg, callback) {
 
     this.callbacks.write = callback;
     this.str2ab(msg, function(buf) {
-        serial.write(this.conn, buf, this.onwrite.bind(this));
+        serial.send(this.conn, buf, this.onwrite.bind(this));
     }.bind(this));
 };
 
@@ -126,7 +125,7 @@ Device.prototype.destroy = function(callback) {
 
     chrome.power.releaseKeepAwake();
     serial.flush(_device.conn, function(info) { });
-    serial.close(_device.conn, function(info) {
+    serial.disconnect(_device.conn, function(info) {
         delete devices[_device.name];  //  remove device from list
         notify({ title: "Device Detached", message: _device.name + " has been detached" });
     });
